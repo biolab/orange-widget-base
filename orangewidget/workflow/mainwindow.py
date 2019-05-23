@@ -8,10 +8,10 @@ from AnyQt.QtWidgets import (
 from AnyQt.QtGui import QKeySequence
 
 from orangecanvas.application.canvasmain import CanvasMainWindow
-from Orange.canvas.widgetsscheme import WidgetsScheme
-from Orange.canvas import config
-from Orange.widgets.report.owreport import HAVE_REPORT, OWReport
 
+from orangewidget.workflow import config
+from orangewidget.report.owreport import HAVE_REPORT, OWReport
+from orangewidget.workflow.widgetsscheme import WidgetsScheme
 
 def _insert_action(mb, menuid, beforeactionid, action):
     # type: (QMenuBar, str, str, QAction) -> bool

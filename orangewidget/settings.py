@@ -46,9 +46,11 @@ from orangewidget.workflow.config import widget_settings_dir
 
 log = logging.getLogger(__name__)
 
-__all__ = ["Setting", "SettingsHandler", "SettingProvider",
-           "ContextSetting", "ContextHandler", "IncompatibleContext",
-           "widget_settings_dir"]
+__all__ = [
+    "Setting", "SettingsHandler", "SettingProvider",
+    "ContextSetting", "Context", "ContextHandler", "IncompatibleContext",
+    "SettingsPrinter", "rename_setting", "widget_settings_dir"
+]
 
 _IMMUTABLES = (str, int, bytes, bool, float, tuple)
 

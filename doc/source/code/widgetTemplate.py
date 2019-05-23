@@ -1,9 +1,10 @@
-from Orange.widgets import widget, gui
-from Orange.widgets.settings import Setting
+from orangewidget import widget, gui
+from orangewidget.settings import Setting
+
 
 class OWWidgetName(widget.OWWidget):
     name = "Widget Name"
-    id = "orange.widgets.widget_category.widget_name"
+    id = "orangewidget.widget_category.widget_name"
     description = ""
     icon = "icons/Unknown.svg"
     priority = 10

@@ -1,9 +1,9 @@
-from Orange.widgets import widget, gui
-from Orange.widgets.settings import Setting
+from orangewidget import widget, gui
+from orangewidget.settings import Setting
+
 
 class OWMultiplier(widget.OWWidget):
     name = "Multiplier"
-    id = "orange.widgets.data.multiplier"
     description = ""
     icon = "icons/Unknown.svg"
     priority = 10

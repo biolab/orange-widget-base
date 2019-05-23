@@ -1,7 +1,7 @@
-from Orange.widgets import gui
-from Orange.widgets.widget import OWWidget, Output
-from Orange.widgets.settings import Setting
-from PyQt4.QtGui import QIntValidator
+from orangewidget import gui
+from orangewidget.widget import OWWidget, Output
+from orangewidget.settings import Setting
+from PyQt5.QtGui import QIntValidator
 
 
 class OWWidgetNumber(OWWidget):

@@ -10,13 +10,13 @@ import warnings
 
 from AnyQt.QtCore import pyqtSignal as Signal, QObject
 
-from Orange.tests import named_file
-from Orange.widgets.settings import SettingsHandler, Setting, SettingProvider,\
-    VERSION_KEY, rename_setting, Context, migrate_str_to_variable
+from orangewidget.tests.base import named_file
+from orangewidget.settings import SettingsHandler, Setting, SettingProvider,\
+    VERSION_KEY, rename_setting, Context
 
 
 class SettingHandlerTestCase(unittest.TestCase):
-    @patch('Orange.widgets.settings.SettingProvider', create=True)
+    @patch('orangewidget.settings.SettingProvider', create=True)
     def test_create(self, SettingProvider):
         """:type SettingProvider: unittest.mock.Mock"""
 
@@ -79,8 +79,8 @@ class SettingHandlerTestCase(unittest.TestCase):
         with named_file("") as f:
             handler._get_settings_filename = lambda: f
 
-            with patch("Orange.widgets.settings.log.error") as log, \
-                patch('Orange.widgets.settings.open', create=True,
+            with patch("orangewidget.settings.log.error") as log, \
+                patch('orangewidget.settings.open', create=True,
                        side_effect=PermissionError):
                 handler.write_defaults()
                 log.assert_called()
@@ -93,7 +93,7 @@ class SettingHandlerTestCase(unittest.TestCase):
             f.close()  # so it can be opened on windows
             handler._get_settings_filename = lambda x=f: x.name
 
-            with patch("Orange.widgets.settings.log.error") as log, \
+            with patch("orangewidget.settings.log.error") as log, \
                     patch.object(handler, "write_defaults_file",
                                  side_effect=error):
                 handler.write_defaults()
@@ -154,7 +154,7 @@ class SettingHandlerTestCase(unittest.TestCase):
         handler.initialize(widget, pickle.dumps({'setting': 5}))
         provider.initialize.assert_called_once_with(widget, {'setting': 5})
 
-    @patch('Orange.widgets.settings.SettingProvider', create=True)
+    @patch('orangewidget.settings.SettingProvider', create=True)
     def test_initialize_with_no_provider(self, SettingProvider):
         """:type SettingProvider: unittest.mock.Mock"""
         handler = SettingsHandler()
@@ -405,26 +405,3 @@ class MigrationsTestCase(unittest.TestCase):
         context = Context(values=dict(foo=42, bar=13))
         rename_setting(context, "foo", "baz")
         self.assertDictEqual(context.values, dict(baz=42, bar=13))
-
-    def test_migrate_str_to_variable(self):
-        values = dict(foo=("foo", 1), baz=("baz", 2), qux=("qux", 102), bar=13)
-
-        context = Context(values=values.copy())
-        migrate_str_to_variable(context)
-        self.assertDictEqual(
-            context.values,
-            dict(foo=("foo", 101), baz=("baz", 102), qux=("qux", 102), bar=13))
-
-        context = Context(values=values.copy())
-        migrate_str_to_variable(context, ("foo", "qux"))
-        self.assertDictEqual(
-            context.values,
-            dict(foo=("foo", 101), baz=("baz", 2), qux=("qux", 102), bar=13))
-
-        context = Context(values=values.copy())
-        migrate_str_to_variable(context, "foo")
-        self.assertDictEqual(
-            context.values,
-            dict(foo=("foo", 101), baz=("baz", 2), qux=("qux", 102), bar=13))
-
-        self.assertRaises(KeyError, migrate_str_to_variable, context, "quuux")

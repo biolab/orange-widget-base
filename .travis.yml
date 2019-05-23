@@ -2,6 +2,12 @@ language: python
 
 dist: xenial
 
+# https://www.riverbankcomputing.com/pipermail/pyqt/2019-February/041363.html
+addons:
+  apt:
+    packages:
+    - libxkbcommon-x11-0
+
 env:
   global:
     - PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -15,6 +21,8 @@ matrix:
     - python: '3.6'
 
     - python: '3.7'
+      env:
+        - TEST_DEP="PyQt5~=5.12.1 PyQtWebEngine~=5.12.1"
 
 cache:
   pip: true

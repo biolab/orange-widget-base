@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, call
 
 from AnyQt.QtWidgets import QApplication
 
-from Orange.widgets.utils.widgetpreview import WidgetPreview
-from Orange.widgets.widget import OWWidget, Input
-from Orange.widgets.utils import widgetpreview
+from orangewidget.utils.widgetpreview import WidgetPreview
+from orangewidget.widget import OWWidget, Input
+from orangewidget.utils import widgetpreview
 
 app = QApplication([])
 

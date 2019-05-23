@@ -4,8 +4,8 @@ from AnyQt.QtCore import Qt, QEvent
 from AnyQt.QtTest import QTest
 from AnyQt.QtWidgets import QWidget, QHBoxLayout, QStyle, QApplication
 
-from Orange.widgets.tests.base import GuiTest
-from Orange.widgets.utils.overlay import (
+from orangewidget.tests.base import GuiTest
+from orangewidget.utils.overlay import (
     OverlayWidget, MessageOverlayWidget
 )
 

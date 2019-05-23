@@ -5,10 +5,10 @@ import unittest
 from AnyQt.QtCore import Qt, QRect
 from AnyQt.QtWidgets import QListView, QApplication
 from AnyQt.QtTest import QTest, QSignalSpy
-from Orange.widgets.tests.base import GuiTest
-from Orange.widgets.tests.utils import mouseMove
+from orangewidget.tests.base import GuiTest
+from orangewidget.tests.utils import mouseMove
 
-from Orange.widgets.utils import combobox
+from orangewidget.utils import combobox
 
 
 class TestComboBoxSearch(GuiTest):

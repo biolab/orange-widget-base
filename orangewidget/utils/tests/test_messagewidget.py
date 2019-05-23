@@ -1,7 +1,7 @@
 from AnyQt.QtCore import Qt, QSize
 
-from Orange.widgets.tests.base import GuiTest
-from Orange.widgets.utils.messagewidget import (
+from orangewidget.tests.base import GuiTest
+from orangewidget.utils.messagewidget import (
     MessagesWidget, Message, IconWidget
 )
 

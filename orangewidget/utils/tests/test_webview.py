@@ -5,8 +5,8 @@ from AnyQt.QtCore import Qt, QObject, pyqtSlot
 from AnyQt.QtWidgets import QDialog
 from AnyQt.QtTest import QTest
 
-from Orange.widgets.tests.base import WidgetTest
-from Orange.widgets.utils.webview import WebviewWidget, HAVE_WEBKIT, wait
+from orangewidget.tests.base import WidgetTest
+from orangewidget.utils.webview import WebviewWidget, HAVE_WEBKIT, wait
 
 SOME_URL = WebviewWidget.toFileURL(dirname(__file__))
 

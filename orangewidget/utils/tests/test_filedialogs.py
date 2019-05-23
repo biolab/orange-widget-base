@@ -2,7 +2,7 @@ import os
 import unittest
 from tempfile import NamedTemporaryFile
 
-from Orange.widgets.utils.filedialogs import RecentPath
+from orangewidget.utils.filedialogs import RecentPath
 
 
 class TestRecentPath(unittest.TestCase):

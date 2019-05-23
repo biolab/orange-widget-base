@@ -1,7 +1,7 @@
 from AnyQt.QtGui import QFocusEvent
 from AnyQt.QtWidgets import QStyle, QApplication
-from Orange.widgets.tests.base import GuiTest
-from Orange.widgets.utils import buttons
+from orangewidget.tests.base import GuiTest
+from orangewidget.utils import buttons
 
 
 class SimpleButtonTest(GuiTest):

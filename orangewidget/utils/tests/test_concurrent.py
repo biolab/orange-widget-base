@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from AnyQt.QtCore import Qt, QObject, QCoreApplication, QThread, pyqtSlot
 from AnyQt.QtTest import QSignalSpy
 
-from Orange.widgets.utils.concurrent import (
+from orangewidget.utils.concurrent import (
     ThreadExecutor, FutureWatcher, FutureSetWatcher, Task, methodinvoke
 )
 

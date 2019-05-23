@@ -8,12 +8,12 @@
 import unittest
 from unittest.mock import patch, MagicMock
 
-from Orange.widgets.widget import \
+from orangewidget.widget import \
     Single, Multiple, Default, NonDefault, Explicit, Dynamic
-from Orange.widgets.tests.base import GuiTest
-from Orange.widgets.utils.signals import _Signal, Input, Output, \
+from orangewidget.tests.base import GuiTest
+from orangewidget.utils.signals import _Signal, Input, Output, \
     WidgetSignalsMixin, InputSignal, OutputSignal
-from Orange.widgets.widget import OWWidget
+from orangewidget.widget import OWWidget
 
 
 class SignalTest(unittest.TestCase):
@@ -32,7 +32,7 @@ class SignalTest(unittest.TestCase):
 
 class InputTest(unittest.TestCase):
     def test_init(self):
-        with patch("Orange.widgets.utils.signals._Signal.get_flags",
+        with patch("orangewidget.utils.signals._Signal.get_flags",
                    return_value=42) as getflags:
             signal = Input("a name", int, "an id", "a doc", ["x"])
             self.assertEqual(signal.name, "a name")
@@ -69,7 +69,7 @@ class InputTest(unittest.TestCase):
 
 class OutputTest(unittest.TestCase):
     def test_init(self):
-        with patch("Orange.widgets.utils.signals._Signal.get_flags",
+        with patch("orangewidget.utils.signals._Signal.get_flags",
                    return_value=42) as getflags:
             signal = Output("a name", int, "an id", "a doc", ["x"])
             self.assertEqual(signal.name, "a name")

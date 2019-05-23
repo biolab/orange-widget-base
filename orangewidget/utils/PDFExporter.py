@@ -1,6 +1,7 @@
 from pyqtgraph.exporters.Exporter import Exporter
 
-from AnyQt.QtGui import QPainter, QGraphicsItem, QDesktopWidget
+from AnyQt.QtWidgets import QGraphicsItem, QApplication
+from AnyQt.QtGui import QPainter, QPdfWriter
 from AnyQt.QtCore import QMarginsF, Qt, QSizeF, QRectF
 
 
@@ -27,10 +28,8 @@ class PDFExporter(Exporter):
         self.background = bg
 
     def export(self, filename=None):
-        from AnyQt.QtGui import QPdfWriter
-
         pw = QPdfWriter(filename)
-        dpi = QDesktopWidget().logicalDpiX()
+        dpi = QApplication.desktop().logicalDpiX()
         pw.setResolution(dpi)
         pw.setPageMargins(QMarginsF(0, 0, 0, 0))
         pw.setPageSizeMM(QSizeF(self.getTargetRect().size()) / dpi * 25.4)

@@ -280,7 +280,7 @@ if QtCore.QT_VERSION >= 0x050C00:  # Qt 5.12+
 
         @staticmethod
         def _get_exporter():
-            from Orange.widgets.utils.PDFExporter import PDFExporter
+            from orangewidget.utils.PDFExporter import PDFExporter
             return PDFExporter
 
         @staticmethod

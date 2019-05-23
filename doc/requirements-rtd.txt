@@ -1,0 +1,4 @@
+--only-binary=PyQt5
+
+setuptools
+PyQt5~=5.9.2

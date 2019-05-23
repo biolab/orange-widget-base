@@ -1,69 +1,22 @@
+import os
+import tempfile
 import unittest
 from unittest.mock import patch
-from importlib import import_module
-import os
-import warnings
-import tempfile
 
-import AnyQt
-from AnyQt.QtGui import QFont, QBrush
 from AnyQt.QtCore import Qt
+from AnyQt.QtGui import QFont, QBrush
 
-from Orange.data.table import Table
-from Orange.classification import LogisticRegressionLearner
-from Orange.classification.tree import TreeLearner
-from Orange.evaluation import CrossValidation
-from Orange.distance import Euclidean
+
 from orangewidget.report.owreport import OWReport
 from orangewidget import gui
+from orangewidget.utils.itemmodels import PyTableModel
 from orangewidget.widget import OWWidget
 from orangewidget.tests.base import WidgetTest
-from orangewidget.visualize.owtreeviewer import OWTreeGraph
-from orangewidget.data.owfile import OWFile
-from orangewidget.data.owtable import OWDataTable
-from orangewidget.evaluate.owcalibrationplot import OWCalibrationPlot
-from orangewidget.evaluate.owliftcurve import OWLiftCurve
-from orangewidget.evaluate.owrocanalysis import OWROCAnalysis
-from orangewidget.evaluate.owtestlearners import OWTestLearners
-from orangewidget.unsupervised.owcorrespondence import OWCorrespondenceAnalysis
-from orangewidget.unsupervised.owdistancemap import OWDistanceMap
-from orangewidget.unsupervised.owdistances import OWDistances
-from orangewidget.unsupervised.owhierarchicalclustering import OWHierarchicalClustering
-from orangewidget.unsupervised.owkmeans import OWKMeans
-from orangewidget.unsupervised.owmds import OWMDS
-from orangewidget.unsupervised.owpca import OWPCA
-from orangewidget.utils.itemmodels import PyTableModel
 
 
-def get_owwidgets(top_module_name):
-    top_module = import_module(top_module_name)
-    widgets = []
-    for root, _, files in os.walk(top_module.__path__[0]):
-        root = root[len(top_module.__path__[0]):].lstrip(os.path.sep)
-        for file in files:
-            if file.lower().startswith('ow') and file.lower().endswith('.py'):
-                module_name = "{}.{}".format(
-                    top_module_name,
-                    os.path.join(root, file).replace(os.path.sep, '.')[:-len('.py')])
-                try:
-                    module = import_module(module_name,
-                                           top_module_name[:top_module_name.index('.')])
-                except (ImportError, RuntimeError):
-                    warnings.warn('Failed to import module: ' + module_name)
-                    continue
-                for name, value in module.__dict__.items():
-                    if (name.upper().startswith('OW') and
-                            isinstance(value, type) and
-                            issubclass(value, OWWidget) and
-                            getattr(value, 'name', None) and
-                            getattr(value, 'send_report', None)):
-                        widgets.append(value)
-    return list(set(widgets))
-
-
-DATA_WIDGETS = get_owwidgets('Orange.widgets.data')
-VISUALIZATION_WIDGETS = get_owwidgets('Orange.widgets.visualize')
-MODEL_WIDGETS = get_owwidgets('Orange.widgets.model')
+class TstWidget(OWWidget):
+    def send_report(self):
+        self.report_caption("AA")
 
 
 class TestReport(WidgetTest):
@@ -71,9 +24,9 @@ class TestReport(WidgetTest):
         count = 5
         for _ in range(count):
             rep = OWReport.get_instance()
-            file = self.create_widget(OWFile)
-            file.create_report_html()
-            rep.make_report(file)
+            widget = self.create_widget(TstWidget)
+            widget.create_report_html()
+            rep.make_report(widget)
         self.assertEqual(rep.table_model.rowCount(), count)
 
     def test_report_table(self):
@@ -139,9 +92,9 @@ class TestReport(WidgetTest):
 
     def test_save_report(self):
         rep = OWReport.get_instance()
-        file = self.create_widget(OWFile)
-        file.create_report_html()
-        rep.make_report(file)
+        widget = self.create_widget(TstWidget)
+        widget.create_report_html()
+        rep.make_report(widget)
         temp_dir = tempfile.mkdtemp()
         temp_name = os.path.join(temp_dir, "f.report")
         try:
@@ -154,106 +107,14 @@ class TestReport(WidgetTest):
             os.remove(temp_name)
             os.rmdir(temp_dir)
 
-
-class TestReportWidgets(WidgetTest):
-    model_widgets = MODEL_WIDGETS
-    data_widgets = DATA_WIDGETS
-    eval_widgets = [OWCalibrationPlot, OWLiftCurve, OWROCAnalysis]
-    unsu_widgets = [OWCorrespondenceAnalysis, OWDistances, OWKMeans,
-                    OWMDS, OWPCA]
-    dist_widgets = [OWDistanceMap, OWHierarchicalClustering]
-    visu_widgets = VISUALIZATION_WIDGETS
-    spec_widgets = [OWTestLearners, OWTreeGraph]
-
-    def _create_report(self, widgets, rep, data):
-        for widget in widgets:
-            w = self.create_widget(widget)
-            if w.inputs and isinstance(data, w.inputs[0].type):
-                handler = getattr(w, w.inputs[0].handler)
-                handler(data)
-                w.create_report_html()
-            rep.make_report(w)
-            # rep.show()
-
-    def test_report_widgets_model(self):
-        rep = OWReport.get_instance()
-        data = Table("titanic")
-        widgets = self.model_widgets
-
-        w = self.create_widget(OWTreeGraph)
-        clf = TreeLearner(max_depth=3)(data)
-        clf.instances = data
-        w.ctree(clf)
-        w.create_report_html()
-        rep.make_report(w)
-
-        self._create_report(widgets, rep, data)
-
-    def test_report_widgets_data(self):
-        rep = OWReport.get_instance()
-        data = Table("zoo")
-        widgets = self.data_widgets
-        self._create_report(widgets, rep, data)
-
-    def test_report_widgets_evaluate(self):
-        rep = OWReport.get_instance()
-        data = Table("zoo")
-        widgets = self.eval_widgets
-        results = CrossValidation(data,
-                                  [LogisticRegressionLearner()],
-                                  store_data=True,
-                                  k=3)
-        results.learner_names = ["LR l2"]
-
-        w = self.create_widget(OWTestLearners)
-        set_learner = getattr(w, w.Inputs.learner.handler)
-        set_train = getattr(w, w.Inputs.train_data.handler)
-        set_test = getattr(w, w.Inputs.test_data.handler)
-        set_learner(LogisticRegressionLearner(), 0)
-        set_train(data)
-        set_test(data)
-        w.create_report_html()
-        rep.make_report(w)
-
-        self._create_report(widgets, rep, results)
-
-    def test_report_widgets_unsupervised(self):
-        rep = OWReport.get_instance()
-        data = Table("zoo")
-        widgets = self.unsu_widgets
-        self._create_report(widgets, rep, data)
-
-    def test_report_widgets_unsupervised_dist(self):
-        rep = OWReport.get_instance()
-        data = Table("zoo")
-        dist = Euclidean(data)
-        widgets = self.dist_widgets
-        self._create_report(widgets, rep, dist)
-
-    def test_report_widgets_visualize(self):
-        rep = OWReport.get_instance()
-        data = Table("zoo")
-        widgets = self.visu_widgets
-        self._create_report(widgets, rep, data)
-
-    @unittest.skipIf(AnyQt.USED_API == "pyqt5", "Segfaults on PyQt5")
-    def test_report_widgets_all(self):
-        rep = OWReport.get_instance()
-        widgets = self.model_widgets + self.data_widgets + self.eval_widgets + \
-                  self.unsu_widgets + self.dist_widgets + self.visu_widgets + \
-                  self.spec_widgets
-        self._create_report(widgets, rep, None)
-
     def test_disable_saving_empty(self):
         """Test if save and print buttons are disabled on empty report"""
         rep = OWReport.get_instance()
         self.assertFalse(rep.save_button.isEnabled())
         self.assertFalse(rep.print_button.isEnabled())
-
-        table = OWDataTable()
-        table.set_dataset(Table("iris"))
-        table.create_report_html()
-        rep.make_report(table)
+        widget = TstWidget()
+        widget.create_report_html()
+        rep.make_report(widget)
         self.assertTrue(rep.save_button.isEnabled())
         self.assertTrue(rep.print_button.isEnabled())
 

@@ -8,8 +8,6 @@ source =
 omit =
     Orange/canvas/*
     Orange/tests/*
-    */setup.py
-    */*/setup.py
 
 [report]
 exclude_lines =

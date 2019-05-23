@@ -2,9 +2,9 @@
 import numpy
 
 import Orange.data
-from Orange.widgets.widget import OWWidget, Input, Output
-from Orange.widgets.utils.widgetpreview import WidgetPreview
-from Orange.widgets import gui
+from orangewidget.widget import OWWidget, Input, Output
+from orangewidget.utils.widgetpreview import WidgetPreview
+from orangewidget import gui
 
 class OWDataSamplerA(OWWidget):
     name = "Data Sampler"

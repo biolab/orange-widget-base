@@ -11,19 +11,19 @@ import Orange.data
 import Orange.classification
 import Orange.evaluation
 
-from Orange.widgets import widget, gui, settings
+from orangewidget import widget, gui, settings
 from Orange.evaluation.testing import Results
 
 # [start-snippet-1]
 import concurrent.futures
-from Orange.widgets.utils.concurrent import (
+from orangewidget.utils.concurrent import (
     ThreadExecutor, FutureWatcher, methodinvoke
 )
 # [end-snippet-1]
 
 
 # [start-snippet-2]
-from Orange.widgets.utils.widgetpreview import WidgetPreview
+from orangewidget.utils.widgetpreview import WidgetPreview
 
 
 class Task:

@@ -9,9 +9,9 @@ import Orange.data
 import Orange.classification
 import Orange.evaluation
 
-from Orange.widgets import gui, settings
-from Orange.widgets.utils.widgetpreview import WidgetPreview
-from Orange.widgets.widget import OWWidget, Input
+from orangewidget import gui, settings
+from orangewidget.utils.widgetpreview import WidgetPreview
+from orangewidget.widget import OWWidget, Input
 from Orange.evaluation.testing import Results
 
 

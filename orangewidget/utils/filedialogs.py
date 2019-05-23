@@ -1,12 +1,38 @@
 import os
+import sys
+import typing
+from typing import Tuple
 
 from AnyQt.QtCore import QFileInfo, Qt
 from AnyQt.QtGui import QBrush
 from AnyQt.QtWidgets import \
     QMessageBox, QFileDialog, QFileIconProvider, QComboBox
 
-from orangewidget.io import ImgFormat, Compression
+from orangewidget.io import Compression
 from orangewidget.settings import Setting
+
+
+if typing.TYPE_CHECKING:
+    from typing_extensions import Protocol
+else:
+    from abc import ABC as Protocol
+
+
+class Format(Protocol):
+    """
+    An abstract file format description.
+
+    Classes belonging to this type must define:
+
+        PRIORITY: str
+        EXTENSIONS: Tuple[str]  # a tuple of filename extensions (including dot)
+        DESCRIPTION: str  # A short file type name
+
+    This class is not intended for subclassing.
+    """
+    PRIORITY = sys.maxsize     # type: int
+    EXTENSIONS = ()            # type: Tuple[str, ...]
+    DESCRIPTION = ""           # type: str
 
 
 def fix_extension(ext, format, suggested_ext, suggested_format):
@@ -32,12 +58,14 @@ def fix_extension(ext, format, suggested_ext, suggested_format):
     elif dlg.clickedButton() == change_format:
         return fix_extension.CHANGE_FORMAT
 
-fix_extension.CHANGE_EXT = 0
-fix_extension.CHANGE_FORMAT = 1
-fix_extension.CANCEL = 2
+
+fix_extension.CHANGE_EXT = 0      # type: ignore
+fix_extension.CHANGE_FORMAT = 1   # type: ignore
+fix_extension.CANCEL = 2          # type: ignore
 
 
 def format_filter(writer):
+    # type: (Format) -> str
     return '{} (*{})'.format(writer.DESCRIPTION, ' *'.join(writer.EXTENSIONS))
 
 
@@ -56,7 +84,7 @@ def open_filename_dialog_save(start_dir, start_filter, file_formats):
     Args:
         start_dir (str): initial directory, optionally including the filename
         start_filter (str): initial filter
-        file_formats (a list of Orange.data.io.FileFormat): file formats
+        file_formats (a list of FileFormat): file formats
     Returns:
         (filename, writer, filter), or `(None, None, None)` on cancel
     """
@@ -104,7 +132,7 @@ def open_filename_dialog(start_dir, start_filter, file_formats,
     Args:
         start_dir (str): initial directory, optionally including the filename
         start_filter (str): initial filter
-        file_formats (a list of Orange.data.io.FileFormat): file formats
+        file_formats (a list of FileFormat): file formats
         add_all (bool): add a filter for all supported extensions
         title (str): title of the dialog
         dialog: a function that creates a QT dialog

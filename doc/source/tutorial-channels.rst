@@ -82,7 +82,7 @@ The function above first checks if the channel `id` is already in
 ``learner`` is ``None`` (remember receiving a ``None`` value means the
 link was removed/closed) or invalidates the cross validation results
 and curve point for that channel id, marking for update in
-:func:`~orangewidget.widget.OWWidget.handleNewSignals`. A similar case is
+:func:`~orangewidget.widget.OWBaseWidget.handleNewSignals`. A similar case is
 when we receive a learner for a new channel id.
 
 Note that in this widget the evaluation (k-fold cross

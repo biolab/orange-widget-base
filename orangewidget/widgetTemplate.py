@@ -2,7 +2,7 @@ from orangewidget import widget, gui
 from orangewidget.settings import Setting
 
 
-class OWWidgetName(widget.OWWidget):
+class OWWidgetName(widget.OWBaseWidget):
     name = "Widget Name"
     id = "orange.widgets.widget_category.widget_name"
     description = ""

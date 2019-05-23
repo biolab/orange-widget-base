@@ -112,8 +112,8 @@ class OWComponent:
     the value of the attribute triggers a call to a function that updates
     the Qt widget accordingly.
 
-    The class is mixed into `widget.OWWidget`, and must also be mixed into
-    all widgets not derived from `widget.OWWidget` that contain settings or
+    The class is mixed into `widget.OWBaseWidget`, and must also be mixed into
+    all widgets not derived from `widget.OWBaseWidget` that contain settings or
     Qt widgets inserted by function in `orangewidget.gui` module. See
     `OWScatterPlotGraph` for an example.
     """
@@ -438,7 +438,7 @@ def label(widget, master, label, labelWidth=None, box=None,
     :param widget: the widget into which the box is inserted
     :type widget: QWidget or None
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param label: The text of the label, including attribute names
     :type label: str
     :param labelWidth: The width of the label (default: None)
@@ -548,7 +548,7 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
     :param widget: the widget into which the box is inserted
     :type widget: QWidget or None
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param value: the master's attribute with which the value is synchronized
     :type value:  str
     :param minv: minimal value
@@ -702,7 +702,7 @@ def checkBox(widget, master, value, label, box=None,
     :param widget: the widget into which the box is inserted
     :type widget: QWidget or None
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param value: the master's attribute with which the value is synchronized
     :type value:  str
     :param label: label
@@ -820,7 +820,7 @@ def lineEdit(widget, master, value, label=None, labelWidth=None,
     :param widget: the widget into which the box is inserted
     :type widget: QWidget or None
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param value: the master's attribute with which the value is synchronized
     :type value:  str
     :param label: label
@@ -893,7 +893,7 @@ def button(widget, master, label, callback=None, width=None, height=None,
     :param widget: the widget into which the button is inserted
     :type widget: QWidget or None
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param label: label
     :type label: str
     :param callback: a function that is called when the button is pressed
@@ -957,7 +957,7 @@ def toolButton(widget, master, label="", callback=None,
     :param widget: the widget into which the button is inserted
     :type widget: QWidget or None
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param label: label
     :type label: str
     :param callback: a function that is called when the button is pressed
@@ -984,7 +984,7 @@ def radioButtons(widget, master, value, btnLabels=(), tooltips=None,
     :param widget: the widget into which the box is inserted
     :type widget: QWidget or None
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param value: the master's attribute with which the value is synchronized
     :type value:  str
     :param btnLabels: a list of labels or icons for radio buttons
@@ -1085,7 +1085,7 @@ def hSlider(widget, master, value, box=None, minValue=0, maxValue=10, step=1,
     :param widget: the widget into which the box is inserted
     :type widget: QWidget or None
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param value: the master's attribute with which the value is synchronized
     :type value:  str
     :param box: tells whether the widget has a border, and its label
@@ -1172,7 +1172,7 @@ def labeledSlider(widget, master, value, box=None,
     :param widget: the widget into which the box is inserted
     :type widget: QWidget or None
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param value: the master's attribute with which the value is synchronized
     :type value:  str
     :param box: tells whether the widget has a border, and its label
@@ -1243,7 +1243,7 @@ def valueSlider(widget, master, value, box=None, label=None,
     :param widget: the widget into which the box is inserted
     :type widget: QWidget or None
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param value: the master's attribute with which the value is synchronized
     :type value:  str
     :param box: tells whether the widget has a border, and its label
@@ -1440,7 +1440,7 @@ def auto_commit(widget, master, value, label, auto_label=None, box=True,
         is on
     :type value:  str
     :param master: master widget
-    :type master: OWWidget or OWComponent
+    :type master: OWBaseWidget or OWComponent
     :param label: The button label
     :type label: str
     :param auto_label: The label used when auto-commit is on; default is

@@ -4,14 +4,14 @@ from orangewidget import gui
 from orangewidget.gui import OWComponent
 from orangewidget.settings import SettingProvider
 from orangewidget.tests.base import WidgetTest
-from orangewidget.widget import OWWidget
+from orangewidget.widget import OWBaseWidget
 
 
 class DummyComponent(OWComponent):
     foo = True
 
 
-class MyWidget(OWWidget):
+class MyWidget(OWBaseWidget):
     foo = True
 
     component = SettingProvider(DummyComponent)

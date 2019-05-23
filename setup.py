@@ -16,12 +16,12 @@ FULLVERSION = VERSION
 DESCRIPTION = 'Base Widget for Orange Canvas'
 README_FILE = os.path.join(os.path.dirname(__file__), 'README.md')
 LONG_DESCRIPTION = """
-This project implements the base OWWidget class and utilities for use in
+This project implements the base OWBaseWidget class and utilities for use in
 Orange Canvas workflows.
 
 Provides:
 
-    * `OWWidget` class
+    * `OWBaseWidget` class
     * `gui` module for building GUI
     * `WidgetsScheme` the workflow execution model/bridge
     * basic configuration for a workflow based application

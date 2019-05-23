@@ -28,9 +28,9 @@ Direct manipulation of progress bar
 
 The progress bar can be manipulated directly through functions
 
-* :obj:`~orangewidget.widget.OWWidget.progressBarInit(self)`
-* :obj:`~orangewidget.widget.OWWidget.progressBarSet(self, p)`
-* :obj:`~orangewidget.widget.OWWidget.progressBarFinished(self)`
+* :obj:`~orangewidget.widget.OWBaseWidget.progressBarInit(self)`
+* :obj:`~orangewidget.widget.OWBaseWidget.progressBarSet(self, p)`
+* :obj:`~orangewidget.widget.OWBaseWidget.progressBarFinished(self)`
 
 `progressBarInit` initializes the progress bar, `progressBarSet` sets it
 to `p` percents (from 0 to 100), and `progressBarFinished` closes it.
@@ -79,13 +79,13 @@ Multiple messages
 
 Widget that issue multiple independent messages that can appear simultaneously,
 need to declare them within local classes within the widget class, and derive
-them from the corresponding `OWWidget` classes for a particular kind of a
+them from the corresponding `OWBaseWidget` classes for a particular kind of a
 message. For instance, a widget class can contain the following classes::
 
-    class Error(OWWidget.Error):
+    class Error(OWBaseWidget.Error):
         no_continuous_features = Msg("No continuous features")
 
-    class Warning(OWWidget.Warning):
+    class Warning(OWBaseWidget.Warning):
         empty_data = Msg("Comtrongling does not work on meta data")
         no_scissors_run = Msg("Do not run with scissors")
         ignoring_discrete = Msg("Ignoring {n} discrete features: {}")
@@ -132,7 +132,7 @@ I/O Summaries
 .. versionadded:: 3.19
 
 Widgets can optionally summarize their inputs/outputs via the
-:attr:`~orangewidget.widget.OWWidget.info` namespace using the
+:attr:`~orangewidget.widget.OWBaseWidget.info` namespace using the
 :func:`~orangewidget.widget.StateInfo.set_input_summary` and
 :func:`~orangewidget.widget.StateInfo.set_output_summary` methods.
 ::

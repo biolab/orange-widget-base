@@ -1,7 +1,7 @@
 """Mixin class for errors, warnings and information
 
-A class derived from `OWWidget` can include member classes `Error`, `Warning`
-and `Information`, derived from the same-named `OWWidget` classes. Each of
+A class derived from `OWBaseWidget` can include member classes `Error`, `Warning`
+and `Information`, derived from the same-named `OWBaseWidget` classes. Each of
 those contains members that are instances of `UnboundMsg`, which is, for
 convenience, also exposed as `Orange.widgets.widget.Msg`. These members
 represent all possible errors, like `Error.no_discrete_vars`, with exception
@@ -164,7 +164,7 @@ class MessageGroup:
     class member and instantiates them.
 
     Attributes:
-        widget (widget.OWWidget): the widget instance to which the group belongs
+        widget (widget.OWBaseWidget): the widget instance to which the group belongs
     """
     def __init__(self, widget):
         self.widget = widget

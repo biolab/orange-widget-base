@@ -27,7 +27,7 @@ from AnyQt.QtWidgets import (
 )
 
 from orangewidget.workflow.widgetsscheme import WidgetsScheme
-from orangewidget.widget import OWWidget
+from orangewidget.widget import OWBaseWidget
 from orangewidget.version import full_version as VERSION_STR
 
 REPORT_POST_URL = 'https://qa.orange.biolab.si/error_report/v1/'
@@ -208,14 +208,14 @@ class ErrorReporting(QDialog):
 
         def _find_widget_frame(tb):
             while tb:
-                if isinstance(tb.tb_frame.f_locals.get('self'), OWWidget):
+                if isinstance(tb.tb_frame.f_locals.get('self'), OWBaseWidget):
                     return tb
                 tb = tb.tb_next
 
         widget_module = widget_class = widget = workflow = None
         frame = _find_widget_frame(tb)
         if frame is not None:
-            widget = frame.tb_frame.f_locals['self']  # type: OWWidget
+            widget = frame.tb_frame.f_locals['self']  # type: OWBaseWidget
             widget_class = widget.__class__
             widget_module = '{}:{}'.format(widget_class.__module__, frame.tb_lineno)
         if widget is not None:

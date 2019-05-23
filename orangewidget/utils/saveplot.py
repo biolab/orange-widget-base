@@ -39,9 +39,9 @@ def save_plot(data, file_formats, filename=""):
 
 def main():  # pragma: no cover
     from AnyQt.QtWidgets import QApplication
-    from orangewidget.widget import OWWidget
+    from orangewidget.widget import OWBaseWidget
     app = QApplication([])
-    save_plot(None, OWWidget.graph_writers)
+    save_plot(None, OWBaseWidget.graph_writers)
 
 
 if __name__ == "__main__":  # pragma: no cover

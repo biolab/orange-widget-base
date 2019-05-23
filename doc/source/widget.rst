@@ -1,10 +1,10 @@
 .. currentmodule:: orangewidget.widget
 
-OWWidget
-########
+OWBaseWidget
+############
 
 
-The :class:`~OWWidget` is the main component for implementing a widget in
+The :class:`~OWBaseWidget` is the main component for implementing a widget in
 the Orange Canvas workflow. It both defines the widget input/output
 capabilities and implements it's functionality within the canvas.
 
@@ -18,7 +18,7 @@ importantly also its input/output specification.
 
 .. code-block:: python
 
-    class IntConstant(OWWidget):
+    class IntConstant(OWBaseWidget):
         name = "Integer Constant"
         description = "A simple integer constant"
 
@@ -40,7 +40,7 @@ of its corresponding handler method, which accepts the inputs at runtime:
 
 .. code-block:: python
 
-    class Adder(OWWidget):
+    class Adder(OWBaseWidget):
         name = "Add two integers"
         description = "Add two numbers"
 
@@ -133,7 +133,7 @@ widget that controls it, e.g. with
 Class Member Documentation
 --------------------------
 
-.. autoclass:: orangewidget.widget.OWWidget
+.. autoclass:: orangewidget.widget.OWBaseWidget
    :members:
    :member-order: bysource
 

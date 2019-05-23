@@ -11,11 +11,11 @@ import Orange.evaluation
 
 from orangewidget import gui, settings
 from orangewidget.utils.widgetpreview import WidgetPreview
-from orangewidget.widget import OWWidget, Input
+from orangewidget.widget import OWBaseWidget, Input
 from Orange.evaluation.testing import Results
 
 
-class OWLearningCurveB(OWWidget):
+class OWLearningCurveB(OWBaseWidget):
     name = "Learning Curve (B)"
     description = ("Takes a dataset and a set of learners and shows a "
                    "learning curve in a table")

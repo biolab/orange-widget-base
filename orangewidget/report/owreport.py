@@ -20,7 +20,7 @@ from AnyQt.QtPrintSupport import QPrinter, QPrintDialog
 
 
 from orangewidget import gui
-from orangewidget.widget import OWWidget
+from orangewidget.widget import OWBaseWidget
 from orangewidget.settings import Setting
 
 # Importing WebviewWidget can fail if neither QWebKit or QWebEngine
@@ -128,7 +128,7 @@ class ReportTable(QTableView):
             model.item(i, Column.scheme).setIcon(QIcon())
 
 
-class OWReport(OWWidget):
+class OWReport(OWBaseWidget):
     name = "Report"
     save_dir = Setting("")
     open_dir = Setting("")

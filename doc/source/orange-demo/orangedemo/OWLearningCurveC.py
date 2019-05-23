@@ -61,7 +61,7 @@ class Task:
 # [end-snippet-2]
 
 
-class OWLearningCurveC(widget.OWWidget):
+class OWLearningCurveC(widget.OWBaseWidget):
     name = "Learning Curve (C)"
     description = ("Takes a dataset and a set of learners and shows a "
                    "learning curve in a table")

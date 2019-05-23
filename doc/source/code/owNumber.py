@@ -1,10 +1,10 @@
 from orangewidget import gui
-from orangewidget.widget import OWWidget, Output
+from orangewidget.widget import OWBaseWidget, Output
 from orangewidget.settings import Setting
 from PyQt5.QtGui import QIntValidator
 
 
-class OWWidgetNumber(OWWidget):
+class OWWidgetNumber(OWBaseWidget):
     name = "Number"
     description = "Lets the user input a number"
     icon = "icons/Unknown.svg"

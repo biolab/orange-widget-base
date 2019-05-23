@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, call
 from AnyQt.QtWidgets import QApplication
 
 from orangewidget.utils.widgetpreview import WidgetPreview
-from orangewidget.widget import OWWidget, Input
+from orangewidget.widget import OWBaseWidget, Input
 from orangewidget.utils import widgetpreview
 
 app = QApplication([])
@@ -38,7 +38,7 @@ class TestWidgetPreviewBase(unittest.TestCase):
 
     def setUp(self):
         # Class is defined within setUp to reset mocks before each test
-        class MockWidget(OWWidget):
+        class MockWidget(OWBaseWidget):
             name = "foo"
 
             class Inputs:

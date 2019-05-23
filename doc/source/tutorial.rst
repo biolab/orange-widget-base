@@ -40,7 +40,7 @@ Orange Canvas looks for widgets using an ``orange.widgets`` entry point.
 Defining a widget
 *****************
 
-:class:`~orangewidget.widget.OWWidget` is the base class of a widget
+:class:`~orangewidget.widget.OWBaseWidget` is the base class of a widget
 in the Orange Canvas workflow.
 
 Every widget in the canvas framework needs to define its meta data.
@@ -53,11 +53,11 @@ a single integer specified by the user.
 
 .. code-block:: python
 
-    from orangewidget.widget import OWWidget, Output
+    from orangewidget.widget import OWBaseWidget, Output
     from orangewidget.settings import Setting
     from orangewidget import gui
 
-    class IntNumber(OWWidget):
+    class IntNumber(OWBaseWidget):
         # Widget's name as displayed in the canvas
         name = "Integer Number"
         # Short widget description
@@ -78,7 +78,7 @@ and should include any controls for settings or options that your widget
 will use. Main area would most often include a graph, table or some
 drawing that will be based on the inputs to the widget and current
 options/setting in the control area.
-:class:`~orangewidget.widget.OWWidget` makes these two areas available
+:class:`~orangewidget.widget.OWBaseWidget` makes these two areas available
 through its attributes :obj:`self.controlArea` and :obj:`self.mainArea`.
 Notice that while it would be nice for all widgets to have this common
 visual look, you can use these areas in any way you want, even
@@ -132,10 +132,10 @@ So let us define a widget that displays a number.
 
 .. code-block:: python
 
-   from orangewidget.widget import OWWidget, Input
+   from orangewidget.widget import OWBaseWidget, Input
    from orangewidget import gui
 
-   class Print(OWWidget):
+   class Print(OWBaseWidget):
        name = "Print"
        description = "Print out a number"
        icon = "icons/print.svg"
@@ -176,9 +176,9 @@ One more:
 
 .. code-block:: python
 
-   from orangewidget.widget import OWWidget, Input, Output
+   from orangewidget.widget import OWBaseWidget, Input, Output
 
-   class Adder(OWWidget):
+   class Adder(OWBaseWidget):
        name = "Add two integers"
        description = "Add two numbers"
        icon = "icons/add.svg"
@@ -208,11 +208,11 @@ One more:
            self.b = b
 
        def handleNewSignals(self):
-           """Reimplemeted from OWWidget."""
+           """Reimplemeted from OWBaseWidget."""
            if self.a is not None and self.b is not None:
                self.Outputs.sum.send(self.a + self.b)
            else:
                # Clear the channel by sending `None`
                self.Outputs.sum.send(None)
 
-.. seealso:: :func:`~orangewidget.widget.OWWidget.handleNewSignals`
+.. seealso:: :func:`~orangewidget.widget.OWBaseWidget.handleNewSignals`

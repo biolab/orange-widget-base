@@ -10,11 +10,11 @@ from AnyQt.QtGui import QFont, QBrush
 from orangewidget.report.owreport import OWReport
 from orangewidget import gui
 from orangewidget.utils.itemmodels import PyTableModel
-from orangewidget.widget import OWWidget
+from orangewidget.widget import OWBaseWidget
 from orangewidget.tests.base import GuiTest
 
 
-class TstWidget(OWWidget):
+class TstWidget(OWBaseWidget):
     def send_report(self):
         self.report_caption("AA")
 

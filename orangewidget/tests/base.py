@@ -19,7 +19,7 @@ from AnyQt.QtWidgets import (
 )
 
 from orangewidget.report.owreport import OWReport
-from orangewidget.widget import OWWidget
+from orangewidget.widget import OWBaseWidget
 
 sip.setdestroyonexit(False)
 
@@ -79,7 +79,7 @@ class WidgetTest(GuiTest):
     will ensure they are created correctly.
     """
 
-    widgets = []  # type: List[OWWidget]
+    widgets = []  # type: List[OWBaseWidget]
 
     def __init_subclass__(cls, **kwargs):
 
@@ -157,7 +157,7 @@ class WidgetTest(GuiTest):
 
         Parameters
         ----------
-        widget : OWWidget
+        widget : OWBaseWidget
             widget to reset settings for
         """
         settings_handler = getattr(widget, "settingsHandler", None)
@@ -223,7 +223,7 @@ class WidgetTest(GuiTest):
         value : Object
         id : int
             channel id, used for inputs with flag Multiple
-        widget : Optional[OWWidget]
+        widget : Optional[OWBaseWidget]
             widget to send signal to. If not set, self.widget is used
         wait : int
             The amount of time to wait for the widget to complete.
@@ -238,7 +238,7 @@ class WidgetTest(GuiTest):
         Parameters
         ----------
         signals : list of (str, Object)
-        widget : Optional[OWWidget]
+        widget : Optional[OWBaseWidget]
             widget to send signals to. If not set, self.widget is used
         wait : int
             The amount of time to wait for the widget to complete.
@@ -278,7 +278,7 @@ class WidgetTest(GuiTest):
 
         Parameters
         ----------
-        widget : Optional[OWWidget]
+        widget : Optional[OWBaseWidget]
             widget to send signal to. If not set, self.widget is used
         wait : int
             The amount of time to wait for the widget to complete.
@@ -296,7 +296,7 @@ class WidgetTest(GuiTest):
 
         Parameters
         ----------
-        widget : Optional[OWWidget]
+        widget : Optional[OWBaseWidget]
             widget to send signal to. If not set, self.widget is used
         wait : int
             The amount of time to wait for the widget to complete.
@@ -314,7 +314,7 @@ class WidgetTest(GuiTest):
         Parameters
         ----------
         output_name : str
-        widget : Optional[OWWidget]
+        widget : Optional[OWBaseWidget]
             widget whose output is returned. If not set, self.widget is used
         wait : int
             The amount of time (in milliseconds) to wait for widget to complete.
@@ -357,7 +357,7 @@ class WidgetTest(GuiTest):
     def check_minimum_size(self, widget):
 
         def invalidate_cached_size_hint(w):
-            # as in OWWidget.setVisible
+            # as in OWBaseWidget.setVisible
             if w.controlArea is not None:
                 w.controlArea.updateGeometry()
             if w.buttonsArea is not None:
@@ -514,5 +514,5 @@ class ParameterMapping(BaseParameterMapping):
 
 @contextmanager
 def open_widget_classes():
-    with patch.object(OWWidget, "__init_subclass__"):
+    with patch.object(OWBaseWidget, "__init_subclass__"):
         yield

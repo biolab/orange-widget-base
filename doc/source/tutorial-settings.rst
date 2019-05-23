@@ -36,7 +36,7 @@ it
 Widgets Settings
 ****************
 
-Luckily, since we use the base class :class:`~orangewidget.widget.OWWidget`,
+Luckily, since we use the base class :class:`~orangewidget.widget.OWBaseWidget`,
 the settings will be handled just fine. We only need to tell which variables
 we want to use for persistent settings.
 

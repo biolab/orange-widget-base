@@ -2,7 +2,7 @@ from orangewidget import widget, gui
 from orangewidget.settings import Setting
 
 
-class OWProduct(widget.OWWidget):
+class OWProduct(widget.OWBaseWidget):
     name = "Product"
     description = ""
     icon = "icons/Unknown.svg"

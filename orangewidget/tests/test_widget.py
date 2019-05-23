@@ -13,7 +13,7 @@ from AnyQt.QtTest import QSignalSpy, QTest
 from orangewidget.gui import OWComponent
 from orangewidget.settings import Setting, SettingProvider
 from orangewidget.tests.base import WidgetTest
-from orangewidget.widget import OWWidget, Msg
+from orangewidget.widget import OWBaseWidget, Msg
 from orangewidget.utils.messagewidget import MessagesWidget
 
 
@@ -21,7 +21,7 @@ class DummyComponent(OWComponent):
     dummyattr = None
 
 
-class MyWidget(OWWidget):
+class MyWidget(OWBaseWidget):
     name = "Dummy"
 
     field = Setting(42)
@@ -85,7 +85,7 @@ class WidgetTestCase(WidgetTest):
         help_action.setVisible(True)
 
     def test_widget_without_basic_layout(self):
-        class TestWidget2(OWWidget):
+        class TestWidget2(OWBaseWidget):
             name = "Test"
 
             want_basic_layout = False
@@ -95,12 +95,12 @@ class WidgetTestCase(WidgetTest):
         QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, QPoint(1, 1))
 
     def test_store_restore_layout_geom(self):
-        class Widget(OWWidget):
+        class Widget(OWBaseWidget):
             name = "Who"
             want_control_area = True
 
         w = Widget()
-        w._OWWidget__setControlAreaVisible(False)
+        w._OWBaseWidget__setControlAreaVisible(False)
         w.setGeometry(QRect(51, 52, 53, 54))
         state = w.saveGeometryAndLayoutState()
         w1 = Widget()
@@ -153,7 +153,7 @@ class WidgetTestCase(WidgetTest):
         self.assertIsNone(ref())
 
     def _status_bar_visible_test(self, widget):
-        # type: (OWWidget) -> None
+        # type: (OWBaseWidget) -> None
         # Test that statusBar().setVisible collapses/expands the bottom margins
         sb = widget.statusBar()
         m1 = widget.contentsMargins().bottom()
@@ -200,7 +200,7 @@ class WidgetTestCase(WidgetTest):
 
         with patch("warnings.warn") as warn:
 
-            class MyWidget2(OWWidget, openclass=True):
+            class MyWidget2(OWBaseWidget, openclass=True):
                 pass
 
             class MySubWidget2(MyWidget2):
@@ -211,10 +211,10 @@ class WidgetTestCase(WidgetTest):
 
 class WidgetMsgTestCase(WidgetTest):
 
-    class TestWidget(OWWidget):
+    class TestWidget(OWBaseWidget):
         name = "Test"
 
-        class Information(OWWidget.Information):
+        class Information(OWBaseWidget.Information):
             hello = Msg("A message")
 
         def __init__(self):
@@ -246,7 +246,7 @@ class WidgetMsgTestCase(WidgetTest):
         self.assertEqual(len(messages), 0)
         self.assertSetEqual(set(self.active_messages(w)), set())
 
-        # OWWidget without a basic layout (completely empty; no default msg bar
+        # OWBaseWidget without a basic layout (completely empty; no default msg bar
         with patch.object(WidgetMsgTestCase.TestWidget,
                           "want_basic_layout", False):
             w = WidgetMsgTestCase.TestWidget()
@@ -334,7 +334,7 @@ class WidgetTestInfoSummary(WidgetTest):
     def test_info_set_warn(self):
         test = self
 
-        class TestW(OWWidget):
+        class TestW(OWBaseWidget):
             name = "a"
             def __init__(self):
                 super().__init__()

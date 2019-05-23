@@ -13,7 +13,7 @@ from orangewidget.widget import \
 from orangewidget.tests.base import GuiTest
 from orangewidget.utils.signals import _Signal, Input, Output, \
     WidgetSignalsMixin, InputSignal, OutputSignal
-from orangewidget.widget import OWWidget
+from orangewidget.widget import OWBaseWidget
 
 
 class SignalTest(unittest.TestCase):
@@ -102,7 +102,7 @@ class OutputTest(unittest.TestCase):
 
 class WidgetSignalsMixinTest(GuiTest):
     def test_init_binds_outputs(self):
-        class MockWidget(OWWidget):
+        class MockWidget(OWBaseWidget):
             name = "foo"
             class Outputs:
                 an_output = Output("a name", int)
@@ -113,19 +113,19 @@ class WidgetSignalsMixinTest(GuiTest):
 
     def test_checking_invalid_inputs(self):
         with self.assertRaises(ValueError):
-            class MockWidget(OWWidget):
+            class MockWidget(OWBaseWidget):
                 name = "foo"
 
                 class Inputs:
                     an_input = Input("a name", int)
 
         with self.assertRaises(ValueError):
-            class MockWidget(OWWidget):
+            class MockWidget(OWBaseWidget):
                 name = "foo"
                 inputs = [("a name", int, "no_such_handler")]
 
         # Now, don't crash
-        class MockWidget(OWWidget):
+        class MockWidget(OWBaseWidget):
             name = "foo"
             inputs = [("a name", int, "handler")]
 
@@ -133,7 +133,7 @@ class WidgetSignalsMixinTest(GuiTest):
                 pass
 
     def test_signal_conversion(self):
-        class MockWidget(OWWidget):
+        class MockWidget(OWBaseWidget):
             name = "foo"
             inputs = [("name 1", int, "foo"), InputSignal("name 2", int, "foo")]
             outputs = [("name 3", int), OutputSignal("name 4", int)]
@@ -154,7 +154,7 @@ class WidgetSignalsMixinTest(GuiTest):
         self.assertEqual(output2.name, "name 4")
 
     def test_get_signals(self):
-        class MockWidget(OWWidget):
+        class MockWidget(OWBaseWidget):
             name = "foo"
             inputs = [("a name", int, "foo")]
             outputs = [("another name", float)]
@@ -165,7 +165,7 @@ class WidgetSignalsMixinTest(GuiTest):
         self.assertIs(MockWidget.get_signals("inputs"), MockWidget.inputs)
         self.assertIs(MockWidget.get_signals("outputs"), MockWidget.outputs)
 
-        class MockWidget(OWWidget):
+        class MockWidget(OWBaseWidget):
             name = "foo"
 
             class Inputs:

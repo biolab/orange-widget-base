@@ -2,14 +2,14 @@ from AnyQt.QtCore import Qt
 
 from orangewidget import gui
 from orangewidget.tests.base import GuiTest
-from orangewidget.widget import OWWidget
+from orangewidget.widget import OWBaseWidget
 
 
 class TestDoubleSpin(GuiTest):
     # make sure that the gui element does not crash when
     # 'checked' parameter is forwarded, ie. is not None
     def test_checked_extension(self):
-        widget = OWWidget()
+        widget = OWBaseWidget()
         widget.some_param = 0
         widget.some_option = False
         gui.doubleSpin(widget=widget, master=widget, value="some_param",

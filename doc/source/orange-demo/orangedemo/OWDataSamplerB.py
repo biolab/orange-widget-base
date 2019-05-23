@@ -1,13 +1,13 @@
 import numpy
 
 import Orange.data
-from orangewidget.widget import OWWidget, Input, Output, settings
+from orangewidget.widget import OWBaseWidget, Input, Output, settings
 from orangewidget.utils.widgetpreview import WidgetPreview
 from orangewidget import gui
 
 
 # [start-snippet-1]
-class OWDataSamplerB(OWWidget):
+class OWDataSamplerB(OWBaseWidget):
     name = "Data Sampler (B)"
     description = "Randomly selects a subset of instances from the dataset."
     icon = "icons/DataSamplerB.svg"

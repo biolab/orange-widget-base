@@ -956,7 +956,7 @@ class ConcurrentMixin:
 
 class ConcurrentWidgetMixin(ConcurrentMixin):
     """
-    A concurrent mixin to be used along with OWWidget.
+    A concurrent mixin to be used along with OWBaseWidget.
     """
     def __set_state_ready(self):
         self.progressBarFinished()

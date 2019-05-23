@@ -97,9 +97,9 @@ direction we report the `percent` of work done.
    :end-before: end-snippet-7
 
 .. seealso::
-   :func:`~orangewidget.widget.OWWidget.progressBarInit`,
-   :func:`~orangewidget.widget.OWWidget.progressBarSet`,
-   :func:`~orangewidget.widget.OWWidget.progressBarFinished`
+   :func:`~orangewidget.widget.OWBaseWidget.progressBarInit`,
+   :func:`~orangewidget.widget.OWBaseWidget.progressBarSet`,
+   :func:`~orangewidget.widget.OWBaseWidget.progressBarFinished`
 
 
 Next, we submit the function to be run in a worker thread and instrument
@@ -141,7 +141,7 @@ results.
    :start-after: start-snippet-10
    :end-before: end-snippet-10
 
-We also use cancel in :func:`~orangewidget.widget.OWWidget.onDeleteWidget`
+We also use cancel in :func:`~orangewidget.widget.OWBaseWidget.onDeleteWidget`
 to stop if/when the widget is removed from the canvas.
 
 .. literalinclude:: orange-demo/orangedemo/OWLearningCurveC.py

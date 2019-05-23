@@ -11,7 +11,7 @@ class WidgetPreview:
     A helper class for widget previews.
 
     Attributes:
-        widget (OWWidget): an instance of the widget or `None`
+        widget (OWBaseWidget): an instance of the widget or `None`
         widget_cls (type): the widget class
     """
 

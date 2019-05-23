@@ -2,7 +2,7 @@ from orangewidget import widget, gui
 from orangewidget.settings import Setting
 
 
-class OWMultiplier(widget.OWWidget):
+class OWMultiplier(widget.OWBaseWidget):
     name = "Multiplier"
     description = ""
     icon = "icons/Unknown.svg"

@@ -41,7 +41,7 @@ Msg = UnboundMsg
 
 
 __all__ = [
-    "OWWidget", "Input", "Output", "AttributeList", "Message", "Msg",
+    "OWBaseWidget", "Input", "Output", "AttributeList", "Message", "Msg",
     "StateInfo",
 ]
 
@@ -82,10 +82,12 @@ class WidgetMetaClass(type(QDialog)):
 
 
 # pylint: disable=too-many-instance-attributes
-class OWWidget(QDialog, OWComponent, Report, ProgressBarMixin,
-               WidgetMessagesMixin, WidgetSignalsMixin,
-               metaclass=WidgetMetaClass, openclass=True):
-    """Base widget class"""
+class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
+                   WidgetMessagesMixin, WidgetSignalsMixin,
+                   metaclass=WidgetMetaClass, openclass=True):
+    """
+    Base widget class in an orange widget workflow.
+    """
 
     # Global widget count
     widget_id = 0
@@ -211,8 +213,8 @@ class OWWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.graphButton = None
         self.report_button = None
 
-        OWWidget.widget_id += 1
-        self.widget_id = OWWidget.widget_id
+        OWBaseWidget.widget_id += 1
+        self.widget_id = OWBaseWidget.widget_id
 
         captionTitle = self.name if captionTitle is None else captionTitle
 
@@ -309,7 +311,7 @@ class OWWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         def _adjusted_size(self, size_method):
             size = size_method(super())()
             parent = self.parentWidget()
-            if isinstance(parent, OWWidget) \
+            if isinstance(parent, OWBaseWidget) \
                     and not parent.controlAreaVisible \
                     and self.count() > 1:
                 indices = range(1, self.count())
@@ -511,7 +513,7 @@ class OWWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         Note
         ----
         The status bar takes control of the widget's bottom margin
-        (`contentsMargins`) to layout itself in the OWWidget.
+        (`contentsMargins`) to layout itself in the OWBaseWidget.
         """
         statusbar = self.__statusbar
 
@@ -653,7 +655,7 @@ class OWWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     @info.setter
     def info(self, val):
         warnings.warn(
-            "'OWWidget.info' is a property since 3.19 and will be made read "
+            "'OWBaseWidget.info' is a property since 3.19 and will be made read "
             "only in v4.0.",
             DeprecationWarning, stacklevel=3
         )
@@ -983,8 +985,8 @@ class OWWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     def keyPressEvent(self, e):
         """Handle default key actions or pass the event to the inherited method
         """
-        if (int(e.modifiers()), e.key()) in OWWidget.defaultKeyActions:
-            OWWidget.defaultKeyActions[int(e.modifiers()), e.key()](self)
+        if (int(e.modifiers()), e.key()) in OWBaseWidget.defaultKeyActions:
+            OWBaseWidget.defaultKeyActions[int(e.modifiers()), e.key()](self)
         else:
             QDialog.keyPressEvent(self, e)
 
@@ -1258,7 +1260,7 @@ class Message:
     :param str moreurl:
         An url to open when a user clicks a 'Learn more' button.
 
-    .. seealso:: :const:`OWWidget.UserAdviceMessages`
+    .. seealso:: :const:`OWBaseWidget.UserAdviceMessages`
     """
     #: QStyle.SP_MessageBox* pixmap enums repeated for easier access
     Question = QStyle.SP_MessageBoxQuestion
@@ -1304,11 +1306,11 @@ Dynamic = Dynamic
 
 class StateInfo(QObject):
     """
-    A namespace for OWWidget's detailed input/output/state summary reporting.
+    A namespace for OWBaseWidget's detailed input/output/state summary reporting.
 
     See Also
     --------
-    OWWidget.info
+    OWBaseWidget.info
     """
     class Summary:
         """

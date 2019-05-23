@@ -10,7 +10,7 @@ Each widget has its own SettingsHandler that takes care of serializing and
 storing of settings and SettingProvider that is incharge of reading and
 writing the setting values.
 
-All widgets extending from OWWidget use SettingsHandler, unless they
+All widgets extending from OWBaseWidget use SettingsHandler, unless they
 declare otherwise. SettingsHandler ensures that setting attributes
 are replaced with default (last used) setting values when the widget is
 initialized and stored when the widget is removed.
@@ -175,7 +175,7 @@ class SettingProvider:
 
         Parameters
         ----------
-        instance : OWWidget
+        instance : OWBaseWidget
             widget instance to initialize
         data : Optional[dict]
             optional data used to override the defaults
@@ -232,7 +232,7 @@ class SettingProvider:
         Parameters
         ----------
         setting : Setting
-        instance : OWWidget
+        instance : OWBaseWidget
         """
         if setting.packable:
             if hasattr(instance, setting.name):
@@ -247,9 +247,9 @@ class SettingProvider:
 
         Parameters
         ----------
-        instance : OWWidget
+        instance : OWBaseWidget
             widget instance
-        packer: callable (Setting, OWWidget) -> Generator[(str, object)]
+        packer: callable (Setting, OWBaseWidget) -> Generator[(str, object)]
             optional packing function
             it will be called with setting and instance parameters and
             should yield (name, value) pairs that will be added to the
@@ -274,7 +274,7 @@ class SettingProvider:
 
         Parameters
         ----------
-        instance : OWWidget
+        instance : OWBaseWidget
             instance to restore settings to
         data : dict
             packed data
@@ -310,7 +310,7 @@ class SettingProvider:
         ----------
         data : dict
             dictionary with setting values
-        instance : OWWidget
+        instance : OWBaseWidget
             instance matching setting_provider
         """
         data = data if data is not None else {}
@@ -484,7 +484,7 @@ class SettingsHandler:
 
         Parameters
         ----------
-        instance : OWWidget
+        instance : OWBaseWidget
         data : dict or bytes that unpickle into a dict
             values used to override the defaults
         """
@@ -546,7 +546,7 @@ class SettingsHandler:
 
         Parameters
         ----------
-        widget : OWWidget
+        widget : OWBaseWidget
         """
         widget.settingsAboutToBePacked.emit()
         packed_settings = self.provider.pack(widget)
@@ -560,7 +560,7 @@ class SettingsHandler:
 
         Parameters
         ----------
-        widget : OWWidget
+        widget : OWBaseWidget
         """
         widget.settingsAboutToBePacked.emit()
         self._prepare_defaults(widget)
@@ -571,7 +571,7 @@ class SettingsHandler:
 
         Parameters
         ----------
-        widget : OWWidget
+        widget : OWBaseWidget
         name : str
         value : object
 
@@ -586,7 +586,7 @@ class SettingsHandler:
 
         Parameters
         ----------
-        instance : OWWidget
+        instance : OWBaseWidget
         """
         for setting, _, inst in self.provider.traverse_settings(instance=instance):
             if setting.packable:

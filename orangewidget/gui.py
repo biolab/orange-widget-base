@@ -27,8 +27,6 @@ from AnyQt.QtWidgets import (
 
 from orangewidget.utils import getdeepattr
 from orangewidget.utils.buttons import VariableTextPushButton
-
-
 from orangewidget.utils.combobox import ComboBox as OrangeComboBox
 
 YesNo = NoYes = ("No", "Yes")
@@ -1371,13 +1369,6 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
         length (default: 25, use 0 to disable)
     :rtype: QComboBox
     """
-    try:
-        # Local import to avoid circular imports
-        from Orange.widgets.utils.itemmodels import VariableListModel
-    except ImportError:
-        class VariableListModel:
-            pass
-
     if box or label:
         hb = widgetBox(widget, box, orientation, addToLayout=False)
         if label is not None:
@@ -1406,26 +1397,16 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
         model = misc.pop("model", None)
         if model is not None:
             combo.setModel(model)
-        if isinstance(model, VariableListModel):
-            callfront = CallFrontComboBoxModel(combo, model)
-            callfront.action(cindex)
-        else:
-            if isinstance(cindex, str):
-                if items and cindex in items:
-                    cindex = items.index(cindex)
-                else:
-                    cindex = 0
-            if cindex > combo.count() - 1:
+        if isinstance(cindex, str):
+            if items and cindex in items:
+                cindex = items.index(cindex)
+            else:
                 cindex = 0
-            combo.setCurrentIndex(cindex)
+        if cindex > combo.count() - 1:
+            cindex = 0
+        combo.setCurrentIndex(cindex)
 
-        if isinstance(model, VariableListModel):
-            connectControl(
-                master, value, callback, combo.activated[int],
-                callfront,
-                ValueCallbackComboModel(master, value, model)
-            )
-        elif sendSelectedValue:
+        if sendSelectedValue:
             connectControl(
                 master, value, callback, combo.activated[str],
                 CallFrontComboBox(combo, valueType, emptyString),
@@ -1786,16 +1767,6 @@ class ValueCallbackCombo(ValueCallback):
         return super().__call__("" if value == self.emptyString else value)
 
 
-class ValueCallbackComboModel(ValueCallback):
-    def __init__(self, widget, attribute, model):
-        super().__init__(widget, attribute)
-        self.model = model
-
-    def __call__(self, index):
-        # Can't use super here since, it doesn't set `None`'s?!
-        return self.acyclic_setattr(self.model[index])
-
-
 class ValueCallbackLineEdit(ControlledCallback):
     def __init__(self, control, widget, attribute, f=None):
         ControlledCallback.__init__(self, widget, attribute, f)
@@ -1951,27 +1922,6 @@ class CallFrontComboBox(ControlledCallFront):
         else:
             if value < self.control.count():
                 self.control.setCurrentIndex(value)
-
-
-class CallFrontComboBoxModel(ControlledCallFront):
-    def __init__(self, control, model):
-        super().__init__(control)
-        self.model = model
-
-    def action(self, value):
-        if value == "":  # the latter accomodates PyListModel
-            value = None
-        if value is None and None not in self.model:
-            return  # e.g. attribute x in uninitialized scatter plot
-        if value in self.model:
-            self.control.setCurrentIndex(self.model.indexOf(value))
-            return
-        elif isinstance(value, str):
-            for i, val in enumerate(self.model):
-                if value == str(val):
-                    self.control.setCurrentIndex(i)
-                    return
-        raise ValueError("Combo box does not contain item " + repr(value))
 
 
 class CallFrontHSlider(ControlledCallFront):

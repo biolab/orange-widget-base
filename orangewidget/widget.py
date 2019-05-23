@@ -31,7 +31,7 @@ from orangewidget.utils.signals import (
     WidgetSignalsMixin, Input, Output, AttributeList,
     InputSignal, OutputSignal,
     Default, NonDefault, Single, Multiple, Dynamic, Explicit
-)
+)  # pylint: disable=unused-import
 from orangewidget.utils.overlay import MessageOverlayWidget, OverlayWidget
 from orangewidget.utils.buttons import SimpleButton
 
@@ -43,10 +43,6 @@ Msg = UnboundMsg
 __all__ = [
     "OWWidget", "Input", "Output", "AttributeList", "Message", "Msg",
     "StateInfo",
-
-    # these are re-exported here for legacy reasons. Use Input/Output instead.
-    "InputSignal", "OutputSignal",
-    "Default", "NonDefault", "Single", "Multiple", "Dynamic", "Explicit"
 ]
 
 

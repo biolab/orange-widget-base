@@ -3,34 +3,28 @@ Wrappers for controls used in widgets
 """
 import contextlib
 import math
-import os
 import re
 import itertools
 import warnings
 import logging
-import weakref
 from types import LambdaType
-from collections import defaultdict, Sequence
+from collections import defaultdict
 
 import pkg_resources
 
 from AnyQt import QtWidgets, QtCore, QtGui
-from AnyQt.QtCore import (
-    Qt, QEvent, QSize, QItemSelection, QTimer, pyqtSignal as Signal
-)
+from AnyQt.QtCore import Qt, QEvent, pyqtSignal as Signal
 from AnyQt.QtGui import QCursor, QColor
 from AnyQt.QtWidgets import (
     QApplication, QStyle, QSizePolicy, QWidget, QLabel, QGroupBox, QSlider,
-    QTableWidgetItem, QItemDelegate, QStyledItemDelegate,
-    QTableView, QHeaderView, QListView, QScrollArea
+    QTableWidgetItem, QStyledItemDelegate, QTableView, QHeaderView,
+    QScrollArea
 )
 
 from orangewidget.utils import getdeepattr
 from orangewidget.utils.buttons import VariableTextPushButton
 from orangewidget.utils.combobox import ComboBox as OrangeComboBox
 
-YesNo = NoYes = ("No", "Yes")
-_enter_icon = None
 __re_label = re.compile(r"(^|[^%])%\((?P<value>[a-zA-Z]\w*)\)")
 
 log = logging.getLogger(__name__)
@@ -1418,170 +1412,6 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     miscellanea(combo, hb, widget, **misc)
     combo.emptyString = emptyString
     return combo
-
-
-# TODO: SmallWidgetButton is used only in OWkNNOptimization.py. (Re)Move.
-# eliminated?
-class SmallWidgetButton(QtWidgets.QPushButton):
-    def __init__(self, widget, text="", pixmap=None, box=None,
-                 orientation=Qt.Vertical, autoHideWidget=None, **misc):
-        #self.parent = parent
-        if pixmap is not None:
-            iconDir = os.path.join(os.path.dirname(__file__), "icons")
-            name = ""
-            if isinstance(pixmap, str):
-                if os.path.exists(pixmap):
-                    name = pixmap
-                elif os.path.exists(os.path.join(iconDir, pixmap)):
-                    name = os.path.join(iconDir, pixmap)
-            elif isinstance(pixmap, (QtGui.QPixmap, QtGui.QIcon)):
-                name = pixmap
-            name = name or os.path.join(iconDir, "arrow_down.png")
-            super().__init__(QtGui.QIcon(name), text, widget)
-        else:
-            super().__init__(text, widget)
-        if widget.layout() is not None:
-            widget.layout().addWidget(self)
-        # create autohide widget and set a layout
-        self.widget = self.autohideWidget = \
-            (autoHideWidget or AutoHideWidget)(None, Qt.Popup)
-        setLayout(self.widget, orientation)
-        if box:
-            self.widget = widgetBox(self.widget, box, orientation)
-        self.autohideWidget.hide()
-        miscellanea(self, self.widget, widget, **misc)
-
-    def mousePressEvent(self, event):
-        super().mousePressEvent(event)
-        if self.autohideWidget.isVisible():
-            self.autohideWidget.hide()
-        else:
-            self.autohideWidget.move(
-                self.mapToGlobal(QtCore.QPoint(0, self.height())))
-            self.autohideWidget.show()
-
-
-class SmallWidgetLabel(QLabel):
-    def __init__(self, widget, text="", pixmap=None, box=None,
-                 orientation=Qt.Vertical, **misc):
-        super().__init__(widget)
-        if text:
-            self.setText("<font color=\"#C10004\">" + text + "</font>")
-        elif pixmap is not None:
-            iconDir = os.path.join(os.path.dirname(__file__), "icons")
-            name = ""
-            if isinstance(pixmap, str):
-                if os.path.exists(pixmap):
-                    name = pixmap
-                elif os.path.exists(os.path.join(iconDir, pixmap)):
-                    name = os.path.join(iconDir, pixmap)
-            elif isinstance(pixmap, (QtGui.QPixmap, QtGui.QIcon)):
-                name = pixmap
-            name = name or os.path.join(iconDir, "arrow_down.png")
-            self.setPixmap(QtGui.QPixmap(name))
-        self.autohideWidget = self.widget = AutoHideWidget(None, Qt.Popup)
-        setLayout(self.widget, orientation)
-        if box:
-            self.widget = widgetBox(self.widget, box, orientation)
-        self.autohideWidget.hide()
-        miscellanea(self, self.widget, widget, **misc)
-
-    def mousePressEvent(self, event):
-        super().mousePressEvent(event)
-        if self.autohideWidget.isVisible():
-            self.autohideWidget.hide()
-        else:
-            self.autohideWidget.move(
-                self.mapToGlobal(QtCore.QPoint(0, self.height())))
-            self.autohideWidget.show()
-
-
-class AutoHideWidget(QWidget):
-    def leaveEvent(self, _):
-        self.hide()
-
-# creates a widget box with a button in the top right edge that shows/hides all
-# widgets in the box and collapse the box to its minimum height
-# TODO collapsableWidgetBox is used only in OWMosaicDisplay.py; (re)move
-class collapsableWidgetBox(QGroupBox):
-    def __init__(self, widget, box="", master=None, value="",
-                 orientation=Qt.Vertical, callback=None):
-        super().__init__(widget)
-        self.setFlat(1)
-        setLayout(self, orientation)
-        if widget.layout() is not None:
-            widget.layout().addWidget(self)
-        if isinstance(box, str):
-            self.setTitle(" " + box.strip() + " ")
-        self.setCheckable(True)
-        self.master = master
-        self.value = value
-        self.callback = callback
-        self.clicked.connect(self.toggled)
-
-    def toggled(self, _=0):
-        if self.value:
-            self.master.__setattr__(self.value, self.isChecked())
-            self.updateControls()
-        if self.callback is not None:
-            self.callback()
-
-    def updateControls(self):
-        val = getdeepattr(self.master, self.value)
-        width = self.width()
-        self.setChecked(val)
-        self.setFlat(not val)
-        self.setMinimumSize(QtCore.QSize(width if not val else 0, 0))
-        for c in self.children():
-            if isinstance(c, QtWidgets.QLayout):
-                continue
-            if val:
-                c.show()
-            else:
-                c.hide()
-
-
-# creates an icon that allows you to show/hide the widgets in the widgets list
-# TODO Class widgetHider doesn't seem to be used anywhere; remove?
-class widgetHider(QWidget):
-    def __init__(self, widget, master, value, _=(19, 19), widgets=None,
-                 tooltip=None):
-        super().__init__(widget)
-        if widget.layout() is not None:
-            widget.layout().addWidget(self)
-        self.value = value
-        self.master = master
-        if tooltip:
-            self.setToolTip(tooltip)
-        iconDir = os.path.join(os.path.dirname(__file__), "icons")
-        icon1 = os.path.join(iconDir, "arrow_down.png")
-        icon2 = os.path.join(iconDir, "arrow_up.png")
-        self.pixmaps = [QtGui.QPixmap(icon1), QtGui.QPixmap(icon2)]
-        self.setFixedSize(self.pixmaps[0].size())
-        self.disables = list(widgets or [])
-        self.makeConsistent = Disabler(self, master, value, type=HIDER)
-        if widgets:
-            self.setWidgets(widgets)
-
-    def mousePressEvent(self, event):
-        self.master.__setattr__(self.value,
-                                not getdeepattr(self.master, self.value))
-        self.makeConsistent()
-
-    def setWidgets(self, widgets):
-        self.disables = list(widgets)
-        self.makeConsistent()
-
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        if self.pixmaps:
-            pix = self.pixmaps[getdeepattr(self.master, self.value)]
-            painter = QtGui.QPainter(self)
-            painter.drawPixmap(0, 0, pix)
-
-
-##############################################################################
-# callback handlers
 
 
 def auto_commit(widget, master, value, label, auto_label=None, box=True,

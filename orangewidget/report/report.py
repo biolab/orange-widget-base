@@ -8,10 +8,8 @@ from AnyQt.QtCore import (
 from AnyQt.QtGui import QColor, QBrush
 from AnyQt.QtWidgets import QGraphicsScene, QTableView, QMessageBox
 
-from Orange.util import try_
-from Orange.widgets.io import PngFormat
-from Orange.data.sql.table import SqlTable
-from Orange.widgets.utils import getdeepattr
+from orangewidget.io import PngFormat
+from orangewidget.utils import getdeepattr
 
 __all__ = ["Report",
            "bool_str", "colored_square",
@@ -22,6 +20,14 @@ __all__ = ["Report",
            "get_html_img", "get_html_section", "get_html_subsection",
            "list_legend",
            "render_items", "render_items_vert"]
+
+
+def try_(func, default=None):
+    """Try return the result of func, else return default."""
+    try:
+        return func()
+    except Exception:
+        return default
 
 
 class Report:
@@ -38,7 +44,7 @@ class Report:
 
     def _get_designated_report_view(self):
         # OWReport is a Report
-        from Orange.widgets.report.owreport import OWReport
+        from orangewidget.report.owreport import OWReport
         if self.__report_view is not None:
             return self.__report_view()
         else:
@@ -49,7 +55,7 @@ class Report:
         Raise the report window.
         """
         self.create_report_html()
-        from Orange.widgets.report.owreport import HAVE_REPORT
+        from orangewidget.report.owreport import HAVE_REPORT
         if not HAVE_REPORT:
             QMessageBox.critical(
                 None, "Missing Component",
@@ -192,7 +198,7 @@ class Report:
             name, plot = self._fix_args(name, plot)
 
         from pyqtgraph import PlotWidget, PlotItem, GraphicsWidget, GraphicsView
-        from Orange.widgets.utils.webview import WebviewWidget
+        from orangewidget.utils.webview import WebviewWidget
 
         self.report_name(name)
         if plot is None:
@@ -642,7 +648,7 @@ def describe_domain(domain):
     Description contains keys "Features", "Meta attributes" and "Targets"
     with the corresponding clipped lists of names. If the domain contains no
     meta attributes or targets, the value is `False`, which prevents it from
-    being rendered by :obj:`~Orange.widgets.report.render_items`.
+    being rendered by :obj:`~orangewidget.report.render_items`.
 
     :param domain: domain
     :type domain: Orange.data.Domain

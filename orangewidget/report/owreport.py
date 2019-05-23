@@ -19,15 +19,14 @@ from AnyQt.QtWidgets import (
 from AnyQt.QtPrintSupport import QPrinter, QPrintDialog
 
 
-from Orange.util import deprecated
-from Orange.widgets import gui
-from Orange.widgets.widget import OWWidget
-from Orange.widgets.settings import Setting
+from orangewidget import gui
+from orangewidget.widget import OWWidget
+from orangewidget.settings import Setting
 
 # Importing WebviewWidget can fail if neither QWebKit or QWebEngine
 # are available
 try:
-    from Orange.widgets.utils.webview import WebviewWidget
+    from orangewidget.utils.webview import WebviewWidget
 except ImportError:  # pragma: no cover
     WebviewWidget = None
     HAVE_REPORT = False
@@ -195,27 +194,6 @@ class OWReport(OWWidget):
         if WebviewWidget is not None:
             self.report_view = WebviewWidget(self.mainArea, bridge=PyBridge(self))
             self.mainArea.layout().addWidget(self.report_view)
-
-    @deprecated("Widgets should not be pickled")
-    def __getstate__(self):
-        rep_dict = self.__dict__.copy()
-        for key in ('_OWWidget__env', 'controlArea', 'mainArea',
-                    'report_view', 'table', 'table_model'):
-            del rep_dict[key]
-        items_len = self.table_model.rowCount()
-        return rep_dict, [self.table_model.item(i) for i in range(items_len)]
-
-    @deprecated("Widgets should not be pickled")
-    def __setstate__(self, state):
-        rep_dict, items = state
-        self.__dict__.update(rep_dict)
-        self._setup_ui_()
-        for i in range(len(items)):
-            item = items[i]
-            self.table_model.add_item(
-                ReportItem(item.name, item.html, item.scheme,
-                           item.module, item.icon_name, item.comment)
-            )
 
     def _table_clicked(self, index):
         if index.column() == Column.remove:
@@ -487,7 +465,7 @@ class OWReport(OWWidget):
         window : Optional[CanvasMainWindow]
         """
         try:
-            from Orange.canvas.mainwindow import OWCanvasMainWindow
+            from orangewidget.workflow.mainwindow import OWCanvasMainWindow
         except ImportError:
             return None
         # Run up the parent/window chain
@@ -500,39 +478,3 @@ class OWReport(OWWidget):
     def copy_to_clipboard(self):
         self.report_view.triggerPageAction(self.report_view.page().Copy)
 
-
-if __name__ == "__main__":
-    import sys
-    from Orange.data import Table
-    from Orange.widgets.data.owfile import OWFile
-    from Orange.widgets.data.owtable import OWDataTable
-    from Orange.widgets.data.owdiscretize import OWDiscretize
-    from Orange.widgets.model.owrandomforest import OWRandomForest
-
-    iris = Table("iris")
-    app = QApplication(sys.argv)
-
-    main = OWReport.get_instance()
-    file = OWFile()
-    file.create_report_html()
-    main.make_report(file)
-
-    table = OWDataTable()
-    table.set_dataset(iris)
-    table.create_report_html()
-    main.make_report(table)
-
-    main = OWReport.get_instance()
-    disc = OWDiscretize()
-    disc.create_report_html()
-    main.make_report(disc)
-
-    learner = OWRandomForest()
-    learner.create_report_html()
-    main.make_report(learner)
-
-    main.show()
-    main.saveSettings()
-    assert main.table_model.rowCount() == 4
-
-    sys.exit(app.exec_())

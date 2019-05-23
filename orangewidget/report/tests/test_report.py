@@ -14,25 +14,25 @@ from Orange.classification import LogisticRegressionLearner
 from Orange.classification.tree import TreeLearner
 from Orange.evaluation import CrossValidation
 from Orange.distance import Euclidean
-from Orange.widgets.report.owreport import OWReport
-from Orange.widgets import gui
-from Orange.widgets.widget import OWWidget
-from Orange.widgets.tests.base import WidgetTest
-from Orange.widgets.visualize.owtreeviewer import OWTreeGraph
-from Orange.widgets.data.owfile import OWFile
-from Orange.widgets.data.owtable import OWDataTable
-from Orange.widgets.evaluate.owcalibrationplot import OWCalibrationPlot
-from Orange.widgets.evaluate.owliftcurve import OWLiftCurve
-from Orange.widgets.evaluate.owrocanalysis import OWROCAnalysis
-from Orange.widgets.evaluate.owtestlearners import OWTestLearners
-from Orange.widgets.unsupervised.owcorrespondence import OWCorrespondenceAnalysis
-from Orange.widgets.unsupervised.owdistancemap import OWDistanceMap
-from Orange.widgets.unsupervised.owdistances import OWDistances
-from Orange.widgets.unsupervised.owhierarchicalclustering import OWHierarchicalClustering
-from Orange.widgets.unsupervised.owkmeans import OWKMeans
-from Orange.widgets.unsupervised.owmds import OWMDS
-from Orange.widgets.unsupervised.owpca import OWPCA
-from Orange.widgets.utils.itemmodels import PyTableModel
+from orangewidget.report.owreport import OWReport
+from orangewidget import gui
+from orangewidget.widget import OWWidget
+from orangewidget.tests.base import WidgetTest
+from orangewidget.visualize.owtreeviewer import OWTreeGraph
+from orangewidget.data.owfile import OWFile
+from orangewidget.data.owtable import OWDataTable
+from orangewidget.evaluate.owcalibrationplot import OWCalibrationPlot
+from orangewidget.evaluate.owliftcurve import OWLiftCurve
+from orangewidget.evaluate.owrocanalysis import OWROCAnalysis
+from orangewidget.evaluate.owtestlearners import OWTestLearners
+from orangewidget.unsupervised.owcorrespondence import OWCorrespondenceAnalysis
+from orangewidget.unsupervised.owdistancemap import OWDistanceMap
+from orangewidget.unsupervised.owdistances import OWDistances
+from orangewidget.unsupervised.owhierarchicalclustering import OWHierarchicalClustering
+from orangewidget.unsupervised.owkmeans import OWKMeans
+from orangewidget.unsupervised.owmds import OWMDS
+from orangewidget.unsupervised.owpca import OWPCA
+from orangewidget.utils.itemmodels import PyTableModel
 
 
 def get_owwidgets(top_module_name):
@@ -127,7 +127,7 @@ class TestReport(WidgetTest):
         rep = OWReport.get_instance()
         filenames = ["f.report", "f.html"]
         for filename in filenames:
-            with patch("Orange.widgets.report.owreport.open",
+            with patch("orangewidget.report.owreport.open",
                        create=True, side_effect=PermissionError),\
                     patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
                           return_value=(filename, 'HTML (*.html)')),\

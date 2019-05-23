@@ -1,5 +1,6 @@
-from Orange.widgets import widget, gui
-from Orange.widgets.settings import Setting
+from orangewidget import widget, gui
+from orangewidget.settings import Setting
+
 
 class OWWidgetName(widget.OWWidget):
     name = "Widget Name"

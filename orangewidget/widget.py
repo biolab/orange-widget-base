@@ -17,25 +17,23 @@ from AnyQt.QtCore import (
     QSettings, QUrl, QThread, pyqtSignal as Signal, QSize)
 from AnyQt.QtGui import QIcon, QKeySequence, QDesktopServices, QPainter
 
-from Orange.data import FileFormat
-from Orange.widgets import settings, gui
-
-from Orange.widgets.report import Report
-from Orange.widgets.gui import OWComponent, VerticalScrollArea
-from Orange.widgets.io import ClipboardFormat
-from Orange.widgets.settings import SettingsHandler
-from Orange.widgets.utils import saveplot, getdeepattr
-from Orange.widgets.utils.progressbar import ProgressBarMixin
-from Orange.widgets.utils.messages import (
+from orangewidget import settings, gui
+from orangewidget.report import Report
+from orangewidget.gui import OWComponent, VerticalScrollArea
+from orangewidget.io import ClipboardFormat, ImgFormat
+from orangewidget.settings import SettingsHandler
+from orangewidget.utils import saveplot, getdeepattr
+from orangewidget.utils.progressbar import ProgressBarMixin
+from orangewidget.utils.messages import (
     WidgetMessagesMixin, UnboundMsg, MessagesWidget
 )
-from Orange.widgets.utils.signals import (
+from orangewidget.utils.signals import (
     WidgetSignalsMixin, Input, Output, AttributeList,
     InputSignal, OutputSignal,
     Default, NonDefault, Single, Multiple, Dynamic, Explicit
 )
-from Orange.widgets.utils.overlay import MessageOverlayWidget, OverlayWidget
-from Orange.widgets.utils.buttons import SimpleButton
+from orangewidget.utils.overlay import MessageOverlayWidget, OverlayWidget
+from orangewidget.utils.buttons import SimpleButton
 
 # Msg is imported and renamed, so widgets can import it from this module rather
 # than the one with the mixin (orangewidget.utils.messages).
@@ -151,7 +149,7 @@ class OWWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     want_message_bar = True
     #: Widget painted by `Save graph` button
     graph_name = None
-    graph_writers = [f for f in FileFormat.formats
+    graph_writers = [f for f in ImgFormat.formats
                      if getattr(f, 'write_image', None)
                      and getattr(f, "EXTENSIONS", None)]
 
@@ -742,6 +740,7 @@ class OWWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         saveplot.save_plot(graph_obj, self.graph_writers)
 
     def copy_to_clipboard(self):
+
         if self.graph_name:
             graph_obj = getdeepattr(self, self.graph_name, None)
             if graph_obj is None:
@@ -1281,8 +1280,8 @@ class Message:
         self.persistent_id = persistent_id
 
 
-#: Input/Output flags.
-#: -------------------
+#: Input/Output flags (deprecated).
+#: --------------------------------
 #:
 #: The input/output is the default for its type.
 #: When there are multiple IO signals with the same type the

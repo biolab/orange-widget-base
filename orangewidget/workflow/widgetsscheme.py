@@ -46,11 +46,9 @@ from orangecanvas.scheme.widgetmanager import WidgetManager as _WidgetManager
 from orangecanvas.utils import name_lookup
 from orangecanvas.resources import icon_loader
 
-from Orange.widgets.widget import OWWidget
-from Orange.widgets.report.owreport import OWReport
-
-from Orange.widgets.settings import SettingsPrinter
-
+from orangewidget.widget import OWWidget
+from orangewidget.report.owreport import OWReport
+from orangewidget.settings import SettingsPrinter
 
 log = logging.getLogger(__name__)
 

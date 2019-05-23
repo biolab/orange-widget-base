@@ -26,17 +26,9 @@ from AnyQt.QtWidgets import (
     QVBoxLayout, QWidget
 )
 
-from Orange.util import try_
-from Orange.canvas.widgetsscheme import WidgetsScheme
-try:
-    from Orange.widgets.widget import OWWidget
-    from Orange.version import full_version as VERSION_STR
-except ImportError:
-    # OWWidget (etc.) is not available because this is not Orange
-    class OWWidget:
-        pass
-    VERSION_STR = '???'
-
+from orangewidget.workflow.widgetsscheme import WidgetsScheme
+from orangewidget.widget import OWWidget
+from orangewidget.version import full_version as VERSION_STR
 
 REPORT_POST_URL = 'https://qa.orange.biolab.si/error_report/v1/'
 
@@ -60,6 +52,13 @@ def internet_on():
         return True
     except URLError:
         return False
+
+
+def try_(func, default=None):
+    try:
+        return func()
+    except Exception:
+        return default
 
 
 class ErrorReporting(QDialog):

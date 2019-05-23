@@ -5,9 +5,8 @@ from AnyQt.QtGui import QBrush
 from AnyQt.QtWidgets import \
     QMessageBox, QFileDialog, QFileIconProvider, QComboBox
 
-from Orange.data.io import FileFormat, Compression
+from Orange.widgets.io import ImgFormat, Compression
 from Orange.widgets.settings import Setting
-from Orange.util import deprecated
 
 
 def fix_extension(ext, format, suggested_ext, suggested_format):
@@ -40,18 +39,6 @@ fix_extension.CANCEL = 2
 
 def format_filter(writer):
     return '{} (*{})'.format(writer.DESCRIPTION, ' *'.join(writer.EXTENSIONS))
-
-
-@deprecated
-def dialog_formats():
-    """
-    Return readable file types for QFileDialogs.
-    """
-    return ("All readable files ({});;".format(
-        '*' + ' *'.join(FileFormat.readers.keys())) +
-            ";;".join("{} (*{})".format(f.DESCRIPTION, ' *'.join(f.EXTENSIONS))
-                      for f in sorted(set(FileFormat.readers.values()),
-                                      key=list(FileFormat.readers.values()).index)))
 
 
 def get_file_name(start_dir, start_filter, file_formats):

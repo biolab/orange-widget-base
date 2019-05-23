@@ -1,6 +1,7 @@
 import os
+import sys
 import tempfile
-from warnings import warn
+from collections import OrderedDict
 
 from AnyQt import QtGui, QtCore, QtSvg
 from AnyQt.QtCore import QMimeData, QMarginsF
@@ -8,20 +9,54 @@ from AnyQt.QtWidgets import (
     QGraphicsScene, QGraphicsView, QWidget, QApplication
 )
 
-from Orange.data.io import FileFormat
-from Orange.widgets.utils.matplotlib_export import scene_code
+from orangewidget.utils.matplotlib_export import scene_code
 
-# Importing WebviewWidget can fail if neither QWebKit (old, deprecated) nor
-# QWebEngine (bleeding-edge, hard to install) are available
 try:
-    from Orange.widgets.utils.webview import WebviewWidget
+    from orangewidget.utils.webview import WebviewWidget
 except ImportError:
-    warn('WebView from QWebKit or QWebEngine is not available. Orange '
-         'widgets that depend on it will fail to work.')
     WebviewWidget = None
 
+__all__ = [
+    "ImgFormat", "Compression", "PngFormat", "ClipboardFormat", "SvgFormat",
+    "MatplotlibPDFFormat", "MatplotlibFormat", "PdfFormat",
+]
 
-class ImgFormat(FileFormat):
+
+class Compression:
+    """Supported compression extensions"""
+    GZIP = '.gz'
+    BZIP2 = '.bz2'
+    XZ = '.xz'
+    all = (GZIP, BZIP2, XZ)
+
+
+class _Registry(type):
+    """Metaclass that registers subtypes."""
+    def __new__(mcs, name, bases, attrs):
+        cls = type.__new__(mcs, name, bases, attrs)
+        if not hasattr(cls, 'registry'):
+            cls.registry = OrderedDict()
+        else:
+            cls.registry[name] = cls
+        return cls
+
+    def __iter__(cls):
+        return iter(cls.registry)
+
+    def __str__(cls):
+        if cls in cls.registry.values():
+            return cls.__name__
+        return '{}({{{}}})'.format(cls.__name__, ', '.join(cls.registry))
+
+
+class classproperty(property):
+    def __get__(self, instance, class_):
+        return self.fget(class_)
+
+
+class ImgFormat(metaclass=_Registry):
+    PRIORITY = sys.maxsize
+
     @staticmethod
     def _get_buffer(size, filename):
         raise NotImplementedError
@@ -80,6 +115,21 @@ class ImgFormat(FileFormat):
         if type(scene) == dict:
             scene = scene['scene']
         cls.write_image(filename, scene)
+
+    @classproperty
+    def img_writers(cls):  # type: () -> Mapping[str, Type[ImgFormat]]
+        formats = OrderedDict()
+        for format in sorted(cls.registry.values(), key=lambda x: x.PRIORITY):
+            for ext in getattr(format, 'EXTENSIONS', []):
+                # Only adds if not yet registered
+                formats.setdefault(ext, format)
+        return formats
+
+    graph_writers = img_writers
+
+    @classproperty
+    def formats(cls):
+        return cls.registry.values()
 
 
 class PngFormat(ImgFormat):
@@ -166,7 +216,7 @@ class SvgFormat(ImgFormat):
     def write_image(cls, filename, scene):
         # WebviewWidget exposes its SVG contents more directly;
         # no need to go via QPainter if we can avoid it
-        if isinstance(scene, WebviewWidget):
+        if WebviewWidget is not None and isinstance(scene, WebviewWidget):
             try:
                 svg = scene.svg()
                 with open(filename, 'w') as f:

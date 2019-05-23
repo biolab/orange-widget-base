@@ -8,13 +8,9 @@ import pyqtgraph.exporters
 from AnyQt.QtWidgets import QGraphicsScene, QGraphicsRectItem
 from AnyQt.QtGui import QImage
 
-import Orange
-from Orange.tests import named_file
-from Orange.widgets.tests.base import GuiTest, WidgetTest
+from orangewidget.tests.base import GuiTest, named_file
 
-from Orange.widgets import io as imgio
-from Orange.widgets.io import MatplotlibFormat, MatplotlibPDFFormat
-from Orange.widgets.visualize.owscatterplot import OWScatterPlot
+from orangewidget import io as imgio
 
 
 @unittest.skipUnless(hasattr(imgio, "PdfFormat"), "QPdfWriter not available")
@@ -34,7 +30,7 @@ class TestImgFormat(GuiTest):
 
     def test_pyqtgraph_exporter(self):
         graph = pyqtgraph.PlotWidget()
-        with patch("Orange.widgets.io.ImgFormat._get_exporter",
+        with patch("orangewidget.io.ImgFormat._get_exporter",
                    Mock()) as mfn:
             with self.assertRaises(Exception):
                 imgio.ImgFormat.write("", graph)
@@ -43,7 +39,7 @@ class TestImgFormat(GuiTest):
     def test_other_exporter(self):
         sc = QGraphicsScene()
         sc.addItem(QGraphicsRectItem(0, 0, 3, 3))
-        with patch("Orange.widgets.io.ImgFormat._get_exporter",
+        with patch("orangewidget.io.ImgFormat._get_exporter",
                    Mock()) as mfn:
             with self.assertRaises(Exception):
                 imgio.ImgFormat.write("", sc)
@@ -103,31 +99,34 @@ class TestPdf(GuiTest):
             os.unlink(fname)
 
 
-class TestMatplotlib(WidgetTest):
+class TestMatplotlib(GuiTest):
+    def setUp(self):
+        super().setUp()
+        plt = pyqtgraph.PlotWidget()
+        plt.addItem(pyqtgraph.ScatterPlotItem(
+            x=[0.0, 0.1, 0.2, 0.3],
+            y=[0.1, 0.2, 0.1, 0.2],
+        ))
+        self.plt = plt
+
+    def tearDown(self):
+        del self.plt
+        super().tearDown()
 
     def test_python(self):
-        iris = Orange.data.Table("iris")
-        self.widget = self.create_widget(OWScatterPlot)
-        self.send_signal(OWScatterPlot.Inputs.data, iris[::10])
         with named_file("", suffix=".py") as fname:
-            with patch("Orange.widgets.utils.filedialogs.open_filename_dialog_save",
-                       lambda *x: (fname, MatplotlibFormat, None)):
-                self.widget.save_graph()
-                with open(fname, "rt") as f:
-                    code = f.read()
-                self.assertIn("plt.show()", code)
-                self.assertIn("plt.scatter", code)
-                # test if the runs
-                exec(code.replace("plt.show()", ""), {})
+            imgio.MatplotlibFormat.write(fname, self.plt.plotItem)
+            with open(fname, "rt") as f:
+                code = f.read()
+            self.assertIn("plt.show()", code)
+            self.assertIn("plt.scatter", code)
+            # test if the runs
+            exec(code.replace("plt.show()", ""), {})
 
     def test_pdf(self):
-        iris = Orange.data.Table("iris")
-        self.widget = self.create_widget(OWScatterPlot)
-        self.send_signal(OWScatterPlot.Inputs.data, iris[::10])
+
         with named_file("", suffix=".pdf") as fname:
-            with patch("Orange.widgets.utils.filedialogs.open_filename_dialog_save",
-                       lambda *x: (fname, MatplotlibPDFFormat, None)):
-                self.widget.save_graph()
-                with open(fname, "rb") as f:
-                    code = f.read()
-                self.assertTrue(code.startswith(b"%PDF"))
+            imgio.MatplotlibPDFFormat.write(fname, self.plt.plotItem)
+            with open(fname, "rb") as f:
+                code = f.read()
+            self.assertTrue(code.startswith(b"%PDF"))

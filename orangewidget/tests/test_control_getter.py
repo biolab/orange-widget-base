@@ -1,10 +1,10 @@
 # Test methods with long descriptive names can omit docstrings
 # pylint: disable=missing-docstring
-from Orange.widgets import gui
-from Orange.widgets.gui import OWComponent
-from Orange.widgets.settings import SettingProvider
-from Orange.widgets.tests.base import WidgetTest
-from Orange.widgets.widget import OWWidget
+from orangewidget import gui
+from orangewidget.gui import OWComponent
+from orangewidget.settings import SettingProvider
+from orangewidget.tests.base import WidgetTest
+from orangewidget.widget import OWWidget
 
 
 class DummyComponent(OWComponent):

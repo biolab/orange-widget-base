@@ -10,11 +10,11 @@ from AnyQt.QtGui import QShowEvent
 from AnyQt.QtWidgets import QAction
 from AnyQt.QtTest import QSignalSpy, QTest
 
-from Orange.widgets.gui import OWComponent
-from Orange.widgets.settings import Setting, SettingProvider
-from Orange.widgets.tests.base import WidgetTest
-from Orange.widgets.widget import OWWidget, Msg
-from Orange.widgets.utils.messagewidget import MessagesWidget
+from orangewidget.gui import OWComponent
+from orangewidget.settings import Setting, SettingProvider
+from orangewidget.tests.base import WidgetTest
+from orangewidget.widget import OWWidget, Msg
+from orangewidget.utils.messagewidget import MessagesWidget
 
 
 class DummyComponent(OWComponent):
@@ -134,10 +134,10 @@ class WidgetTestCase(WidgetTest):
         self.assertIsNone(ref())
 
     def test_garbage_collect_from_scheme(self):
-        from Orange.canvas.widgetsscheme import WidgetsScheme
-        from Orange.canvas.discovery import widget_desc_from_module
+        from orangewidget.workflow.widgetsscheme import WidgetsScheme
+        from orangewidget.workflow.discovery import widget_desc_from_module
         new_scheme = WidgetsScheme()
-        w_desc = widget_desc_from_module("Orange.widgets.tests.test_widget")
+        w_desc = widget_desc_from_module("orangewidget.tests.test_widget")
         node = new_scheme.new_node(w_desc)
         widget = new_scheme.widget_for_node(node)
         widget._finalizer = QObject()

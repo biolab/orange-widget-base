@@ -1,5 +1,5 @@
 import unittest
-from Orange.widgets.settings import Setting, SettingProvider
+from orangewidget.settings import Setting, SettingProvider
 
 SHOW_ZOOM_TOOLBAR = "show_zoom_toolbar"
 SHOW_GRAPH = "show_graph"

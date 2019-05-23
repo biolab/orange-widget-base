@@ -4,7 +4,7 @@ from io import BytesIO
 from unittest import TestCase
 from unittest.mock import Mock, patch, call
 from AnyQt.QtCore import pyqtSignal as Signal, QObject
-from Orange.widgets.settings import (
+from orangewidget.settings import (
     ContextHandler, ContextSetting, Context, Setting, SettingsPrinter,
     VERSION_KEY, IncompatibleContext
 )

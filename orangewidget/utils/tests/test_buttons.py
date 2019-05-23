@@ -19,3 +19,17 @@ class SimpleButtonTest(GuiTest):
         b.setCheckable(True)
         b.setChecked(True)
         b.grab()
+
+
+class TestVariableTextPushButton(GuiTest):
+    def test_button(self):
+        b = buttons.VariableTextPushButton(
+            textChoiceList=["", "A", "MMMMMMM"]
+        )
+        b.setText("")
+        sh = b.sizeHint()
+        b.setText("A")
+        self.assertEqual(b.sizeHint(), sh)
+        b.setText("MMMMMMM")
+        self.assertEqual(b.sizeHint(), sh)
+        b.setTextChoiceList(["A", "B", "C"])

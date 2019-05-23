@@ -6,9 +6,12 @@ from AnyQt.QtWidgets import QDialog
 from AnyQt.QtTest import QTest
 
 from orangewidget.tests.base import WidgetTest
-from orangewidget.utils.webview import WebviewWidget, HAVE_WEBKIT, wait
-
-SOME_URL = WebviewWidget.toFileURL(dirname(__file__))
+try:
+    from orangewidget.utils.webview import WebviewWidget, HAVE_WEBKIT, wait
+except ImportError:
+    pass
+else:
+    SOME_URL = WebviewWidget.toFileURL(dirname(__file__))
 
 
 @skip("Times out on Travis")

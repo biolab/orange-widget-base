@@ -1,4 +1,4 @@
-.. currentmodule:: Orange.widgets.tests.base
+.. currentmodule:: orangewidget.tests.base
 
 
 Debugging and testing
@@ -9,7 +9,7 @@ Running widgets as scripts
 
 To run a widget without canvas - for debugging and for nitpicking about the GUI
 - the widget module must be executable as a script. This is handled by
-:obj:`~Orange.widgets.utils.widgetpreview.WidgetPreview`. It is typically
+:obj:`~orangewidget.utils.widgetpreview.WidgetPreview`. It is typically
 used as follows ::
 
     if __name__ == "__main__":
@@ -70,7 +70,7 @@ can be temporarily modified to ::
 which shows the widget twice, allows us a finer control of signal passing,
 and offers adding some breakpoints.
 
-.. autoclass:: Orange.widgets.utils.widgetpreview.WidgetPreview
+.. autoclass:: orangewidget.utils.widgetpreview.WidgetPreview
    :members:
    :member-order: bysource
 

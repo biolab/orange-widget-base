@@ -36,7 +36,7 @@ it
 Widgets Settings
 ****************
 
-Luckily, since we use the base class :class:`~Orange.widgets.widget.OWWidget`,
+Luckily, since we use the base class :class:`~orangewidget.widget.OWWidget`,
 the settings will be handled just fine. We only need to tell which variables
 we want to use for persistent settings.
 
@@ -65,7 +65,7 @@ but will instead use them in conjunction with GUI controls.
 Controls and module `gui`
 *************************
 
-We will use the :mod:`Orange.widgets.gui` to create/define the gui.
+We will use the :mod:`orangewidget.gui` to create/define the gui.
 With this library, the GUI definition part of the options box is a bit
 dense but rather very short
 
@@ -77,7 +77,7 @@ dense but rather very short
 We are already familiar with the first part - the Info group
 box. To make widget nicer, we put a separator between this and Options
 box. After defining the option box, here is our first serious
-:mod:`~Orange.widgets.gui` control: a :func:`Orange.widgets.gui.spin`.
+:mod:`~orangewidget.gui` control: a :func:`orangewidget.gui.spin`.
 The first parameter specifies its parent widget/layout, in this case
 :obj:`self.optionsBox` (the resulting widget object will automatically
 append itself to the parent's layout). The second (:obj:`self`) and
@@ -93,12 +93,12 @@ label which will be placed on the top, and tells it which functions to
 call when the value in the spin box is changed. We need the first
 callback to make a data sample and report in the Info box what is the
 size of the sample, and a second callback to check if we can send this
-data out. In :mod:`Orange.widgets.gui`, callbacks are either references
+data out. In :mod:`orangewidget.gui`, callbacks are either references
 to functions, or a list with references, just like in our case.
 
 With all of the above, the parameters for the call of
-:func:`Orange.widgets.gui.checkBox` should be clear as well. Notice that
-this and a call to :func:`Orange.widgets.gui.spin` do not need a parameter
+:func:`orangewidget.gui.checkBox` should be clear as well. Notice that
+this and a call to :func:`orangewidget.gui.spin` do not need a parameter
 which would tell the control the value for initialization: upon
 construction, both controls will be set to the value that is
 pertained in the associated setting variable.
@@ -230,7 +230,7 @@ can give it a :class:`Orange.data.Domain`. Whether a saved context can be
 reused is judged upon the presence of attributes in the domain.
 
 If the widget is constructed appropriately (that is, if it strictly uses
-:mod:`Orange.widgets.gui` controls instead of the Qt's), no other
+:mod:`orangewidget.gui` controls instead of the Qt's), no other
 administration is needed to switch the context.
 
 Except for declaring the context settings, that is. Scatter plot has this in
@@ -250,7 +250,7 @@ its class definition
 
 ``settingsHandler = DomainContextHandler()`` declares that Scatter plot uses
 :class:`DomainContextHandler`. The :obj:`attr_x` and :obj:`attr_y` are
-declared as :class:`~Orange.widgets.settings.ContextSetting`.
+declared as :class:`~orangewidget.settings.ContextSetting`.
 
 
 Migrations

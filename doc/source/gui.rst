@@ -1,4 +1,4 @@
-.. currentmodule:: Orange.widgets.gui
+.. currentmodule:: orangewidget.gui
 
 ###################################
 Library of Common GUI Controls
@@ -99,7 +99,7 @@ Many functions share common arguments.
     placement of the label and the control. Label can be above the control,
     (`"vertical"` or `True` - this is the default) or in the same line with
     control, (`"horizontal"` or `False`). Orientation can also be an instance
-    of :obj:`~PyQt4.QtGui.QLayout`.
+    of :obj:`~PyQt5.QtWidgets.QLayout`.
 
 
 **********
@@ -159,12 +159,6 @@ Other widgets
 .. autofunction:: separator
 .. autofunction:: rubber
 
-*****************
-Utility functions
-*****************
-
-.. autodata:: attributeIconDict
-.. autofunction:: attributeItem
 
 ******************************
 Internal functions and classes
@@ -193,4 +187,3 @@ Other functions
 .. autofunction:: miscellanea
 .. autofunction:: setLayout
 .. autofunction:: _addSpace
-.. autofunction:: createAttributePixmap

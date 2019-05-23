@@ -40,7 +40,7 @@ Orange Canvas looks for widgets using an ``orange.widgets`` entry point.
 Defining a widget
 *****************
 
-:class:`~Orange.widgets.widget.OWWidget` is the base class of a widget
+:class:`~orangewidget.widget.OWWidget` is the base class of a widget
 in the Orange Canvas workflow.
 
 Every widget in the canvas framework needs to define its meta data.
@@ -53,9 +53,9 @@ a single integer specified by the user.
 
 .. code-block:: python
 
-    from Orange.widgets.widget import OWWidget, Output
-    from Orange.widgets.settings import Setting
-    from Orange.widgets import gui
+    from orangewidget.widget import OWWidget, Output
+    from orangewidget.settings import Setting
+    from orangewidget import gui
 
     class IntNumber(OWWidget):
         # Widget's name as displayed in the canvas
@@ -78,7 +78,7 @@ and should include any controls for settings or options that your widget
 will use. Main area would most often include a graph, table or some
 drawing that will be based on the inputs to the widget and current
 options/setting in the control area.
-:class:`~Orange.widgets.widget.OWWidget` makes these two areas available
+:class:`~orangewidget.widget.OWWidget` makes these two areas available
 through its attributes :obj:`self.controlArea` and :obj:`self.mainArea`.
 Notice that while it would be nice for all widgets to have this common
 visual look, you can use these areas in any way you want, even
@@ -125,15 +125,15 @@ widget functionality:
            self.Outputs.number.send(self.number)
 
 .. seealso::
-   :func:`Orange.widgets.gui.lineEdit`,
+   :func:`orangewidget.gui.lineEdit`,
 
 By itself this widget is useless because no widget accepts its output.
 So let us define a widget that displays a number.
 
 .. code-block:: python
 
-   from Orange.widgets.widget import OWWidget, Input
-   from Orange.widgets import gui
+   from orangewidget.widget import OWWidget, Input
+   from orangewidget import gui
 
    class Print(OWWidget):
        name = "Print"
@@ -176,7 +176,7 @@ One more:
 
 .. code-block:: python
 
-   from Orange.widgets.widget import OWWidget, Input, Output
+   from orangewidget.widget import OWWidget, Input, Output
 
    class Adder(OWWidget):
        name = "Add two integers"
@@ -215,4 +215,4 @@ One more:
                # Clear the channel by sending `None`
                self.Outputs.sum.send(None)
 
-.. seealso:: :func:`~Orange.widgets.widget.OWWidget.handleNewSignals`
+.. seealso:: :func:`~orangewidget.widget.OWWidget.handleNewSignals`

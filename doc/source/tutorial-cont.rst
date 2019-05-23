@@ -147,7 +147,7 @@ Testing Your Widget Outside Orange Canvas
 For debugging purposes, we want to be able to run widgets standalone: if the
 file with the widget code is executed as a main script, it should show the
 widget and feed it some suitable data. The simplest way to do so is to use
-:obj:`Orange.widgets.utils.WidgetPreview` and pass it the data for the
+:obj:`orangewidget.utils.WidgetPreview` and pass it the data for the
 default signal.
 
 .. literalinclude:: orange-demo/orangedemo/OWDataSamplerA.py

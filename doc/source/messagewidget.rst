@@ -1,9 +1,9 @@
-.. currentmodule:: Orange.widgets.utils.messagewidget
+.. currentmodule:: orangewidget.utils.messagewidget
 
-:mod:`Orange.widgets.utils.messagewidget`
------------------------------------------
+:mod:`orangewidget.utils.messagewidget`
+---------------------------------------
 
-.. automodule:: Orange.widgets.utils.messagewidget
+.. automodule:: orangewidget.utils.messagewidget
 
 .. autoclass:: MessagesWidget
    :members:

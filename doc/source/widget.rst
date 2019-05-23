@@ -1,4 +1,4 @@
-.. currentmodule:: Orange.widgets.widget
+.. currentmodule:: orangewidget.widget
 
 OWWidget
 ########
@@ -112,7 +112,7 @@ Accessing Controls though Attribute Names
 -----------------------------------------
 
 The preferred way for constructing the user interface is to use functions from
-module :obj:`Orange.widgets.gui` that insert a Qt widget and establish the
+module :obj:`orangewidget.gui` that insert a Qt widget and establish the
 signals for synchronization with the widget's attributes.
 
      gui.checkBox(box, self, "binary_trees", "Induce binary tree")
@@ -133,15 +133,15 @@ widget that controls it, e.g. with
 Class Member Documentation
 --------------------------
 
-.. autoclass:: Orange.widgets.widget.OWWidget
+.. autoclass:: orangewidget.widget.OWWidget
    :members:
    :member-order: bysource
 
 
-.. autoclass:: Orange.widgets.widget.Message
+.. autoclass:: orangewidget.widget.Message
 
 
-.. autoclass:: Orange.widgets.widget.StateInfo
+.. autoclass:: orangewidget.widget.StateInfo
    :members: Summary, Empty, Partial, input_summary_changed,
        output_summary_changed
    :exclude-members: Summary, Empty, Partial,
@@ -149,13 +149,13 @@ Class Member Documentation
       set_input_summary, set_output_summary,
       NoInput, NoOutput
 
-   .. autoclass:: Orange.widgets.widget::StateInfo.Summary
+   .. autoclass:: orangewidget.widget::StateInfo.Summary
       :members:
 
-   .. autoclass:: Orange.widgets.widget::StateInfo.Empty
+   .. autoclass:: orangewidget.widget::StateInfo.Empty
       :show-inheritance:
 
-   .. autoclass:: Orange.widgets.widget::StateInfo.Partial
+   .. autoclass:: orangewidget.widget::StateInfo.Partial
       :show-inheritance:
 
    .. autoattribute:: NoInput

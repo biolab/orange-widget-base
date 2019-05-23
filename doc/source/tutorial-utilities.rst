@@ -18,19 +18,19 @@ There are two mechanisms for implementing this.
 Progress bar class
 ..................
 
-Class `Orange.widgets.gui.ProgressBar` is initialized with a widget and the
+Class `orangewidget.gui.ProgressBar` is initialized with a widget and the
 number of iterations::
 
-    progress = Orange.widgets.gui.ProgressBar(self, n)
+    progress = orangewidget.gui.ProgressBar(self, n)
 
 Direct manipulation of progress bar
 ...................................
 
 The progress bar can be manipulated directly through functions
 
-* :obj:`~Orange.widgets.widget.OWWidget.progressBarInit(self)`
-* :obj:`~Orange.widgets.widget.OWWidget.progressBarSet(self, p)`
-* :obj:`~Orange.widgets.widget.OWWidget.progressBarFinished(self)`
+* :obj:`~orangewidget.widget.OWWidget.progressBarInit(self)`
+* :obj:`~orangewidget.widget.OWWidget.progressBarSet(self, p)`
+* :obj:`~orangewidget.widget.OWWidget.progressBarFinished(self)`
 
 `progressBarInit` initializes the progress bar, `progressBarSet` sets it
 to `p` percents (from 0 to 100), and `progressBarFinished` closes it.
@@ -132,9 +132,9 @@ I/O Summaries
 .. versionadded:: 3.19
 
 Widgets can optionally summarize their inputs/outputs via the
-:attr:`~Orange.widgets.widget.OWWidget.info` namespace using the
-:func:`~Orange.widgets.widget.StateInfo.set_input_summary` and
-:func:`~Orange.widgets.widget.StateInfo.set_output_summary` methods.
+:attr:`~orangewidget.widget.OWWidget.info` namespace using the
+:func:`~orangewidget.widget.StateInfo.set_input_summary` and
+:func:`~orangewidget.widget.StateInfo.set_output_summary` methods.
 ::
 
    self.info.set_input_summary("foo")
@@ -169,8 +169,8 @@ in tool tip or popup::
 
 
 .. seealso::
-   :func:`~Orange.widgets.widget.StateInfo.set_input_summary`,
-   :func:`~Orange.widgets.widget.StateInfo.set_output_summary`
+   :func:`~orangewidget.widget.StateInfo.set_input_summary`,
+   :func:`~orangewidget.widget.StateInfo.set_output_summary`
 
 
 .. note::
@@ -193,7 +193,7 @@ is never shown again; just closing the message will not mark it as seen.
 Messages can be displayed again by pressing Shift + F1.
 
 `UserAdviceMessages` contains instances of
-:obj:`~Orange.widgets.widget.Message`. The messages contains a text and an
+:obj:`~orangewidget.widget.Message`. The messages contains a text and an
 id (also a string), and, optionally, an icon and an URL with further
 information.
 

@@ -26,7 +26,7 @@ continue, and if not return early (in our case by raising an exception).
 Setting up
 **********
 
-We use :class:`Orange.widgets.utils.concurrent.ThreadExecutor` for thread
+We use :class:`orangewidget.utils.concurrent.ThreadExecutor` for thread
 allocation/management (but could easily replace it with stdlib's
 :class:`concurrent.futures.ThreadPoolExecutor`).
 
@@ -97,9 +97,9 @@ direction we report the `percent` of work done.
    :end-before: end-snippet-7
 
 .. seealso::
-   :func:`~Orange.widgets.widget.OWWidget.progressBarInit`,
-   :func:`~Orange.widgets.widget.OWWidget.progressBarSet`,
-   :func:`~Orange.widgets.widget.OWWidget.progressBarFinished`
+   :func:`~orangewidget.widget.OWWidget.progressBarInit`,
+   :func:`~orangewidget.widget.OWWidget.progressBarSet`,
+   :func:`~orangewidget.widget.OWWidget.progressBarFinished`
 
 
 Next, we submit the function to be run in a worker thread and instrument
@@ -141,7 +141,7 @@ results.
    :start-after: start-snippet-10
    :end-before: end-snippet-10
 
-We also use cancel in :func:`~Orange.widgets.widget.OWWidget.onDeleteWidget`
+We also use cancel in :func:`~orangewidget.widget.OWWidget.onDeleteWidget`
 to stop if/when the widget is removed from the canvas.
 
 .. literalinclude:: orange-demo/orangedemo/OWLearningCurveC.py

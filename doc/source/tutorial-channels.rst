@@ -82,7 +82,7 @@ The function above first checks if the channel `id` is already in
 ``learner`` is ``None`` (remember receiving a ``None`` value means the
 link was removed/closed) or invalidates the cross validation results
 and curve point for that channel id, marking for update in
-:func:`~Orange.widgets.widget.OWWidget.handleNewSignals`. A similar case is
+:func:`~orangewidget.widget.OWWidget.handleNewSignals`. A similar case is
 when we receive a learner for a new channel id.
 
 Note that in this widget the evaluation (k-fold cross
@@ -181,5 +181,5 @@ Sometimes when a widget has multiple outputs of different types, some
 of them should not be subject to this automatic default connection selection.
 An example of this is in Orange's `Logistic Regression` widget that outputs
 a supplementary 'Coefficients' data table. Such outputs can be marked with
-and :attr:`~Orange.widgets.widget.Explicit` flag, which ensures they are never
+and :attr:`~orangewidget.widget.Explicit` flag, which ensures they are never
 selected for a default connection.

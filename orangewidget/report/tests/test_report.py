@@ -11,7 +11,7 @@ from orangewidget.report.owreport import OWReport
 from orangewidget import gui
 from orangewidget.utils.itemmodels import PyTableModel
 from orangewidget.widget import OWWidget
-from orangewidget.tests.base import WidgetTest
+from orangewidget.tests.base import GuiTest
 
 
 class TstWidget(OWWidget):
@@ -19,18 +19,18 @@ class TstWidget(OWWidget):
         self.report_caption("AA")
 
 
-class TestReport(WidgetTest):
+class TestReport(GuiTest):
     def test_report(self):
         count = 5
+        rep = OWReport()
         for _ in range(count):
-            rep = OWReport.get_instance()
-            widget = self.create_widget(TstWidget)
+            widget = TstWidget()
             widget.create_report_html()
             rep.make_report(widget)
         self.assertEqual(rep.table_model.rowCount(), count)
 
     def test_report_table(self):
-        rep = OWReport.get_instance()
+        rep = OWReport()
         model = PyTableModel([['x', 1, 2],
                               ['y', 2, 2]])
         model.setHorizontalHeaderLabels(['a', 'b', 'c'])
@@ -77,7 +77,7 @@ class TestReport(WidgetTest):
         Permission Error may occur when trying to save report.
         GH-2147
         """
-        rep = OWReport.get_instance()
+        rep = OWReport()
         filenames = ["f.report", "f.html"]
         for filename in filenames:
             with patch("orangewidget.report.owreport.open",
@@ -86,13 +86,13 @@ class TestReport(WidgetTest):
                           return_value=(filename, 'HTML (*.html)')),\
                     patch("AnyQt.QtWidgets.QMessageBox.exec_",
                           return_value=True), \
-                    patch("Orange.widgets.report.owreport.log.error") as log:
+                    patch("orangewidget.report.owreport.log.error") as log:
                 rep.save_report()
                 log.assert_called()
 
     def test_save_report(self):
-        rep = OWReport.get_instance()
-        widget = self.create_widget(TstWidget)
+        rep = OWReport()
+        widget = TstWidget()
         widget.create_report_html()
         rep.make_report(widget)
         temp_dir = tempfile.mkdtemp()
@@ -109,7 +109,7 @@ class TestReport(WidgetTest):
 
     def test_disable_saving_empty(self):
         """Test if save and print buttons are disabled on empty report"""
-        rep = OWReport.get_instance()
+        rep = OWReport()
         self.assertFalse(rep.save_button.isEnabled())
         self.assertFalse(rep.print_button.isEnabled())
         widget = TstWidget()

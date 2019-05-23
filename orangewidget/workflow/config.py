@@ -13,14 +13,12 @@ import pkg_resources
 import requests
 
 from AnyQt.QtGui import QPainter, QFont, QFontMetrics, QColor, QPixmap, QIcon
-from AnyQt.QtCore import Qt, QPoint, QRect
+from AnyQt.QtCore import Qt, QPoint, QRect, QStandardPaths, QCoreApplication
 
 from orangecanvas import config
 
 from . import discovery
 from . import widgetsscheme
-
-import Orange
 
 # generated from biolab/orange3-addons repository
 OFFICIAL_ADDON_LIST = "https://orange.biolab.si/addons/list"
@@ -35,7 +33,10 @@ class Config(config.Config):
     """
     OrganizationDomain = "biolab.si"
     ApplicationName = "Orange Canvas"
-    ApplicationVersion = Orange.__version__
+    try:
+        from orangewidget.version import short_version as ApplicationVersion
+    except ImportError:
+        ApplicationVersion = "0.0.0"
 
     @staticmethod
     def application_icon():
@@ -162,28 +163,54 @@ def init():
     raise RuntimeError("This is not the init you are looking for.")
 
 
-def data_dir():
+def data_dir_base():
     """
-    Return the application data directory. If the directory path
-    does not yet exists then create it.
-    """
+    Return the platform dependent generic application directory.
 
-    from Orange.misc import environ
-    path = os.path.join(environ.data_dir(), "canvas")
-    try:
-        os.makedirs(path, exist_ok=True)
-    except OSError:
-        pass
-    return path
+    This is usually
+
+        - on windows: "%USERPROFILE%\\AppData\\Local\\"
+        - on OSX:  "~/Library/Application Support/"
+        - other: "~/.local/share/
+    """
+    return QStandardPaths.writableLocation(QStandardPaths.GenericDataLocation)
+
+
+def data_dir(versioned=True):
+    """
+    Return the platform dependent application data directory.
+
+    This is ``data_dir_base()``/{NAME}/{VERSION}/ directory if versioned is
+    `True` and ``data_dir_base()``/{NAME}/ otherwise, where NAME is
+    `QCoreApplication.applicationName()` and VERSION is
+    `QCoreApplication.applicationVersion()`.
+    """
+    base = data_dir_base()
+    assert base
+    name = QCoreApplication.applicationName()
+    version = QCoreApplication.applicationVersion()
+    if not name:
+        name = "Orange"
+    if not version:
+        version = "0.0.0"
+    if versioned:
+        return os.path.join(base, name, version)
+    else:
+        return os.path.join(base, name)
 
 
 def cache_dir():
     """Return the application cache directory. If the directory path
     does not yet exists then create it.
-
     """
-    from Orange.misc import environ
-    path = os.path.join(environ.cache_dir(), "canvas")
+    base = QStandardPaths.writableLocation(QStandardPaths.GenericCacheLocation)
+    name = QCoreApplication.applicationName()
+    version = QCoreApplication.applicationVersion()
+    if not name:
+        name = "Orange"
+    if not version:
+        version = "0.0.0"
+    path = os.path.join(base, name, version)
     try:
         os.makedirs(path, exist_ok=True)
     except OSError:
@@ -196,7 +223,7 @@ def log_dir():
     Return the application log directory.
     """
     if sys.platform == "darwin":
-        name = Config.ApplicationName
+        name = QCoreApplication.applicationName() or "Orange"
         logdir = os.path.join(os.path.expanduser("~/Library/Logs"), name)
     else:
         logdir = data_dir()
@@ -208,12 +235,13 @@ def log_dir():
     return logdir
 
 
-def widget_settings_dir():
+def widget_settings_dir(versioned=True):
     """
-    Return the widget settings directory.
+    Return the platform dependent directory where widgets save their settings.
+
+    This a subdirectory of ``data_dir(versioned)`` named "widgets"
     """
-    from Orange.misc import environ
-    return environ.widget_settings_dir()
+    return os.path.join(data_dir(versioned), "widgets")
 
 
 def widgets_entry_points():

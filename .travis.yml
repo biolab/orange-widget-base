@@ -2,41 +2,30 @@ language: python
 
 dist: xenial
 
-services:
-  - docker
+env:
+  global:
+    - PIP_DISABLE_PIP_VERSION_CHECK=1
+    - XVFBARGS="-screen 0 1280x1024x24"
+    - BUILD_DEP="pip~=19.0.0 wheel"
+    - TEST_DEP="PyQt5~=5.9.2"
 
 matrix:
-    include:
-        - env: RUN_PYLINT=true
-          python: '3.6'
-          cache: {}
-        - env: BUILD_DOCS=true
-          python: '3.6'
-          script: source $TRAVIS_BUILD_DIR/.travis/build_doc.sh
-        - python: '3.6'
-          env: UPLOAD_COVERAGE=true
-        - python: '3.7'
-    fast_finish: true
+  fast_finish: true
+  include:
+    - python: '3.6'
+
+    - python: '3.7'
 
 cache:
-    apt: true
-    pip: true
-    ccache: true
-    directories:
-        - $TRAVIS_BUILD_DIR/postgres
-        - $TRAVIS_BUILD_DIR/pyqt
-
-before_cache:
-
-before_install:
-    - set -e  # fail on any error
-    - source $TRAVIS_BUILD_DIR/.travis/util.sh
+  pip: true
 
 install:
-    - source $TRAVIS_BUILD_DIR/.travis/stage_install.sh
+  - pip install $BUILD_DEP
+  - pip --version
+  - pip list --format=freeze
+  - pip install $TEST_DEP
+  - pip install -e .
 
 script:
-    - source $TRAVIS_BUILD_DIR/.travis/stage_script.sh
-
-after_success:
-    - source $TRAVIS_BUILD_DIR/.travis/stage_after_success.sh
+  - pip list --format=freeze
+  - xvfb-run -a -s "$XVFBARGS" python -m unittest discover -v -b .

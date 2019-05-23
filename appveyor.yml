@@ -3,9 +3,7 @@
 skip_commits:
   files:
     - doc/*
-    - .travis
-    - benchmark
-    - tutorials
+    - .travis.yml
 
 clone_depth: 30
 
@@ -14,60 +12,43 @@ matrix:
 
 environment:
   global:
-    PIP_DISABLE_PIP_VERSION_CHECK: 1
-    # disable threaded builds on Python 3.5+ when using numpy's distutils
-    # (https://github.com/numpy/numpy/issues/7607)
-    BUILD_GLOBAL_OPTIONS: build -j1
-    BUILD_ENV: wheel==0.29.0 pip==9.0.1 numpy==1.9.3 -r requirements-doc.txt
-    # SIP 4.19.4+ with PyQt5==5.9.1+ segfault our tests (GH-2756)
-    TEST_ENV: sip==4.19.6 PyQt5==5.9.2 numpy~=1.14.0 scipy~=1.0.0 scikit-learn pandas==0.21.1 pymssql
-    ORANGE_TEST_DB_URI: 'mssql://sa:Password12!@localhost:1433'
+    PROJECT_NAME: "orange-widget-base"
+    PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    BUILD_DEP: wheel==0.29.0 pip~=19.0.0
+    TEST_DEP: PyQt5~=5.9.2
 
   matrix:
     - PYTHON: C:\Python36-x64
 
+    - PYTHON: C:\Python37-x64
+      TEST_DEP: PyQt5~=5.12.1 PyQtWebEngine~=5.12.1
+
 cache:
   - '%LOCALAPPDATA%\pip\cache -> appveyor.yml'
 
-services:
-  - mssql2017
-
 install:
-  # Configure pip: Add extra links url, force binary numpy, scipy, ...
-  - echo [install]> pip.ini
-  - echo find-links =>> pip.ini
-  - echo     https://orange.biolab.si/download/files/wheelhouse/>> pip.ini
-  - echo only-binary = numpy,scipy,scikit-learn>> pip.ini
-  - set "PIP_CONFIG_FILE=%CD%\pip.ini"
-  - type %PIP_CONFIG_FILE%
-
   - set "PATH=%PYTHON%;%PYTHON%\Scripts;%PATH%"
-  - python -m ensurepip
-  - python -m pip install pip~=9.0.1 wheel~=0.29.0
-  - python -m pip install %BUILD_ENV_INDEX% %BUILD_ENV%
+  - python -m pip install %BUILD_DEP%
+  - python -m pip --version
+  - python -m pip list --format=freeze
 
 build_script:
-  - python -m pip list --format=freeze
-  - python setup.py clean --all
   # get the package version
   - for /f %%f in ('python setup.py --version') do ( set "VERSION=%%f" )
-  - python setup.py %BUILD_GLOBAL_OPTIONS% bdist_wheel
+  - python setup.py %BDIST_WHEEL_GLOBAL_OPTIONS% bdist_wheel
 
 test_script:
   - python -m venv --clear build\.test
   - build\.test\Scripts\activate
   - cd build\.test
   # Pre-populate the test environment
-  - python -m pip install pip~=9.0.1 wheel~=0.29.0
+  - python -m pip install pip~=19.0.0 wheel
 
-  - python -m pip install %TEST_ENV_INDEX% %TEST_ENV%
-  - python -m pip install --pre -f ..\..\dist orange3==%VERSION%
+  - python -m pip install %TEST_DEP%
+  - python -m pip install --no-index --no-deps -f ..\..\dist --pre %PROJECT_NAME%==%VERSION%
+  - python -m pip install %PROJECT_NAME%==%VERSION%
   - python -m pip list --format=freeze
-
-  # Raise OrangeDeprecationWarnings as errors
-  - set ORANGE_DEPRECATIONS_ERROR=1
-  - set PYTHONWARNINGS=module
-  - python -m unittest -b -v Orange.tests Orange.widgets.tests
+  - python -m unittest discover -v -b orangewidget
   - cd ..\..
 
 artifacts:

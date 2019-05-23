@@ -268,7 +268,7 @@ if QtCore.QT_VERSION >= 0x050C00:  # Qt 5.12+
         @staticmethod
         def _get_buffer(size, filename):
             buffer = QtGui.QPdfWriter(filename)
-            dpi = QtGui.QDesktopWidget().logicalDpiX()
+            dpi = QApplication.desktop().logicalDpiX()
             buffer.setResolution(dpi)
             buffer.setPageMargins(QMarginsF(0, 0, 0, 0))
             buffer.setPageSizeMM(QtCore.QSizeF(size.width(), size.height()) / dpi * 25.4)

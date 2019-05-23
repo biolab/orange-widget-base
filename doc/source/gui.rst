@@ -138,7 +138,6 @@ because they set up a lot of things that happen in behind.
 
 .. autofunction:: checkBox
 .. autofunction:: lineEdit
-.. autofunction:: listBox
 .. autofunction:: comboBox
 .. autofunction:: radioButtonsInBox
 .. autofunction:: appendRadioButton

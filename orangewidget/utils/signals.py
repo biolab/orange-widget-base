@@ -5,7 +5,8 @@ from orangecanvas.registry.description import (
     InputSignal, OutputSignal, Single, Multiple, Default, NonDefault,
     Explicit, Dynamic
 )
-from Orange.widgets.utils import getmembers
+
+from orangewidget.utils import getmembers
 
 # increasing counter for ensuring the order of Input/Output definitions
 # is preserved when going through the unordered class namespace of

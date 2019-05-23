@@ -36,8 +36,8 @@ from typing import Optional
 
 from AnyQt.QtWidgets import QStyle, QSizePolicy
 
-from Orange.widgets import gui
-from Orange.widgets.utils.messagewidget import MessagesWidget
+from orangewidget import gui
+from orangewidget.utils.messagewidget import MessagesWidget
 
 
 class UnboundMsg(str):

@@ -4,7 +4,7 @@ import traceback
 from AnyQt.QtWidgets import QMessageBox
 from AnyQt.QtCore import QSettings
 
-from Orange.widgets.utils import filedialogs
+from orangewidget.utils import filedialogs
 
 
 # noinspection PyBroadException
@@ -39,7 +39,7 @@ def save_plot(data, file_formats, filename=""):
 
 def main():  # pragma: no cover
     from AnyQt.QtWidgets import QApplication
-    from Orange.widgets.widget import OWWidget
+    from orangewidget.widget import OWWidget
     app = QApplication([])
     save_plot(None, OWWidget.graph_writers)
 

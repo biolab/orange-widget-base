@@ -5,7 +5,7 @@ import warnings
 from AnyQt.QtCore import pyqtProperty
 from AnyQt.QtWidgets import qApp
 
-from Orange.widgets import gui
+from orangewidget import gui
 
 
 class ProgressBarMixin:

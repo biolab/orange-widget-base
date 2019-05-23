@@ -5,8 +5,8 @@ from AnyQt.QtGui import QBrush
 from AnyQt.QtWidgets import \
     QMessageBox, QFileDialog, QFileIconProvider, QComboBox
 
-from Orange.widgets.io import ImgFormat, Compression
-from Orange.widgets.settings import Setting
+from orangewidget.io import ImgFormat, Compression
+from orangewidget.settings import Setting
 
 
 def fix_extension(ext, format, suggested_ext, suggested_format):

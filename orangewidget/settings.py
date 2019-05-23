@@ -42,8 +42,7 @@ from operator import itemgetter
 from typing import Any
 
 from orangewidget.gui import OWComponent
-from Orange.misc.environ import widget_settings_dir
-
+from orangewidget.workflow.config import widget_settings_dir
 
 log = logging.getLogger(__name__)
 

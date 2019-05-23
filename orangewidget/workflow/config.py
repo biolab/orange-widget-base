@@ -17,8 +17,6 @@ from AnyQt.QtCore import Qt, QPoint, QRect, QStandardPaths, QCoreApplication
 
 from orangecanvas import config
 
-from . import discovery
-from . import widgetsscheme
 
 # generated from biolab/orange3-addons repository
 OFFICIAL_ADDON_LIST = "https://orange.biolab.si/addons/list"
@@ -138,8 +136,15 @@ class Config(config.Config):
             pkg_resources.iter_entry_points("orange.widgets.tutorials")
         )
 
-    widget_discovery = discovery.WidgetDiscovery
-    workflow_constructor = widgetsscheme.WidgetsScheme
+    @staticmethod
+    def widget_discovery(*args, **kwargs):
+        from .discovery import WidgetDiscovery
+        return WidgetDiscovery(*args, **kwargs)
+
+    @staticmethod
+    def workflow_constructor(*args, **kwargs):
+        from .widgetsscheme import WidgetsScheme
+        return WidgetsScheme(*args, **kwargs)
 
     APPLICATION_URLS = {
         #: Submit a bug report action in the Help menu

@@ -287,7 +287,7 @@ if QtCore.QT_VERSION >= 0x050C00:  # Qt 5.12+
         def _export(exporter, filename):
             exporter.export(filename)
 
-elif hasattr(QtGui, "QPdfWriter"):
+else:
 
     # older Qt version have PdfWriter bugs and are handled through SVG
 

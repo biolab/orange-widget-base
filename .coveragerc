@@ -1,17 +1,12 @@
 [run]
-parallel = 1
-concurrency =
-    multiprocessing
-    thread
-source =
-    Orange
+
+source = orangewidget
+
 omit =
-    Orange/canvas/*
-    Orange/tests/*
+    */tests/*.py
 
 [report]
 exclude_lines =
     pragma: no cover
     raise NotImplementedError
     if __name__ == .__main__.:
-    except MemoryError

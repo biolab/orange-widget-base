@@ -38,6 +38,9 @@ from Orange.widgets.utils import vartype
 from Orange.widgets.utils.buttons import VariableTextPushButton
 from Orange.util import namegen
 
+from orangewidget.utils.combobox import ComboBox as OrangeComboBox
+
+
 YesNo = NoYes = ("No", "Yes")
 _enter_icon = None
 __re_label = re.compile(r"(^|[^%])%\((?P<value>[a-zA-Z]\w*)\)")
@@ -1493,96 +1496,6 @@ def valueSlider(widget, master, value, box=None, label=None,
 
     miscellanea(slider, sliderBox, widget, **misc)
     return slider
-
-
-class OrangeComboBox(QtWidgets.QComboBox):
-    """
-    A QComboBox subclass extended to support bounded contents width hint.
-
-    Prefer to use this class in place of plain QComboBox when the used
-    model will possibly contain many items.
-    """
-    def __init__(self, parent=None, maximumContentsLength=-1, **kwargs):
-        # Forward-declared for sizeHint()
-        self.__maximumContentsLength = maximumContentsLength
-        super().__init__(parent, **kwargs)
-
-        self.__in_mousePressEvent = False
-        # Yet Another Mouse Release Ignore Timer
-        self.__yamrit = QTimer(self, singleShot=True)
-        view = self.view()
-        # optimization for displaying large models
-        if isinstance(view, QListView):
-            view.setUniformItemSizes(True)
-            view.viewport().installEventFilter(self)
-
-    def setMaximumContentsLength(self, length):
-        """
-        Set the maximum contents length hint.
-
-        The hint specifies the upper bound on the `sizeHint` and
-        `minimumSizeHint` width specified in character length.
-        Set to 0 or negative value to disable.
-
-        .. note::
-             This property does not affect the widget's `maximumSize`.
-             The widget can still grow depending on its `sizePolicy`.
-
-        Parameters
-        ----------
-        length : int
-            Maximum contents length hint.
-        """
-        if self.__maximumContentsLength != length:
-            self.__maximumContentsLength = length
-            self.updateGeometry()
-
-    def maximumContentsLength(self):
-        """
-        Return the maximum contents length hint.
-        """
-        return self.__maximumContentsLength
-
-    def sizeHint(self):
-        # reimplemented
-        sh = super().sizeHint()
-        if self.__maximumContentsLength > 0:
-            width = (self.fontMetrics().width("X") * self.__maximumContentsLength
-                     + self.iconSize().width() + 4)
-            sh = sh.boundedTo(QtCore.QSize(width, sh.height()))
-        return sh
-
-    def minimumSizeHint(self):
-        # reimplemented
-        sh = super().minimumSizeHint()
-        if self.__maximumContentsLength > 0:
-            width = (self.fontMetrics().width("X") * self.__maximumContentsLength
-                     + self.iconSize().width() + 4)
-            sh = sh.boundedTo(QtCore.QSize(width, sh.height()))
-        return sh
-
-    # workaround for QTBUG-67583
-    def mousePressEvent(self, event):
-        # reimplemented
-        self.__in_mousePressEvent = True
-        super().mousePressEvent(event)
-        self.__in_mousePressEvent = False
-
-    def showPopup(self):
-        # reimplemented
-        super().showPopup()
-        if self.__in_mousePressEvent:
-            self.__yamrit.start(QApplication.doubleClickInterval())
-
-    def eventFilter(self, obj, event):
-        # type: (QObject, QEvent) -> bool
-        if event.type() == QEvent.MouseButtonRelease \
-                and event.button() == Qt.LeftButton \
-                and obj is self.view().viewport() \
-                and self.__yamrit.isActive():
-            return True
-        else:
-            return super().eventFilter(obj, event)
 
 
 # TODO comboBox looks overly complicated:

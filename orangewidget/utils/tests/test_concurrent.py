@@ -2,16 +2,16 @@ import unittest
 import unittest.mock
 import threading
 import random
-import warnings
 
 from concurrent.futures import Future, ThreadPoolExecutor
 from types import SimpleNamespace
+from typing import Iterable, Set
 
-from AnyQt.QtCore import Qt, QObject, QCoreApplication, QThread, pyqtSlot
+from AnyQt.QtCore import QObject, QCoreApplication, QThread, pyqtSlot
 from AnyQt.QtTest import QSignalSpy
 
 from orangewidget.utils.concurrent import (
-    ThreadExecutor, FutureWatcher, FutureSetWatcher, Task, methodinvoke
+    FutureWatcher, FutureSetWatcher, methodinvoke
 )
 
 
@@ -26,26 +26,9 @@ class CoreAppTestCase(unittest.TestCase):
         del self.app
 
 
-class TestExecutor(CoreAppTestCase):
-    def test_executor(self):
-        executor = ThreadExecutor()
-        f1 = executor.submit(pow, 100, 100)
-
-        f2 = executor.submit(lambda: 1 / 0)
-
-        f3 = executor.submit(QThread.currentThread)
-
-        self.assertTrue(f1.result(), pow(100, 100))
-
-        with self.assertRaises(ZeroDivisionError):
-            f2.result()
-
-        self.assertIsInstance(f2.exception(), ZeroDivisionError)
-
-        self.assertIsNot(f3.result(), QThread.currentThread())
-
+class TestMethodinvoke(CoreAppTestCase):
     def test_methodinvoke(self):
-        executor = ThreadExecutor()
+        executor = ThreadPoolExecutor()
         state = [None, None]
 
         class StateSetter(QObject):
@@ -70,12 +53,6 @@ class TestExecutor(CoreAppTestCase):
                          "set_state was invoked in the main thread")
 
         executor.shutdown(wait=True)
-
-    def test_executor_map(self):
-        executor = ThreadExecutor()
-        r = executor.map(pow, list(range(1000)), list(range(1000)))
-        results = list(r)
-        self.assertTrue(len(results) == 1000)
 
 
 class TestFutureWatcher(CoreAppTestCase):
@@ -239,72 +216,3 @@ class TestFutureSetWatcher(CoreAppTestCase):
         with unittest.mock.patch.object(watcher, "thread", lambda: 42), \
                 self.assertRaises(RuntimeError):
             watcher.flush()
-
-
-class TestTask(CoreAppTestCase):
-    def setUp(self):
-        # This test tests a deprecated class, so ... obviously
-        warnings.filterwarnings(
-            "ignore", "`Task` has been deprecated", PendingDeprecationWarning)
-        warnings.filterwarnings(
-            "ignore", "`submit_task` will be deprecated",
-            PendingDeprecationWarning)
-        super().setUp()
-
-    def test_task(self):
-        results = []
-
-        task = Task(function=QThread.currentThread)
-        task.resultReady.connect(results.append)
-
-        task.start()
-        self.app.processEvents()
-
-        self.assertSequenceEqual(results, [QThread.currentThread()])
-
-        thread = QThread()
-        thread.start()
-        try:
-            task = Task(function=QThread.currentThread)
-            task.moveToThread(thread)
-
-            self.assertIsNot(task.thread(), QThread.currentThread())
-            self.assertIs(task.thread(), thread)
-            results = Future()
-
-            def record(value):
-                # record the result value and the calling thread
-                results.set_result((QThread.currentThread(), value))
-
-            task.resultReady.connect(record, Qt.DirectConnection)
-            task.start()
-            f = task.future()
-            emit_thread, thread_ = results.result(3)
-            self.assertIs(f.result(3), thread)
-            self.assertIs(emit_thread, thread)
-            self.assertIs(thread_, thread)
-        finally:
-            thread.quit()
-            thread.wait()
-
-    def test_executor(self):
-        executor = ThreadExecutor()
-
-        f = executor.submit(QThread.currentThread)
-
-        self.assertIsNot(f.result(3), QThread.currentThread())
-
-        f = executor.submit(lambda: 1 / 0)
-
-        with self.assertRaises(ZeroDivisionError):
-            f.result()
-
-        results = []
-        task = Task(function=QThread.currentThread)
-        task.resultReady.connect(results.append, Qt.DirectConnection)
-
-        f = executor.submit_task(task)
-
-        self.assertIsNot(f.result(3), QThread.currentThread())
-
-        executor.shutdown()

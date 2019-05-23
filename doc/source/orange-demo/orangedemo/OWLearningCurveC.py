@@ -17,7 +17,7 @@ from Orange.evaluation.testing import Results
 # [start-snippet-1]
 import concurrent.futures
 from orangewidget.utils.concurrent import (
-    ThreadExecutor, FutureWatcher, methodinvoke
+    FutureWatcher, methodinvoke
 )
 # [end-snippet-1]
 
@@ -112,7 +112,7 @@ class OWLearningCurveC(widget.OWBaseWidget):
         #: The current evaluating task (if any)
         self._task = None   # type: Optional[Task]
         #: An executor we use to submit learner evaluations into a thread pool
-        self._executor = ThreadExecutor()
+        self._executor = concurrent.futures.ThreadPoolExecutor()
         # [end-snippet-3]
 
         # GUI

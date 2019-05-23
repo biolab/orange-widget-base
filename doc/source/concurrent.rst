@@ -5,10 +5,6 @@
 
 .. automodule:: orangewidget.utils.concurrent
 
-.. autoclass:: ThreadExecutor
-    :show-inheritance:
-    :members:
-
 .. autoclass:: FutureWatcher
     :show-inheritance:
     :members:

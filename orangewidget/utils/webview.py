@@ -9,6 +9,8 @@ from os.path import abspath, dirname, join
 import time
 import threading
 import warnings
+import inspect
+
 from collections.abc import Iterable, Mapping, Set, Sequence
 from itertools import count
 from numbers import Integral, Real
@@ -37,12 +39,23 @@ try:
 except ImportError:
     HAVE_WEBENGINE = False
 
-from Orange.util import inherit_docstrings, OrangeDeprecationWarning
 
 _WEBVIEW_HELPERS = join(dirname(__file__), '_webview', 'helpers.js')
 _WEBENGINE_INIT_WEBCHANNEL = join(dirname(__file__), '_webview', 'init-webengine-webchannel.js')
 
 _ORANGE_DEBUG = os.environ.get('ORANGE_DEBUG')
+
+
+def _inherit_docstrings(cls):
+    """Inherit methods' docstrings from first superclass that defines them"""
+    for method in cls.__dict__.values():
+        if inspect.isfunction(method) and method.__doc__ is None:
+            for parent in cls.__mro__[1:]:
+                __doc__ = getattr(parent, method.__name__, None).__doc__
+                if __doc__:
+                    method.__doc__ = __doc__
+                    break
+    return cls
 
 
 class _QWidgetJavaScriptWrapper(QObject):
@@ -130,7 +143,7 @@ if HAVE_WEBENGINE:
                 if isinstance(bridge, QWidget):
                     warnings.warn(
                         "Don't expose QWidgets in WebView. Construct minimal "
-                        "QObjects instead.", OrangeDeprecationWarning,
+                        "QObjects instead.", DeprecationWarning,
                         stacklevel=2)
                 channel.registerObject("pybridge", bridge)
 
@@ -203,7 +216,7 @@ if HAVE_WEBKIT:
             if isinstance(bridge, QWidget):
                 warnings.warn(
                     "Don't expose QWidgets in WebView. Construct minimal "
-                    "QObjects instead.", OrangeDeprecationWarning,
+                    "QObjects instead.", DeprecationWarning,
                     stacklevel=2)
 
             def _onload(_ok):
@@ -421,7 +434,6 @@ if HAVE_WEBKIT:
         def pop_object(self):
             return self._obj
 
-    @inherit_docstrings
     class WebviewWidget(_WebViewBase, WebKitView):
         def __init__(self, parent=None, bridge=None, *, debug=False, **kwargs):
             WebKitView.__init__(self, parent, bridge, debug=debug, **kwargs)
@@ -531,7 +543,6 @@ elif HAVE_WEBENGINE:
     _NOTSET = object()
 
 
-    @inherit_docstrings
     class WebviewWidget(_WebViewBase, WebEngineView):
         _html = _NOTSET
 

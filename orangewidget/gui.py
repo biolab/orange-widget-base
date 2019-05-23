@@ -114,7 +114,7 @@ class OWComponent:
 
     The class is mixed into `widget.OWWidget`, and must also be mixed into
     all widgets not derived from `widget.OWWidget` that contain settings or
-    Qt widgets inserted by function in `Orange.widgets.gui` module. See
+    Qt widgets inserted by function in `orangewidget.gui` module. See
     `OWScatterPlotGraph` for an example.
     """
     def __init__(self, widget=None):

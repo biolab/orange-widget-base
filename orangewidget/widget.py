@@ -38,7 +38,7 @@ from Orange.widgets.utils.overlay import MessageOverlayWidget, OverlayWidget
 from Orange.widgets.utils.buttons import SimpleButton
 
 # Msg is imported and renamed, so widgets can import it from this module rather
-# than the one with the mixin (Orange.widgets.utils.messages).
+# than the one with the mixin (orangewidget.utils.messages).
 Msg = UnboundMsg
 
 
@@ -922,7 +922,7 @@ class OWWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         Retrieve data that is not registered as setting.
 
         This method is called by
-        `Orange.widgets.settings.ContextHandler.settings_to_widget`.
+        `orangewidget.settings.ContextHandler.settings_to_widget`.
         Widgets may define it to retrieve any data that is not stored in widget
         attributes. See :obj:`Orange.widgets.data.owcolor.OWColor` for an
         example.
@@ -933,7 +933,7 @@ class OWWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         Store data that is not registered as setting.
 
         This method is called by
-        `Orange.widgets.settings.ContextHandler.settings_from_widget`.
+        `orangewidget.settings.ContextHandler.settings_from_widget`.
         Widgets may define it to store any data that is not stored in widget
         attributes. See :obj:`Orange.widgets.data.owcolor.OWColor` for an
         example.

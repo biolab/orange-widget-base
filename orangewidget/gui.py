@@ -1885,11 +1885,6 @@ class tableItem(QTableWidgetItem):
         table.setItem(x, y, self)
 
 
-TableValueRole = next(OrangeUserRole)  # Role to retrieve orange.Value
-TableClassValueRole = next(OrangeUserRole)  # Retrieve class value for the row
-TableDistribution = next(OrangeUserRole)  # Retrieve distribution of the column
-TableVariable = next(OrangeUserRole)  # Role to retrieve the column's variable
-
 BarRatioRole = next(OrangeUserRole)  # Ratio for drawing distribution bars
 BarBrushRole = next(OrangeUserRole)  # Brush for distribution bar
 

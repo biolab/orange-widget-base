@@ -1,14 +1,12 @@
 #! /usr/bin/env python3
 
 import os
-import sys
 import subprocess
 from setuptools import setup, find_packages, Command
 
 NAME = 'orange-widget-base'
-
-VERSION = '3.22.0'
-ISRELEASED = False
+VERSION = '4.0.0'
+ISRELEASED = True
 # full version identifier including a git revision identifier for development
 # build/releases (this is filled/updated in `write_version_py`)
 FULLVERSION = VERSION

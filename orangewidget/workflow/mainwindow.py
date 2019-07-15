@@ -8,10 +8,9 @@ from AnyQt.QtWidgets import (
 from AnyQt.QtGui import QKeySequence
 
 from orangecanvas.application.canvasmain import CanvasMainWindow
-
-from orangewidget.workflow import config
 from orangewidget.report.owreport import HAVE_REPORT, OWReport
 from orangewidget.workflow.widgetsscheme import WidgetsScheme
+
 
 def _insert_action(mb, menuid, beforeactionid, action):
     # type: (QMenuBar, str, str, QAction) -> bool
@@ -164,10 +163,13 @@ class OWCanvasMainWindow(CanvasMainWindow):
             # Touch a finely crafted file inside the settings directory.
             # The existence of this file is checked by the canvas main
             # function and is deleted there.
-            fname = os.path.join(config.widget_settings_dir(),
-                                 "DELETE_ON_START")
-            os.makedirs(config.widget_settings_dir(), exist_ok=True)
-            with open(fname, "a"):
+            from orangewidget.settings import widget_settings_dir
+            dirname = widget_settings_dir()
+            try:
+                os.makedirs(dirname, exist_ok=True)
+            except (FileExistsError, PermissionError):
+                return
+            with open(os.path.join(dirname, "DELETE_ON_START"), "a"):
                 pass
 
             if not self.close():

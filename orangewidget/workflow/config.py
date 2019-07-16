@@ -136,6 +136,10 @@ def cache_dir():
     """Return the application cache directory. If the directory path
     does not yet exists then create it.
     """
+    warnings.warn(
+        f"'{__name__}.cache_dir' is deprecated.",
+        DeprecationWarning, stacklevel=2
+    )
     base = QStandardPaths.writableLocation(QStandardPaths.GenericCacheLocation)
     name = QCoreApplication.applicationName()
     version = QCoreApplication.applicationVersion()
@@ -155,6 +159,10 @@ def log_dir():
     """
     Return the application log directory.
     """
+    warnings.warn(
+        f"'{__name__}.log_dir' is deprecated.",
+        DeprecationWarning, stacklevel=2
+    )
     if sys.platform == "darwin":
         name = QCoreApplication.applicationName() or "Orange"
         logdir = os.path.join(os.path.expanduser("~/Library/Logs"), name)

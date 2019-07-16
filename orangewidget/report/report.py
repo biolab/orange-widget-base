@@ -147,7 +147,10 @@ class Report:
             name, plot = self._fix_args(name, plot)
 
         from pyqtgraph import PlotWidget, PlotItem, GraphicsWidget, GraphicsView
-        from orangewidget.utils.webview import WebviewWidget
+        try:
+            from orangewidget.utils.webview import WebviewWidget
+        except ImportError:
+            WebviewWidget = None
 
         self.report_name(name)
         if plot is None:
@@ -160,7 +163,7 @@ class Report:
             self.report_html += get_html_img(plot.scene())
         elif isinstance(plot, GraphicsView):
             self.report_html += get_html_img(plot)
-        elif isinstance(plot, WebviewWidget):
+        elif WebviewWidget is not None and isinstance(plot, WebviewWidget):
             try:
                 svg = plot.svg()
             except (IndexError, ValueError):

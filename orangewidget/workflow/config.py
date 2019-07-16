@@ -1,7 +1,8 @@
 """
-Orange Canvas Configuration
-
+Base (example) Configuration for an Orange Widget based application.
 """
+import warnings
+
 import os
 import sys
 import itertools
@@ -135,6 +136,10 @@ def cache_dir():
     """Return the application cache directory. If the directory path
     does not yet exists then create it.
     """
+    warnings.warn(
+        f"'{__name__}.cache_dir' is deprecated.",
+        DeprecationWarning, stacklevel=2
+    )
     base = QStandardPaths.writableLocation(QStandardPaths.GenericCacheLocation)
     name = QCoreApplication.applicationName()
     version = QCoreApplication.applicationVersion()
@@ -154,6 +159,10 @@ def log_dir():
     """
     Return the application log directory.
     """
+    warnings.warn(
+        f"'{__name__}.log_dir' is deprecated.",
+        DeprecationWarning, stacklevel=2
+    )
     if sys.platform == "darwin":
         name = QCoreApplication.applicationName() or "Orange"
         logdir = os.path.join(os.path.expanduser("~/Library/Logs"), name)
@@ -171,9 +180,14 @@ def widget_settings_dir(versioned=True):
     """
     Return the platform dependent directory where widgets save their settings.
 
-    This a subdirectory of ``data_dir(versioned)`` named "widgets"
+    .. deprecated: 4.0.1
     """
-    return os.path.join(data_dir(versioned), "widgets")
+    warnings.warn(
+        f"'{__name__}.widget_settings_dir' is deprecated.",
+        DeprecationWarning, stacklevel=2
+    )
+    from orangewidget.settings import widget_settings_dir
+    return widget_settings_dir(versioned)
 
 
 def widgets_entry_points():

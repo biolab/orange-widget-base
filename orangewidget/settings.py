@@ -39,10 +39,9 @@ import pprint
 import time
 import warnings
 from operator import itemgetter
-from typing import Any
+from typing import Any, Optional, Tuple
 
 from orangewidget.gui import OWComponent
-from orangewidget.workflow.config import widget_settings_dir
 
 log = logging.getLogger(__name__)
 
@@ -55,6 +54,77 @@ __all__ = [
 _IMMUTABLES = (str, int, bytes, bool, float, tuple)
 
 VERSION_KEY = "__version__"
+
+
+__WIDGET_SETTINGS_DIR = None  # type: Optional[Tuple[str, str]]
+
+
+def set_widget_settings_dir_components(basedir: str, versionstr: str) -> None:
+    """
+    Set the directory path components where widgets save their settings.
+
+    This overrides the global current application name/version derived paths.
+
+    Note
+    ----
+    This should be set early in the application startup before any
+    `OWBaseWidget` subclasses are imported (because it is needed at class
+    definition time).
+
+    Parameters
+    ----------
+    basedir: str
+        The application specific data directory.
+    versionstr: str
+        The application version string for the versioned path component.
+
+    See Also
+    --------
+    widget_settings_dir
+    """
+    global __WIDGET_SETTINGS_DIR
+    __WIDGET_SETTINGS_DIR = (basedir, versionstr)
+
+
+def widget_settings_dir(versioned=True) -> str:
+    """
+    Return the effective directory where widgets save their settings.
+
+    This is a composed path based on a application specific data directory
+    and application version string (if `versioned` is True) with a final
+    'widgets' path component added (e.g. `'~/.local/share/MyApp/9.9.9/widgets'`)
+
+    By default `QCoreApplication.applicationName` and
+    `QCoreApplication.applicationVersion` are used to derive suitable paths
+    (with a fallback if they are not set).
+
+    Note
+    ----
+    If the application sets the `applicationName`/`applicationVersion`, it
+    should do this early in the application startup before any
+    `OWBaseWidget` subclasses are imported (because it is needed at class
+    definition time).
+
+    Use `set_widget_settings_dir_components` to override the default paths.
+
+    Parameters
+    ----------
+    versioned: bool
+        Should the returned path include the application version component.
+
+    See Also
+    --------
+    set_widget_settings_dir_components
+    """
+    if __WIDGET_SETTINGS_DIR is None:
+        from orangewidget.workflow.config import data_dir
+        return os.path.join(data_dir(versioned), "widgets")
+    else:
+        base, version = __WIDGET_SETTINGS_DIR
+        if versioned:
+            return os.path.join(base, version, "widgets")
+        else:
+            return os.path.join(base, "widgets")
 
 
 class Setting:

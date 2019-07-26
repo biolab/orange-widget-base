@@ -760,7 +760,8 @@ class WidgetsSignalManager(SignalManager):
     def is_blocking(self, node):
         """Reimplemented from `SignalManager`"""
         mask = (WidgetManager.InputUpdate |
-                WidgetManager.BlockingUpdate)
+                WidgetManager.BlockingUpdate |
+                WidgetManager.Initializing)
         return self.scheme().widget_manager.node_processing_state(node) & mask
 
     def send_to_node(self, node, signals):

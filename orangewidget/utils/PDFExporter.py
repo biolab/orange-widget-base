@@ -1,5 +1,6 @@
 from pyqtgraph.exporters.Exporter import Exporter
 
+from AnyQt import QtCore
 from AnyQt.QtWidgets import QGraphicsItem, QApplication
 from AnyQt.QtGui import QPainter, QPdfWriter
 from AnyQt.QtCore import QMarginsF, Qt, QSizeF, QRectF
@@ -33,13 +34,14 @@ class PDFExporter(Exporter):
         pw.setResolution(dpi)
         pw.setPageMargins(QMarginsF(0, 0, 0, 0))
         pw.setPageSizeMM(QSizeF(self.getTargetRect().size()) / dpi * 25.4)
-
         painter = QPainter(pw)
         try:
             self.setExportMode(True, {'antialias': True,
                                       'background': self.background,
                                       'painter': painter})
             painter.setRenderHint(QPainter.Antialiasing, True)
+            if QtCore.QT_VERSION >= 0x050D00:
+                painter.setRenderHint(QPainter.LosslessImageRendering, True)
             self.getScene().render(painter,
                                    QRectF(self.getTargetRect()),
                                    QRectF(self.getSourceRect()))

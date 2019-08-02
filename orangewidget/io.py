@@ -101,6 +101,8 @@ class ImgFormat(metaclass=_Registry):
             painter = QtGui.QPainter()
             painter.begin(buffer)
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            if QtCore.QT_VERSION >= 0x050D00:
+                painter.setRenderHint(QtGui.QPainter.LosslessImageRendering)
 
             target = cls._get_target(scene, painter, buffer, rect)
             try:

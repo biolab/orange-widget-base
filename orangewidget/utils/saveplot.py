@@ -8,16 +8,18 @@ from orangewidget.utils import filedialogs
 
 
 # noinspection PyBroadException
-def save_plot(data, file_formats, filename=""):
+def save_plot(data, file_formats, start_dir="", filename=""):
     _LAST_DIR_KEY = "directories/last_graph_directory"
     _LAST_FILTER_KEY = "directories/last_graph_filter"
     settings = QSettings()
-    start_dir = settings.value(_LAST_DIR_KEY, filename)
+    start_dir = settings.value(_LAST_DIR_KEY, start_dir)
     if not start_dir or \
             (not os.path.exists(start_dir) and
              not os.path.exists(os.path.split(start_dir)[0])):
         start_dir = os.path.expanduser("~")
     last_filter = settings.value(_LAST_FILTER_KEY, "")
+    if filename:
+        start_dir = os.path.join(start_dir, filename)
     filename, writer, filter = \
         filedialogs.open_filename_dialog_save(start_dir, last_filter, file_formats)
     if not filename:

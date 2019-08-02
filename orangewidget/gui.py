@@ -13,7 +13,7 @@ from collections import defaultdict
 import pkg_resources
 
 from AnyQt import QtWidgets, QtCore, QtGui
-from AnyQt.QtCore import Qt, QEvent, pyqtSignal as Signal
+from AnyQt.QtCore import Qt, QEvent, QObject, QTimer, pyqtSignal as Signal
 from AnyQt.QtGui import QCursor, QColor
 from AnyQt.QtWidgets import (
     QApplication, QStyle, QSizePolicy, QWidget, QLabel, QGroupBox, QSlider,
@@ -1083,8 +1083,42 @@ def appendRadioButton(group, label, insertInto=None,
     return w
 
 
+class DelayedNotification(QObject):
+    """
+    A proxy for successive calls/signals that emits a signal
+    only when there are no calls for a given time.
+
+    Also allows for mechanism that prevents successive equivalent calls:
+    ff values are passed to the "changed" method, a signal is only emitted
+    if the last passed values differ from the last passed values at the
+    previous emission.
+    """
+    notification = Signal()
+
+    def __init__(self, parent=None, timeout=500):
+        super().__init__(parent=parent)
+        self.timeout = timeout
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self.notify_immediately)
+        self._did_notify = False  # if anything was sent at all
+        self._last_value = None  # last value passed to changed
+        self._last_notified = None  # value at the last notification
+
+    def changed(self, *args):
+        self._last_value = args
+        self._timer.start(self.timeout)
+
+    def notify_immediately(self):
+        self._timer.stop()
+        if self._did_notify and self._last_notified == self._last_value:
+            return
+        self._last_notified = self._last_value
+        self._did_notify = True
+        self.notification.emit()
+
+
 def hSlider(widget, master, value, box=None, minValue=0, maxValue=10, step=1,
-            callback=None, label=None, labelFormat=" %d", ticks=False,
+            callback=None, callback_finished=None, label=None, labelFormat=" %d", ticks=False,
             divideFactor=1.0, vertical=False, createLabel=True, width=None,
             intOnly=True, **misc):
     """
@@ -1102,7 +1136,9 @@ def hSlider(widget, master, value, box=None, minValue=0, maxValue=10, step=1,
     :type label: str
     :param callback: a function that is called when the value is changed
     :type callback: function
-
+    :param callback_finished: a function that is called when the slider value
+        stopped changing for at least 500 ms or when the slider is released
+    :type callback_finished: function
     :param minValue: minimal value
     :type minValue: int or float
     :param maxValue: maximal value
@@ -1166,6 +1202,12 @@ def hSlider(widget, master, value, box=None, minValue=0, maxValue=10, step=1,
         signal.connect(label.setLbl)
 
     connectControl(master, value, callback, signal, CallFrontHSlider(slider))
+
+    if callback_finished:
+        dn = DelayedNotification(slider, timeout=500)
+        dn.notification.connect(callback_finished)
+        signal.connect(dn.changed)
+        slider.sliderReleased.connect(dn.notify_immediately)
 
     miscellanea(slider, sliderBox, widget, **misc)
     return slider

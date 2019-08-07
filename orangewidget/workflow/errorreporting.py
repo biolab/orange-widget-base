@@ -28,7 +28,6 @@ from AnyQt.QtWidgets import (
 
 from orangewidget.workflow.widgetsscheme import WidgetsScheme
 from orangewidget.widget import OWBaseWidget
-from orangewidget.version import full_version as VERSION_STR
 
 REPORT_POST_URL = 'https://qa.orange.biolab.si/error_report/v1/'
 
@@ -260,7 +259,7 @@ class ErrorReporting(QDialog):
             data[F.WIDGET_SCHEME] = filename
             with open(filename, encoding='utf-8') as f:
                 data['_' + F.WIDGET_SCHEME] = f.read()
-        data[F.VERSION] = VERSION_STR
+        data[F.VERSION] = QApplication.applicationVersion()
         data[F.ENVIRONMENT] = 'Python {} on {} {} {} {}'.format(
             platform.python_version(), platform.system(), platform.release(),
             platform.version(), platform.machine())

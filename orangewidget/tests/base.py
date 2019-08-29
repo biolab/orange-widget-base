@@ -401,6 +401,26 @@ class TestWidgetTest(WidgetTest):
     def test_minimum_size(self):
         return  # skip this test
 
+    def test_check_msg_base_class(self):
+        class A(OWBaseWidget, openclass=True):
+            pass
+
+        class B(A):
+            class Error(A.Error):
+                pass
+
+        class C(A, openclass=True):
+            class Error(OWBaseWidget.Error):
+                pass
+
+        class D(C):
+            class Error(A.Error):
+                pass
+
+        self.check_msg_base_class(B())
+        self.check_msg_base_class(C())  # It is unfortunate that this passes...
+        self.assertRaises(AssertionError, self.check_msg_base_class, D())
+
 
 class BaseParameterMapping:
     """Base class for mapping between gui components and learner's parameters
@@ -536,3 +556,7 @@ class ParameterMapping(BaseParameterMapping):
 def open_widget_classes():
     with patch.object(OWBaseWidget, "__init_subclass__"):
         yield
+
+
+if __name__ == "__main__":
+    unittest.main()

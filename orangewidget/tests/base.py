@@ -89,8 +89,16 @@ class WidgetTest(GuiTest):
                 self.skipTest("minimum size not tested as .widget was not set")
             self.check_minimum_size(widget)
 
+        def test_msg_base_class(self):
+            widget = getattr(self, "widget", None)
+            if widget is None:
+                self.skipTest("msg base class not tested as .widget was not set")
+            self.check_msg_base_class(widget)
+
         if not hasattr(cls, "test_minimum_size"):
             cls.test_minimum_size = test_minimum_size
+        if not hasattr(cls, "test_msg_base_class"):
+            cls.test_msg_base_class = test_msg_base_class
 
     @classmethod
     def setUpClass(cls):
@@ -370,6 +378,18 @@ class WidgetTest(GuiTest):
         self.assertLess(min_size.width(), 800)
         self.assertLess(min_size.height(), 700)
 
+    def check_msg_base_class(self, widget):
+        """ Test whether widget error, warning and info messages are derived
+        from its (direct) parent message classes. """
+        def inspect(msg):
+            msg_cls = getattr(widget, msg).__class__
+            msg_base_cls = getattr(widget.__class__.__bases__[0], msg)
+            self.assertTrue(issubclass(msg_cls, msg_base_cls))
+
+        inspect("Error")
+        inspect("Warning")
+        inspect("Information")
+
 
 class TestWidgetTest(WidgetTest):
     """Meta tests for widget test helpers"""
@@ -380,6 +400,26 @@ class TestWidgetTest(WidgetTest):
 
     def test_minimum_size(self):
         return  # skip this test
+
+    def test_check_msg_base_class(self):
+        class A(OWBaseWidget, openclass=True):
+            pass
+
+        class B(A):
+            class Error(A.Error):
+                pass
+
+        class C(A, openclass=True):
+            class Error(OWBaseWidget.Error):
+                pass
+
+        class D(C):
+            class Error(A.Error):
+                pass
+
+        self.check_msg_base_class(B())
+        self.check_msg_base_class(C())  # It is unfortunate that this passes...
+        self.assertRaises(AssertionError, self.check_msg_base_class, D())
 
 
 class BaseParameterMapping:
@@ -516,3 +556,7 @@ class ParameterMapping(BaseParameterMapping):
 def open_widget_classes():
     with patch.object(OWBaseWidget, "__init_subclass__"):
         yield
+
+
+if __name__ == "__main__":
+    unittest.main()

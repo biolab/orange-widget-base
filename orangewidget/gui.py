@@ -1530,6 +1530,38 @@ def auto_commit(widget, master, value, label, auto_label=None, box=True,
     return b
 
 
+def auto_send(widget, master, value="auto_send", **kwargs):
+    """
+    Convenience function that creates an auto_commit box,
+    for widgets that send selected data (as opposed to applying changes).
+
+    :param widget: the widget into which the box with the button is inserted
+    :type widget: QWidget or None
+    :param master: master widget
+    :type master: OWBaseWidget or OWComponent
+    :param value: the master's attribute which stores whether the auto-commit (default 'auto_send')
+    :type value:  str
+    :return: the box
+    """
+    return auto_commit(widget, master, value, "Send Selection", "Send Automatically", **kwargs)
+
+
+def auto_apply(widget, master, value="auto_apply", **kwargs):
+    """
+    Convenience function that creates an auto_commit box,
+    for widgets that apply changes (as opposed to sending a selection).
+
+    :param widget: the widget into which the box with the button is inserted
+    :type widget: QWidget or None
+    :param master: master widget
+    :type master: OWBaseWidget or OWComponent
+    :param value: the master's attribute which stores whether the auto-commit (default 'auto_apply')
+    :type value:  str
+    :return: the box
+    """
+    return auto_commit(widget, master, value, "Apply", "Apply Automatically", **kwargs)
+
+
 def connectControl(master, value, f, signal,
                    cfront, cback=None, cfunc=None, fvcb=None):
     cback = cback or value and ValueCallback(master, value, fvcb)

@@ -264,7 +264,7 @@ class ErrorReporting(QDialog):
             platform.python_version(), platform.system(), platform.release(),
             platform.version(), platform.machine())
         data[F.INSTALLED_PACKAGES] = packages
-        data[F.MACHINE_ID] = machine_id or str(uuid.getnode())
+        data[F.MACHINE_ID] = machine_id
         data[F.STACK_TRACE] = stacktrace
         if err_locals:
             data[F.LOCALS] = err_locals

@@ -227,7 +227,12 @@ class ErrorReporting(QDialog):
 
         packages = ', '.join(sorted(get_installed_distributions()))
 
-        machine_id = QSettings().value('error-reporting/machine-id', '', type=str)
+        settings = QSettings()
+        if settings.contains('error-reporting/machine-id'):
+            machine_id = settings.value('error-reporting/machine-id')
+        else:
+            machine_id = uuid.uuid4()
+            settings.setValue('error-reporting/machine-id', machine_id)
 
         # If this exact error was already reported in this session,
         # just warn about it

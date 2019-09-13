@@ -24,6 +24,16 @@ class _Signal:
                 (explicit and Explicit) | \
                 (dynamic and Dynamic)
 
+    def bound_signal(self, widget):
+        """
+        Return a copy of the signal bound to a widget.
+
+        Called from `WidgetSignalsMixin.__init__`
+        """
+        new_signal = copy.copy(self)
+        new_signal.widget = widget
+        return new_signal
+
 
 class Input(InputSignal, _Signal):
     """
@@ -131,16 +141,6 @@ class Output(OutputSignal, _Signal):
         self.widget = None
         self._seq_id = next(_counter)
 
-    def bound_signal(self, widget):
-        """
-        Return a copy of the signal bound to a widget.
-
-        Called from `WidgetSignalsMixin.__init__`
-        """
-        new_signal = copy.copy(self)
-        new_signal.widget = widget
-        return new_signal
-
     def send(self, value, id=None):
         """Emit the signal through signal manager."""
         assert self.widget is not None
@@ -158,13 +158,14 @@ class WidgetSignalsMixin:
         pass
 
     def __init__(self):
-        self._bind_outputs()
+        self._bind_signals()
 
-    def _bind_outputs(self):
-        bound_cls = self.Outputs()
-        for name, signal in getmembers(bound_cls, Output):
-            setattr(bound_cls, name, signal.bound_signal(self))
-        setattr(self, "Outputs", bound_cls)
+    def _bind_signals(self):
+        for direction, signal_type in (("Inputs", Input), ("Outputs", Output)):
+            bound_cls = getattr(self, direction)()
+            for name, signal in getmembers(bound_cls, signal_type):
+                setattr(bound_cls, name, signal.bound_signal(self))
+            setattr(self, direction, bound_cls)
 
     def send(self, signalName, value, id=None):
         """

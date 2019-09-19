@@ -1428,6 +1428,8 @@ def auto_commit(widget, master, value, label, auto_label=None, box=True,
     """
     Add a commit button with auto-commit check box.
 
+    When possible, use auto_apply or auto_send instead of auto_commit.
+
     The widget must have a commit method and a setting that stores whether
     auto-commit is on.
 

@@ -252,7 +252,15 @@ class WidgetTest(GuiTest):
             The amount of time to wait for the widget to complete.
         """
         if widget is None:
-            widget = self.widget
+            widgets = {signal.widget for signal, _ in signals
+                       if hasattr(signal, "widget")}
+            if not widgets:
+                widget = self.widget
+            elif len(widgets) == 1:
+                widget = widgets.pop()
+            else:
+                raise ValueError("Signals are bound to different widgets")
+
         for input, value in signals:
             self._send_signal(widget, input, value, *args)
         widget.handleNewSignals()
@@ -332,7 +340,7 @@ class WidgetTest(GuiTest):
         The last sent value of given output or None if nothing has been sent.
         """
         if widget is None:
-            widget = self.widget
+            widget = getattr(output, "widget", self.widget)
 
         if widget.isBlocking() and wait >= 0:
             spy = QSignalSpy(widget.blockingStateChanged)

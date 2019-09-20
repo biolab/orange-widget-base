@@ -92,7 +92,11 @@ class WidgetsScheme(Scheme):
         changed = False
         for node in self.nodes:
             settings = self.widget_manager.widget_settings_for_node(node)
-            if settings != node.properties:
+            try:
+                prop_changed = settings != node.properties
+            except ValueError:  # this happens (for instance) on np.array
+                prop_changed = True
+            if prop_changed:
                 node.properties = settings
                 changed = True
         log.debug("Scheme node properties sync (changed: %s)", changed)

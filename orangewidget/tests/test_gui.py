@@ -1,7 +1,9 @@
-from AnyQt.QtCore import Qt
+from unittest.mock import Mock
+
+from AnyQt.QtCore import Qt, QTimer
 
 from orangewidget import gui
-from orangewidget.tests.base import GuiTest
+from orangewidget.tests.base import GuiTest, WidgetTest
 from orangewidget.widget import OWBaseWidget
 
 
@@ -28,3 +30,47 @@ class TestFloatSlider(GuiTest):
         w.setValue(1)
         # 1/0.05 = 20
         self.assertEqual(w.value(), 20)
+
+
+class TestDelayedNotification(WidgetTest):
+
+    def test_immediate(self):
+        dn = gui.DelayedNotification(timeout=5000)
+        call = Mock()
+        dn.notification.connect(call)
+        dn.notify_immediately()
+        self.process_events(lambda: call.call_args is not None, timeout=1)
+
+    def test_notify_eventually(self):
+        dn = gui.DelayedNotification(timeout=500)
+        call = Mock()
+        dn.notification.connect(call)
+        dn.changed()
+        self.process_events(lambda: True, timeout=1)
+        self.assertIsNone(call.call_args)  # no immediate notification
+        self.process_events(lambda: call.call_args is not None)
+
+    def test_delay_by_change(self):
+        dn = gui.DelayedNotification(timeout=500)
+        call = Mock()
+        dn.notification.connect(call)
+        timer = QTimer()
+        timer.timeout.connect(dn.changed)
+        timer.start(100)
+        dn.changed()
+        # notification should never be emitted as the input changes too fast
+        with self.assertRaises(TimeoutError):
+            self.process_events(lambda: call.call_args is not None, timeout=1000)
+
+    def test_no_notification_on_no_change(self):
+        dn = gui.DelayedNotification(timeout=500)
+        call = Mock()
+        dn.notification.connect(call)
+        dn.changed(42)
+        dn.notify_immediately()  # only for faster test
+        self.process_events(lambda: call.call_args is not None)  # wait for the first call
+        dn.changed(43)
+        dn.changed(42)
+        # notification should not be called again
+        with self.assertRaises(TimeoutError):
+            self.process_events(lambda: len(call.call_args_list) > 1, timeout=1000)

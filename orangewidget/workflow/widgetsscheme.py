@@ -27,7 +27,7 @@ import warnings
 from urllib.parse import urlencode
 from weakref import finalize
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, overload
 
 from AnyQt.QtWidgets import QWidget, QAction
 from AnyQt.QtGui import QWhatsThisClickedEvent
@@ -35,7 +35,7 @@ from AnyQt.QtGui import QWhatsThisClickedEvent
 from AnyQt.QtCore import Qt, QCoreApplication, QEvent, QByteArray
 from AnyQt.QtCore import pyqtSlot as Slot
 
-from orangecanvas.registry import WidgetDescription
+from orangecanvas.registry import WidgetDescription, OutputSignal
 
 from orangecanvas.scheme.signalmanager import (
     SignalManager, Signal, compress_signals
@@ -756,6 +756,20 @@ class WidgetsSignalManager(SignalManager):
         signal_id = (widget.widget_id, channelname, signal_id)
 
         super().send(node, channel, value, signal_id)
+
+    @overload
+    def invalidate(self, widget: OWBaseWidget, channel: str) -> None: ...
+
+    @overload
+    def invalidate(self, node: SchemeNode, channel: OutputSignal) -> None: ...
+
+    def invalidate(self, node, channel):
+        """Reimplemented from `SignalManager`"""
+        if not isinstance(node, SchemeNode):
+            scheme = self.scheme()
+            node = scheme.widget_manager.node_for_widget(node)
+            channel = node.output_channel(channel)
+        super().invalidate(node, channel)
 
     def is_blocking(self, node):
         """Reimplemented from `SignalManager`"""

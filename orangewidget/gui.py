@@ -2023,9 +2023,13 @@ class IndicatorItemDelegate(QtWidgets.QStyledItemDelegate):
         indicator = index.data(self.role)
 
         if indicator:
+            brush = index.data(Qt.ForegroundRole)
+            if brush is None:
+                brush = QtGui.QBrush(Qt.black)
             painter.save()
             painter.setRenderHints(QtGui.QPainter.Antialiasing)
-            painter.setBrush(QtGui.QBrush(Qt.black))
+            painter.setBrush(brush)
+            painter.setPen(QtGui.QPen(brush, 1))
             painter.drawEllipse(rect.center(),
                                 self.indicatorSize, self.indicatorSize)
             painter.restore()

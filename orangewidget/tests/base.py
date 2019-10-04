@@ -12,7 +12,7 @@ from typing import List, Optional, TypeVar, Type
 
 import sip
 
-from AnyQt.QtCore import Qt
+from AnyQt.QtCore import Qt, QObject, pyqtSignal
 from AnyQt.QtTest import QTest, QSignalSpy
 from AnyQt.QtWidgets import (
     QApplication, QComboBox, QSpinBox, QDoubleSpinBox, QSlider
@@ -44,6 +44,10 @@ def named_file(content, encoding=None, suffix=''):
         os.remove(name)
 
 
+class _Invalidated(QObject):
+    completed = pyqtSignal(object)
+
+
 class DummySignalManager:
     def __init__(self):
         self.outputs = {}
@@ -51,7 +55,44 @@ class DummySignalManager:
     def send(self, widget, signal_name, value, id):
         if not isinstance(signal_name, str):
             signal_name = signal_name.name
+        current = self.outputs.get((widget, signal_name), None)
         self.outputs[(widget, signal_name)] = value
+        if isinstance(current, _Invalidated):
+            current.completed.emit(value)
+
+    def invalidate(self, widget, signal_name):
+        if not isinstance(signal_name, str):
+            signal_name = signal_name.name
+        self.outputs[(widget, signal_name)] = _Invalidated()
+
+    def wait_for_outputs(self, widget, timeout=DEFAULT_TIMEOUT):
+        st = _Invalidated()
+        invalidated = self.invalidated_outputs(widget)
+        for val in invalidated:
+            val.completed.connect(st.completed)
+        if invalidated:
+            return QSignalSpy(st.completed).wait(timeout)
+        else:
+            return True
+
+    def has_invalidated_outputs(self, widget):
+        invalidated = self.invalidated_outputs(widget)
+        return bool(invalidated)
+
+    def invalidated_outputs(self, widget):
+        return [value for (w, name), value in self.outputs.items()
+                if w is widget and isinstance(value, _Invalidated)]
+
+    def get_output(self, widget, signal_name, timeout=DEFAULT_TIMEOUT):
+        if not isinstance(signal_name, str):
+            signal_name = signal_name.name
+        value = self.outputs.get((widget, signal_name))
+        if isinstance(value, _Invalidated) and timeout >= 0:
+            spy = QSignalSpy(value.completed)
+            assert spy.wait(timeout), "Failed to get output in the specified timeout"
+            assert len(spy) == 1
+            value = spy[0][0]
+        return value
 
 
 class GuiTest(unittest.TestCase):
@@ -267,6 +308,8 @@ class WidgetTest(GuiTest):
         if wait >= 0 and widget.isBlocking():
             spy = QSignalSpy(widget.blockingStateChanged)
             self.assertTrue(spy.wait(timeout=wait))
+        if wait >= 0 and self.signal_manager.has_invalidated_outputs(widget):
+            self.assertTrue(self.signal_manager.wait_for_outputs(widget, wait))
 
     @staticmethod
     def _send_signal(widget, input, value, *args):
@@ -352,7 +395,7 @@ class WidgetTest(GuiTest):
         outputs = widget.outputs or widget.Outputs.__dict__.values()
         assert output in (out.name for out in outputs), \
             "widget {} has no output {}".format(widget.name, output)
-        return widget.signalManager.outputs.get((widget, output), None)
+        return widget.signalManager.get_output(widget, output, wait)
 
     @contextmanager
     def modifiers(self, modifiers):

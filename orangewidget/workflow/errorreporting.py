@@ -231,7 +231,7 @@ class ErrorReporting(QDialog):
         if settings.contains('error-reporting/machine-id'):
             machine_id = settings.value('error-reporting/machine-id')
         else:
-            machine_id = uuid.uuid4()
+            machine_id = str(uuid.uuid4())
             settings.setValue('error-reporting/machine-id', machine_id)
 
         # If this exact error was already reported in this session,

@@ -5,8 +5,8 @@ import subprocess
 from setuptools import setup, find_packages, Command
 
 NAME = 'orange-widget-base'
-VERSION = '4.0.2'
-ISRELEASED = False
+VERSION = '4.1.0'
+ISRELEASED = True
 # full version identifier including a git revision identifier for development
 # build/releases (this is filled/updated in `write_version_py`)
 FULLVERSION = VERSION

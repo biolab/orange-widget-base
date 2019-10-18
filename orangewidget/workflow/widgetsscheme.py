@@ -496,7 +496,7 @@ class OWWidgetManager(_WidgetManager):
         if isinstance(widget, OWBaseWidget):
             return widget.restoreGeometryAndLayoutState(QByteArray(state))
         else:
-            return super().restore_widget_geometry(node, widget)
+            return super().restore_widget_geometry(node, widget, state)
 
     def eventFilter(self, receiver, event):
         if event.type() == QEvent.Close and receiver is self.__scheme:

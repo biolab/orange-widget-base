@@ -12,7 +12,7 @@ from typing import List, Optional, TypeVar, Type
 
 import sip
 
-from AnyQt.QtCore import Qt, QObject, pyqtSignal
+from AnyQt.QtCore import Qt, QObject, pyqtSignal, QElapsedTimer, pyqtSlot
 from AnyQt.QtTest import QTest, QSignalSpy
 from AnyQt.QtWidgets import (
     QApplication, QComboBox, QSpinBox, QDoubleSpinBox, QSlider
@@ -46,6 +46,41 @@ def named_file(content, encoding=None, suffix=''):
 
 class _Invalidated(QObject):
     completed = pyqtSignal(object)
+
+
+class _FinishedMonitor(QObject):
+    finished = pyqtSignal()
+
+    def __init__(self, widget: 'OWBaseWidget') -> None:
+        super().__init__(None)
+        self.widget = widget
+        self.sm = widget.signalManager  # type: DummySignalManager
+        widget.widgetStateChanged.connect(self._changed)
+        self._finished = self.is_finished()
+        self.invalidated_outputs = self.sm.invalidated_outputs(widget)
+        for output in self.invalidated_outputs:
+            output.completed.connect(self._completed, Qt.UniqueConnection)
+
+    def is_finished(self) -> bool:
+        finished = not (self.widget.isInvalidated() or
+                        self.sm.has_invalidated_outputs(self.widget))
+        return finished
+
+    @pyqtSlot()
+    def _changed(self):
+        fin = self.is_finished()
+        self.invalidated_outputs = self.sm.invalidated_outputs(self.widget)
+        for output in self.invalidated_outputs:
+            try:
+                output.completed.connect(self._completed, Qt.UniqueConnection)
+            except TypeError:  # connection already exists
+                pass
+        if fin and fin != self._finished:
+            self.finished.emit()
+
+    @pyqtSlot()
+    def _completed(self):
+        self._changed()
 
 
 class DummySignalManager:
@@ -86,6 +121,12 @@ class DummySignalManager:
     def get_output(self, widget, signal_name, timeout=DEFAULT_TIMEOUT):
         if not isinstance(signal_name, str):
             signal_name = signal_name.name
+        elapsed = QElapsedTimer()
+        if widget.isInvalidated():
+            elapsed.start()
+            spy = QSignalSpy(widget.invalidatedStateChanged)
+            assert spy.wait(timeout)
+            timeout = timeout - elapsed.elapsed()
         value = self.outputs.get((widget, signal_name))
         if isinstance(value, _Invalidated) and timeout >= 0:
             spy = QSignalSpy(value.completed)
@@ -93,6 +134,15 @@ class DummySignalManager:
             assert len(spy) == 1
             value = spy[0][0]
         return value
+
+    def wait_for_finished(
+            self, widget: 'OWBaseWidget', timeout=DEFAULT_TIMEOUT) -> bool:
+        monitor = _FinishedMonitor(widget)
+        if monitor.is_finished():
+            return True
+        else:
+            spy = QSignalSpy(monitor.finished)
+            return spy.wait(timeout)
 
 
 class GuiTest(unittest.TestCase):
@@ -305,11 +355,8 @@ class WidgetTest(GuiTest):
         for input, value in signals:
             self._send_signal(widget, input, value, *args)
         widget.handleNewSignals()
-        if wait >= 0 and widget.isBlocking():
-            spy = QSignalSpy(widget.blockingStateChanged)
-            self.assertTrue(spy.wait(timeout=wait))
-        if wait >= 0 and self.signal_manager.has_invalidated_outputs(widget):
-            self.assertTrue(self.signal_manager.wait_for_outputs(widget, wait))
+        if wait >= 0:
+            self.wait_until_finished(widget, timeout=wait)
 
     @staticmethod
     def _send_signal(widget, input, value, *args):
@@ -321,9 +368,9 @@ class WidgetTest(GuiTest):
             else:
                 raise ValueError("'{}' is not an input name for widget {}"
                                  .format(input, type(widget).__name__))
-        if widget.isBlocking():
-            raise RuntimeError("'send_signal' called but the widget is in "
-                               "blocking state and does not accept inputs.")
+        if not widget.isReady():
+            raise RuntimeError("'send_signal' called but the widget is not "
+                               "in ready state and does not accept inputs.")
         handler = getattr(widget, input.handler)
 
         # Assert sent input is of correct class
@@ -350,8 +397,29 @@ class WidgetTest(GuiTest):
             spy = QSignalSpy(widget.blockingStateChanged)
             self.assertTrue(spy.wait(timeout=wait))
 
+    def wait_until_finished(
+            self, widget: Optional[OWBaseWidget] = None,
+            timeout=DEFAULT_TIMEOUT) -> None:
+        """Wait until the widget finishes computation.
+
+        The widget is considered finished once all its outputs are valid.
+
+        Parameters
+        ----------
+        widget : Optional[OWBaseWidget]
+            widget to send signal to. If not set, self.widget is used
+        timeout : int
+            The amount of time to wait for the widget to complete.
+        """
+        if widget is None:
+            widget = self.widget
+        self.assertTrue(
+            self.signal_manager.wait_for_finished(widget, timeout),
+            f"Did not finish in the specified {timeout}ms timeout"
+        )
+
     def commit_and_wait(self, widget=None, wait=DEFAULT_TIMEOUT):
-        """Unconditinal commit and wait to stop blocking if needed.
+        """Unconditional commit and wait until finished.
 
         Parameters
         ----------
@@ -365,7 +433,7 @@ class WidgetTest(GuiTest):
             widget = self.widget
 
         widget.unconditional_commit()
-        self.wait_until_stop_blocking(widget=widget, wait=wait)
+        self.wait_until_finished(widget=widget, timeout=wait)
 
     def get_output(self, output, widget=None, wait=DEFAULT_TIMEOUT):
         """Return the last output that has been sent from the widget.
@@ -385,10 +453,6 @@ class WidgetTest(GuiTest):
         if widget is None:
             widget = getattr(output, "widget", self.widget)
 
-        if widget.isBlocking() and wait >= 0:
-            spy = QSignalSpy(widget.blockingStateChanged)
-            self.assertTrue(spy.wait(wait),
-                            "Failed to get output in the specified timeout")
         if not isinstance(output, str):
             output = output.name
         # widget.outputs are old-style signals; if empty, use new style

@@ -820,7 +820,7 @@ class LineEditWFocusOut(QtWidgets.QLineEdit):
 
 def lineEdit(widget, master, value, label=None, labelWidth=None,
              orientation=Qt.Vertical, box=None, callback=None,
-             valueType=str, validator=None, controlWidth=None,
+             valueType=None, validator=None, controlWidth=None,
              callbackOnType=False, focusInCallback=None, **misc):
     """
     Insert a line edit.
@@ -843,7 +843,9 @@ def lineEdit(widget, master, value, label=None, labelWidth=None,
         changed
     :type callback: function
     :param valueType: the type into which the entered string is converted
-        when synchronizing to `value`
+        when synchronizing to `value`. If omitted, the type of the current
+       `value` is used. If `value` is `None`, the text is left as a string.
+    :type valueType: type or `None`
     :type valueType: type
     :param validator: the validator for the input
     :type validator: QValidator
@@ -876,8 +878,8 @@ def lineEdit(widget, master, value, label=None, labelWidth=None,
         if b is not widget:
             b.layout().addWidget(ledit)
 
-    if value:
-        ledit.setText(str(getdeepattr(master, value)))
+    current_value = getdeepattr(master, value) if value else ""
+    ledit.setText(str(current_value))
     if controlWidth:
         ledit.setFixedWidth(controlWidth)
     if validator:
@@ -886,7 +888,7 @@ def lineEdit(widget, master, value, label=None, labelWidth=None,
         ledit.cback = connectControl(
             master, value,
             callbackOnType and callback, ledit.textChanged[str],
-            CallFrontLineEdit(ledit), fvcb=value and valueType)[1]
+            CallFrontLineEdit(ledit), fvcb=valueType or type(current_value))[1]
 
     miscellanea(ledit, b, widget, **misc)
     return ledit

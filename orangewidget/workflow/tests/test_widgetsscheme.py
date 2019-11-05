@@ -7,6 +7,7 @@ from typing import Type
 
 from AnyQt.QtCore import QTimer
 from AnyQt.QtWidgets import QAction
+from AnyQt.QtTest import QSignalSpy
 
 from orangecanvas.registry import WidgetRegistry, WidgetDescription
 from orangecanvas.scheme import SchemeNode
@@ -262,7 +263,7 @@ class TestWidgetManager(GuiTest):
         self.assertIn(a, actions)
 
 
-class TestSignaManager(GuiTest):
+class TestSignalManager(GuiTest):
     def test_signalmanager(self):
         model, widgets = create_workflow()
         sm = model.signal_manager
@@ -283,3 +284,36 @@ class TestSignaManager(GuiTest):
         self.assertSequenceEqual(
             sm.node_update_front(), [widgets.show_node]
         )
+
+    def test_state_ready(self):
+        model, widgets = create_workflow()
+        sm = model.signal_manager
+        widgets.w1.Outputs.out.send(42)
+        widgets.w2.Outputs.out.send(-42)
+        widgets.add.setReady(False)
+        self.assertFalse(sm.is_ready(widgets.add_node))
+        spy = QSignalSpy(sm.processingStarted[SchemeNode])
+        sm.process_next()
+        self.assertEqual(len(spy), 0)  # must not have processed the node
+        widgets.add.setReady(True)
+        self.assertTrue(sm.is_ready(widgets.add_node))
+        assert spy.wait()
+        self.assertSequenceEqual(spy, [[widgets.add_node]])
+
+    def test_state_invalidated(self):
+        model, widgets = create_workflow()
+        sm = model.signal_manager
+        widgets.w1.Outputs.out.send(42)
+        widgets.w2.Outputs.out.send(-42)
+
+        self.assertIn(widgets.add_node, sm.node_update_front())
+        widgets.w1.setInvalidated(True)
+        self.assertTrue(sm.is_invalidated(widgets.w1_node))
+        self.assertSequenceEqual(sm.node_update_front(), [])
+        widgets.w1.setInvalidated(False)
+        self.assertFalse(sm.is_invalidated(widgets.w1_node))
+        self.assertIn(widgets.add_node, sm.node_update_front())
+
+        spy = QSignalSpy(sm.processingStarted[SchemeNode])
+        assert spy.wait()
+        self.assertSequenceEqual(spy, [[widgets.add_node]])

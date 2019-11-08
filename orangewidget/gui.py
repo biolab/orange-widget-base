@@ -24,6 +24,7 @@ from AnyQt.QtWidgets import (
 from orangewidget.utils import getdeepattr
 from orangewidget.utils.buttons import VariableTextPushButton
 from orangewidget.utils.combobox import ComboBox as OrangeComboBox
+from orangewidget.utils.itemmodels import PyListModel
 
 __re_label = re.compile(r"(^|[^%])%\((?P<value>[a-zA-Z]\w*)\)")
 
@@ -820,7 +821,7 @@ class LineEditWFocusOut(QtWidgets.QLineEdit):
 
 def lineEdit(widget, master, value, label=None, labelWidth=None,
              orientation=Qt.Vertical, box=None, callback=None,
-             valueType=str, validator=None, controlWidth=None,
+             valueType=None, validator=None, controlWidth=None,
              callbackOnType=False, focusInCallback=None, **misc):
     """
     Insert a line edit.
@@ -843,7 +844,9 @@ def lineEdit(widget, master, value, label=None, labelWidth=None,
         changed
     :type callback: function
     :param valueType: the type into which the entered string is converted
-        when synchronizing to `value`
+        when synchronizing to `value`. If omitted, the type of the current
+       `value` is used. If `value` is `None`, the text is left as a string.
+    :type valueType: type or `None`
     :type valueType: type
     :param validator: the validator for the input
     :type validator: QValidator
@@ -876,8 +879,8 @@ def lineEdit(widget, master, value, label=None, labelWidth=None,
         if b is not widget:
             b.layout().addWidget(ledit)
 
-    if value:
-        ledit.setText(str(getdeepattr(master, value)))
+    current_value = getdeepattr(master, value) if value else ""
+    ledit.setText(str(current_value))
     if controlWidth:
         ledit.setFixedWidth(controlWidth)
     if validator:
@@ -886,7 +889,7 @@ def lineEdit(widget, master, value, label=None, labelWidth=None,
         ledit.cback = connectControl(
             master, value,
             callbackOnType and callback, ledit.textChanged[str],
-            CallFrontLineEdit(ledit), fvcb=value and valueType)[1]
+            CallFrontLineEdit(ledit), fvcb=valueType or type(current_value))[1]
 
     miscellanea(ledit, b, widget, **misc)
     return ledit
@@ -1356,21 +1359,16 @@ def valueSlider(widget, master, value, box=None, label=None,
     return slider
 
 
-# TODO comboBox looks overly complicated:
-# - can valueType be anything else than str?
-# - sendSelectedValue is not a great name
 def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
              orientation=Qt.Vertical, items=(), callback=None,
-             sendSelectedValue=False, valueType=str,
-             emptyString=None, editable=False,
+             sendSelectedValue=None, emptyString=None, editable=False,
              contentsLength=None, maximumContentsLength=25,
-             **misc):
+             *, model=None, **misc):
     """
     Construct a combo box.
 
-    The `value` attribute of the `master` contains either the index of the
-    selected row (if `sendSelected` is left at default, `False`) or a value
-    converted to `valueType` (`str` by default).
+    The `value` attribute of the `master` contains the text or the
+    index of the selected item.
 
     :param widget: the widget into which the box is inserted
     :type widget: QWidget or None
@@ -1391,12 +1389,11 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     :type callback: function
     :param items: items (optionally with data) that are put into the box
     :type items: tuple of str or tuples
-    :param sendSelectedValue: flag telling whether to store/retrieve indices
-        or string values from `value`
-    :type sendSelectedValue: bool
-    :param valueType: the type into which the selected value is converted
-        if sentSelectedValue is `False`
-    :type valueType: type
+    :param sendSelectedValue: decides whether the `value` contains the text
+        of the selected item (`True`) or its index (`False`). If omitted
+        (or `None`), the type will match the current value type, or index,
+        if the current value is `None`.
+    :type sendSelectedValue: bool or `None`
     :param emptyString: the string value in the combo box that gets stored as
         an empty string in `value`
     :type emptyString: str
@@ -1430,6 +1427,7 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
         combo.setMinimumContentsLength(contentsLength)
 
     combo.box = hb
+    combo.label = label
     for item in items:
         if isinstance(item, (tuple, list)):
             combo.addItem(*item)
@@ -1438,27 +1436,36 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
 
     if value:
         cindex = getdeepattr(master, value)
-        model = misc.pop("model", None)
         if model is not None:
             combo.setModel(model)
-        if isinstance(cindex, str):
-            if items and cindex in items:
-                cindex = items.index(cindex)
-            else:
-                cindex = 0
-        if cindex > combo.count() - 1:
-            cindex = 0
-        combo.setCurrentIndex(cindex)
-
-        if sendSelectedValue:
-            connectControl(
-                master, value, callback, combo.activated[str],
-                CallFrontComboBox(combo, valueType, emptyString),
-                ValueCallbackCombo(master, value, valueType, emptyString))
-        else:
+        if isinstance(model, PyListModel):
+            callfront = CallFrontComboBoxModel(combo, model)
+            callfront.action(cindex)
             connectControl(
                 master, value, callback, combo.activated[int],
-                CallFrontComboBox(combo, None, emptyString))
+                callfront,
+                ValueCallbackComboModel(master, value, model))
+        else:
+            if isinstance(cindex, str):
+                if items and cindex in items:
+                    cindex = items.index(cindex)
+                else:
+                    cindex = 0
+            if cindex > combo.count() - 1:
+                cindex = 0
+            combo.setCurrentIndex(cindex)
+            if sendSelectedValue:
+                connectControl(
+                    master, value, callback, combo.activated[str],
+                    CallFrontComboBox(combo, emptyString),
+                    ValueCallbackCombo(master, value, emptyString))
+            else:
+                connectControl(
+                    master, value, callback, combo.activated[int],
+                    CallFrontComboBox(combo, emptyString))
+
+    if misc.pop("valueType", False):
+        log.warning("comboBox no longer accepts argument 'valueType'")
     miscellanea(combo, hb, widget, **misc)
     combo.emptyString = emptyString
     return combo
@@ -1672,13 +1679,24 @@ class ValueCallback(ControlledCallback):
 
 
 class ValueCallbackCombo(ValueCallback):
-    def __init__(self, widget, attribute, f=None, emptyString=""):
-        super().__init__(widget, attribute, f)
+    def __init__(self, widget, attribute, emptyString=""):
+        super().__init__(widget, attribute)
         self.emptyString = emptyString
 
     def __call__(self, value):
-        value = str(value)
-        return super().__call__("" if value == self.emptyString else value)
+        if value == self.emptyString:
+            value = ""
+        return super().__call__(value)
+
+
+class ValueCallbackComboModel(ValueCallback):
+    def __init__(self, widget, attribute, model):
+        super().__init__(widget, attribute)
+        self.model = model
+
+    def __call__(self, index):
+        # Can't use super here since, it doesn't set `None`'s?!
+        return self.acyclic_setattr(self.model[index])
 
 
 class ValueCallbackLineEdit(ControlledCallback):
@@ -1815,27 +1833,54 @@ class CallFrontButton(ControlledCallFront):
 
 
 class CallFrontComboBox(ControlledCallFront):
-    def __init__(self, control, valType=None, emptyString=""):
+    def __init__(self, control, emptyString=""):
         super().__init__(control)
-        self.valType = valType
         self.emptyString = emptyString
 
     def action(self, value):
-        if value in ('', None):
-            value = self.emptyString
-        if self.valType:
-            for i in range(self.control.count()):
-                if self.valType(self.control.itemText(i)) == value:
+        def action_str():
+            items = [combo.itemText(i) for i in range(combo.count())]
+            try:
+                index = items.index(value or self.emptyString)
+            except ValueError:
+                log.warning("Unable to set '{}' to '{}'; valid values are '{}'".
+                            format(self.control, value, ", ".join(items)))
+            else:
+                self.control.setCurrentIndex(index)
+
+        def action_int():
+            if value < combo.count():
+                combo.setCurrentIndex(value)
+            else:
+                log.warning("Unable to set '{}' to {}; largest index is {}".
+                            format(combo, value, combo.count() - 1))
+
+        combo = self.control
+        if isinstance(value, int):
+            action_int()
+        else:
+            action_str()
+
+
+class CallFrontComboBoxModel(ControlledCallFront):
+    def __init__(self, control, model):
+        super().__init__(control)
+        self.model = model
+
+    def action(self, value):
+        if value == "":  # the latter accomodates PyListModel
+            value = None
+        if value is None and None not in self.model:
+            return  # e.g. values in half-initialized widgets
+        if value in self.model:
+            self.control.setCurrentIndex(self.model.indexOf(value))
+            return
+        if isinstance(value, str):
+            for i, val in enumerate(self.model):
+                if value == str(val):
                     self.control.setCurrentIndex(i)
                     return
-            if value:
-                log.warning("Unable to set %s to '%s'. Possible values are: %s",
-                            self.control, value,
-                            ', '.join(self.control.itemText(i)
-                                      for i in range(self.control.count())))
-        else:
-            if value < self.control.count():
-                self.control.setCurrentIndex(value)
+        raise ValueError("Combo box does not contain item " + repr(value))
 
 
 class CallFrontHSlider(ControlledCallFront):

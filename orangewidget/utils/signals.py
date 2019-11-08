@@ -148,6 +148,13 @@ class Output(OutputSignal, _Signal):
         if signal_manager is not None:
             signal_manager.send(self.widget, self.name, value, id)
 
+    def invalidate(self):
+        """Invalidate the current output value on the signal"""
+        assert self.widget is not None
+        signal_manager = self.widget.signalManager
+        if signal_manager is not None:
+            signal_manager.invalidate(self.widget, self.name)
+
 
 class WidgetSignalsMixin:
     """Mixin for managing widget's input and output signals"""

@@ -27,7 +27,7 @@ import warnings
 from urllib.parse import urlencode
 from weakref import finalize
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, overload
 
 from AnyQt.QtWidgets import QWidget, QAction
 from AnyQt.QtGui import QWhatsThisClickedEvent
@@ -35,7 +35,7 @@ from AnyQt.QtGui import QWhatsThisClickedEvent
 from AnyQt.QtCore import Qt, QCoreApplication, QEvent, QByteArray
 from AnyQt.QtCore import pyqtSlot as Slot
 
-from orangecanvas.registry import WidgetDescription
+from orangecanvas.registry import WidgetDescription, OutputSignal
 
 from orangecanvas.scheme.signalmanager import (
     SignalManager, Signal, compress_signals
@@ -339,6 +339,7 @@ class OWWidgetManager(_WidgetManager):
             node.set_progress(0)
             node.set_processing_state(0)
             node.set_status_message("")
+            node.set_state(SchemeNode.NoState)
             msgs = [copy.copy(m) for m in node.state_messages()]
             for m in msgs:
                 m.contents = ""
@@ -360,9 +361,9 @@ class OWWidgetManager(_WidgetManager):
             self.__delay_delete[widget] = item
         else:
             widget.processingStateChanged.disconnect(
-                self.__on_processing_state_changed)
-            widget.blockingStateChanged.disconnect(
-                self.__on_blocking_state_changed)
+                self.__on_widget_state_changed)
+            widget.widgetStateChanged.disconnect(
+                self.__on_widget_state_changed)
             widget.deleteLater()
             item.widget = None
 
@@ -370,10 +371,10 @@ class OWWidgetManager(_WidgetManager):
         if not item.state & WidgetManager.DelayDeleteMask:
             widget = item.widget
             log.debug("Delayed delete for widget %s", widget)
-            widget.blockingStateChanged.disconnect(
-                self.__on_blocking_state_changed)
+            widget.widgetStateChanged.disconnect(
+                self.__on_widget_state_changed)
             widget.processingStateChanged.disconnect(
-                self.__on_processing_state_changed)
+                self.__on_widget_state_changed)
             item.widget = None
             widget.deleteLater()
             del self.__delay_delete[widget]
@@ -424,25 +425,13 @@ class OWWidgetManager(_WidgetManager):
         node.set_status_message(widget.statusMessage())
         widget.statusMessageChanged.connect(node.set_status_message)
 
-        # Widget's progress bar value state.
+        # OWBaseWidget's progress bar state (progressBarInit/Finished,Set)
         widget.progressBarValueChanged.connect(node.set_progress)
-
-        # OWBaseWidget's processing state (progressBarInit/Finished)
-        # and the blocking state. We track these for the WidgetsSignalManager.
         widget.processingStateChanged.connect(
-            self.__on_processing_state_changed
+            self.__on_widget_state_changed
         )
-        widget.blockingStateChanged.connect(self.__on_blocking_state_changed)
-
-        if widget.isBlocking():
-            # A widget can already enter blocking state in __init__
-            item.state |= ProcessingState.BlockingUpdate
-
-        if widget.processingState != 0:
-            # It can also start processing (initialization of resources, ...)
-            item.state |= ProcessingState.ProcessingUpdate
-            node.set_processing_state(1)
-            node.set_progress(widget.progressBarValue)
+        # Advertised state for the workflow execution semantics.
+        widget.widgetStateChanged.connect(self.__on_widget_state_changed)
 
         # Install a help shortcut on the widget
         help_action = widget.findChild(QAction, "action-help")
@@ -458,10 +447,7 @@ class OWWidgetManager(_WidgetManager):
         # befriend class Report
         widget._Report__report_view = self.scheme().report_view
 
-        # Schedule an update with the signal manager, due to the cleared
-        # implicit Initializing flag
-        self.signal_manager()._update()
-
+        self.__update_item(item)
         return widget
 
     def node_processing_state(self, node):
@@ -510,7 +496,7 @@ class OWWidgetManager(_WidgetManager):
         if isinstance(widget, OWBaseWidget):
             return widget.restoreGeometryAndLayoutState(QByteArray(state))
         else:
-            return super().restore_widget_geometry(node, widget)
+            return super().restore_widget_geometry(node, widget, state)
 
     def eventFilter(self, receiver, event):
         if event.type() == QEvent.Close and receiver is self.__scheme:
@@ -569,31 +555,6 @@ class OWWidgetManager(_WidgetManager):
         if node is not None:
             self.__initialize_widget_messages(node, widget)
 
-    @Slot(int)
-    def __on_processing_state_changed(self, state):
-        """
-        A widget processing state has changed (progressBarInit/Finished)
-        """
-        widget = self.sender()
-        item = None
-        if widget is not None:
-            item = self.__item_for_widget(widget)
-        if item is None:
-            warnings.warn(
-                "State change for a non-tracked widget {}".format(widget),
-                RuntimeWarning
-            )
-            return
-
-        if state:
-            item.state |= ProcessingState.ProcessingUpdate
-        else:
-            item.state &= ~ProcessingState.ProcessingUpdate
-
-        # propagate the change to the workflow model.
-        if item.node is not None:
-            self.__update_node_processing_state(item.node)
-
     def __on_processing_started(self, node):
         """
         Signal manager entered the input update loop for the node.
@@ -626,10 +587,10 @@ class OWWidgetManager(_WidgetManager):
         if widget in self.__delay_delete:
             self.__try_delete(item)
 
-    @Slot(bool)
-    def __on_blocking_state_changed(self, state):
+    @Slot()
+    def __on_widget_state_changed(self):
         """
-        OWBaseWidget blocking state has changed.
+        OWBaseWidget state has changed.
         """
         widget = self.sender()
         item = None
@@ -644,18 +605,8 @@ class OWWidgetManager(_WidgetManager):
 
         if not isinstance(widget, OWBaseWidget):
             return
+        self.__update_item(item)
 
-        if not state:
-            # unblocked; schedule an signal update pass.
-            self.signal_manager()._update()
-
-        if item is not None:
-            if state:
-                item.state |= ProcessingState.BlockingUpdate
-            else:
-                item.state &= ~ProcessingState.BlockingUpdate
-        if item.node is not None:
-            self.__update_node_processing_state(item.node)
         if item.widget in self.__delay_delete:
             self.__try_delete(item)
 
@@ -666,6 +617,33 @@ class OWWidgetManager(_WidgetManager):
             return self.__item_for_node[node]
         else:
             return self.__delay_delete.get(widget)
+
+    def __update_item(self, item: Item):
+        if item.widget is None:
+            return
+        node, widget = item.node, item.widget
+        progress = widget.processingState
+        invalidated = widget.isInvalidated()
+        ready = widget.isReady()
+        initializing = item.state & ProcessingState.Initializing
+
+        def setflag(flags: int, flag: int, on: bool) -> int:
+            return flags | flag if on else flags & ~flag
+
+        if node is not None:
+            state = node.state()
+            state = setflag(state, SchemeNode.Running, progress)
+            state = setflag(state, SchemeNode.NotReady, not (ready or initializing))
+            state = setflag(state, SchemeNode.Invalidated, invalidated or initializing)
+            node.set_state(state)
+            if progress:
+                node.set_progress(widget.progressBarValue)
+
+        item.state = setflag(
+            item.state, ProcessingState.BlockingUpdate, not ready)
+        item.state = setflag(
+            item.state, ProcessingState.ProcessingUpdate, progress)
+        self.signal_manager().post_update_request()
 
     def __update_node_processing_state(self, node):
         """
@@ -757,12 +735,37 @@ class WidgetsSignalManager(SignalManager):
 
         super().send(node, channel, value, signal_id)
 
-    def is_blocking(self, node):
+    @overload
+    def invalidate(self, widget: OWBaseWidget, channel: str) -> None: ...
+
+    @overload
+    def invalidate(self, node: SchemeNode, channel: OutputSignal) -> None: ...
+
+    def invalidate(self, node, channel):
         """Reimplemented from `SignalManager`"""
-        mask = (WidgetManager.InputUpdate |
-                WidgetManager.BlockingUpdate |
-                WidgetManager.Initializing)
-        return self.scheme().widget_manager.node_processing_state(node) & mask
+        if not isinstance(node, SchemeNode):
+            scheme = self.scheme()
+            node = scheme.widget_manager.node_for_widget(node)
+            channel = node.output_channel(channel)
+        super().invalidate(node, channel)
+
+    def is_invalidated(self, node: SchemeNode) -> bool:
+        """Reimplemented from `SignalManager`"""
+        rval = super().is_invalidated(node)
+        state = self.scheme().widget_manager.node_processing_state(node)
+        return rval or state & (
+                ProcessingState.BlockingUpdate |
+                ProcessingState.Initializing
+        )
+
+    def is_ready(self, node: SchemeNode) -> bool:
+        """Reimplemented from `SignalManager`"""
+        rval = super().is_ready(node)
+        state = self.scheme().widget_manager.node_processing_state(node)
+        return rval and not state & (
+            ProcessingState.InputUpdate |
+            ProcessingState.Initializing
+        )
 
     def send_to_node(self, node, signals):
         """

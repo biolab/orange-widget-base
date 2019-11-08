@@ -224,8 +224,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
         self.setFocusPolicy(Qt.StrongFocus)
 
-        self.__blocking = False
-
         # flag indicating if the widget's position was already restored
         self.__was_restored = False
         # flag indicating the widget is still expecting the first show event.
@@ -1010,31 +1008,100 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             (Qt.ControlModifier, Qt.Key_W):
                 lambda self: self.setVisible(not self.isVisible())}
 
-    def setBlocking(self, state=True):
+    def setBlocking(self, state=True) -> None:
         """
         Set blocking flag for this widget.
 
         While this flag is set this widget and all its descendants
         will not receive any new signals from the workflow signal manager.
 
+        .. deprecated:: 4.2.0
+            Setting/clearing this flag is equivalent to
+            `setInvalidated(True); setReady(False)` and
+            `setInvalidated(False); setReady(True)` respectively.
+            Use :func:`setInvalidated` and :func:`setReady` in new code.
+
+        .. seealso:: :func:`setInvalidated`, :func:`setReady`
+
+        """
+        if state:
+            self.__setState(True, False)
+        else:
+            self.__setState(False, True)
+
+    def isBlocking(self):
+        """
+        Is this widget blocking signal processing.
+        """
+        return self.isInvalidated() and not self.isReady()
+
+    widgetStateChanged = Signal()
+    blockingStateChanged = Signal(bool)
+    invalidatedStateChanged = Signal(bool)
+    readyStateChanged = Signal(bool)
+
+    __invalidated = False
+    __ready = True
+
+    def setInvalidated(self, state: bool) -> None:
+        """
+        Set/clear invalidated flag on this widget.
+
+        While this flag is set none of its descendants will receive new
+        signals from the workflow execution manager.
+
         This is useful for instance if the widget does it's work in a
         separate thread or schedules processing from the event queue.
-        In this case it can set the blocking flag in it's processNewSignals
-        method schedule the task and return immediately. After the task
-        has completed the widget can clear the flag and send the updated
-        outputs.
+        In this case it can set the invalidated flag when starting a task.
+        After the task has completed the widget can clear the flag and
+        send the updated outputs.
 
         .. note::
             Failure to clear this flag will block dependent nodes forever.
-        """
-        assert QThread.currentThread() is self.thread()
-        if self.__blocking != state:
-            self.__blocking = state
-            self.blockingStateChanged.emit(state)
 
-    def isBlocking(self):
-        """Is this widget blocking signal processing."""
-        return self.__blocking
+        .. seealso:: :func:`~Output.invalidate()` for a more fine grained
+           invalidation.
+        """
+        self.__setState(state, self.__ready)
+
+    def isInvalidated(self) -> bool:
+        """
+        Return the widget's invalidated flag.
+        """
+        return self.__invalidated
+
+    def setReady(self, state: bool) -> None:
+        """
+        Set/clear ready flag on this widget.
+
+        While a ready flag is unset, the widget will not receive any new
+        input updates from the workflow execution manager.
+
+        By default this flag is True.
+        """
+        self.__setState(self.__invalidated, state)
+
+    def isReady(self) -> bool:
+        """
+        Return the widget's ready state
+        """
+        return self.__ready
+
+    def __setState(self, invalidated: bool, ready: bool) -> None:
+        blocking = self.isBlocking()
+        changed = False
+        if self.__ready != ready:
+            self.__ready = ready
+            changed = True
+            self.readyStateChanged.emit(ready)
+        if self.__invalidated != invalidated:
+            self.__invalidated = invalidated
+            self.invalidatedStateChanged.emit(invalidated)
+            changed = True
+        if changed:
+            self.widgetStateChanged.emit()
+        if blocking != self.isBlocking():
+            self.blockingStateChanged.emit(self.isBlocking())
 
     def workflowEnv(self):
         """

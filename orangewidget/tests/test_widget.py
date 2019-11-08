@@ -317,6 +317,66 @@ class WidgetMsgTestCase(WidgetTest):
         self.assertEqual(len(messages), 0)
 
 
+class TestWidgetStateTracking(WidgetTestCase):
+    def test_blocking_state(self):
+        w = MyWidget()
+        spy = QSignalSpy(w.blockingStateChanged)
+        w.setBlocking(True)
+        self.assertSequenceEqual(spy, [[True]])
+        self.assertTrue(w.isBlocking())
+        w.setBlocking(True)
+        self.assertSequenceEqual(spy, [[True]])
+        spy = QSignalSpy(w.blockingStateChanged)
+        w.setBlocking(False)
+        self.assertSequenceEqual(spy, [[False]])
+        w.setBlocking(False)
+        self.assertSequenceEqual(spy, [[False]])
+        # Test that setReady, setInvalidate set blocking state as appropriate
+        spy = QSignalSpy(w.blockingStateChanged)
+        w.setInvalidated(True)
+        self.assertSequenceEqual(spy, [])
+        w.setReady(False)
+        self.assertSequenceEqual(spy, [[True]])
+        w.setReady(True)
+        self.assertSequenceEqual(spy, [[True], [False]])
+        w.setInvalidated(False)
+        self.assertSequenceEqual(spy, [[True], [False]])
+
+    def test_invalidated_state(self):
+        w = MyWidget()
+        spy = QSignalSpy(w.invalidatedStateChanged)
+        w.setInvalidated(True)
+        self.assertSequenceEqual(spy, [[True]])
+        w.setInvalidated(True)
+        self.assertSequenceEqual(spy, [[True]])
+        spy = QSignalSpy(w.invalidatedStateChanged)
+        w.setInvalidated(False)
+        self.assertSequenceEqual(spy, [[False]])
+        # Test also that setBlocking sets invalidated state
+        spy = QSignalSpy(w.invalidatedStateChanged)
+        w.setBlocking(True)
+        self.assertSequenceEqual(spy, [[True]])
+        spy = QSignalSpy(w.invalidatedStateChanged)
+        w.setBlocking(False)
+        self.assertSequenceEqual(spy, [[False]])
+
+    def test_ready_state(self):
+        w = MyWidget()
+        spy = QSignalSpy(w.readyStateChanged)
+        w.setReady(False)
+        self.assertSequenceEqual(spy, [[False]])
+        spy = QSignalSpy(w.readyStateChanged)
+        w.setReady(True)
+        self.assertSequenceEqual(spy, [[True]])
+        # Test also that setBlocking sets ready state
+        spy = QSignalSpy(w.readyStateChanged)
+        w.setBlocking(True)
+        self.assertSequenceEqual(spy, [[False]])
+        spy = QSignalSpy(w.readyStateChanged)
+        w.setBlocking(False)
+        self.assertSequenceEqual(spy, [[True]])
+
+
 class DestroyedSignalSpy(QSignalSpy):
     """
     A signal spy for watching QObject.destroyed signal

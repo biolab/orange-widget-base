@@ -56,7 +56,7 @@ INSTALL_REQUIRES = [
     "matplotlib",
     "pyqtgraph",
     "AnyQt",
-    "orange-canvas-core>=0.1a,<0.2a",
+    "orange-canvas-core>=0.1.8a,<0.2a",
 ]
 
 EXTRAS_REQUIRE = {

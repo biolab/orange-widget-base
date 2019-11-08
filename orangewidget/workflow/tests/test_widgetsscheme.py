@@ -7,6 +7,7 @@ from typing import Type
 
 from AnyQt.QtCore import QTimer
 from AnyQt.QtWidgets import QAction
+from AnyQt.QtTest import QSignalSpy
 
 from orangecanvas.registry import WidgetRegistry, WidgetDescription
 from orangecanvas.scheme import SchemeNode
@@ -170,9 +171,24 @@ class TestWidgetManager(GuiTest):
         sm = model.signal_manager
         w1, w1_node = widgets.w1, widgets.w1_node
         w1.setBlocking(True)
-        self.assertTrue(sm.is_blocking(w1_node))
+        self.assertFalse(sm.is_ready(w1_node))
+        self.assertTrue(sm.is_invalidated(w1_node))
         w1.setBlocking(False)
-        self.assertFalse(sm.is_blocking(w1_node))
+        self.assertTrue(sm.is_ready(w1_node))
+        self.assertFalse(sm.is_invalidated(w1_node))
+        w1.setReady(False)
+        self.assertFalse(sm.is_ready(w1_node))
+        w1.setReady(True)
+        self.assertTrue(sm.is_ready(w1_node))
+        w1.setInvalidated(True)
+        self.assertTrue(sm.is_invalidated(w1_node))
+        w1.setInvalidated(False)
+        self.assertFalse(sm.is_invalidated(w1_node))
+        w1.Outputs.out.invalidate()
+        self.assertTrue(sm.has_invalidated_inputs(widgets.add_node))
+        w1.Outputs.out.send(1)
+        self.assertFalse(sm.has_invalidated_inputs(widgets.add_node))
+
         w1.setStatusMessage("$%^#")
         self.assertEqual(w1_node.status_message(), "$%^#")
         w1.setStatusMessage("")
@@ -188,6 +204,23 @@ class TestWidgetManager(GuiTest):
             any(m.contents == "We want information."
                 for m in w1_node.state_messages())
         )
+
+    def test_state_init(self):
+        def __init__(self, *args, **kwargs):
+            super(widget.OWBaseWidget, self).__init__(*args, **kwargs)
+            self.setReady(False)
+            self.setInvalidated(True)
+            self.progressBarInit()
+            self.setStatusMessage("Aa")
+
+        with unittest.mock.patch.object(Adder, "__init__", __init__):
+            model, widgets = create_workflow()
+            sm = model.signal_manager
+            node = widgets.add_node
+            self.assertFalse(sm.is_ready(node))
+            self.assertTrue(sm.is_invalidated(node))
+            self.assertTrue(sm.is_active(node))
+            self.assertEqual(node.status_message(), "Aa")
 
     def test_remove_blocking(self):
         model, widgets = create_workflow()
@@ -230,7 +263,7 @@ class TestWidgetManager(GuiTest):
         self.assertIn(a, actions)
 
 
-class TestSignaManager(GuiTest):
+class TestSignalManager(GuiTest):
     def test_signalmanager(self):
         model, widgets = create_workflow()
         sm = model.signal_manager
@@ -251,3 +284,36 @@ class TestSignaManager(GuiTest):
         self.assertSequenceEqual(
             sm.node_update_front(), [widgets.show_node]
         )
+
+    def test_state_ready(self):
+        model, widgets = create_workflow()
+        sm = model.signal_manager
+        widgets.w1.Outputs.out.send(42)
+        widgets.w2.Outputs.out.send(-42)
+        widgets.add.setReady(False)
+        self.assertFalse(sm.is_ready(widgets.add_node))
+        spy = QSignalSpy(sm.processingStarted[SchemeNode])
+        sm.process_next()
+        self.assertEqual(len(spy), 0)  # must not have processed the node
+        widgets.add.setReady(True)
+        self.assertTrue(sm.is_ready(widgets.add_node))
+        assert spy.wait()
+        self.assertSequenceEqual(spy, [[widgets.add_node]])
+
+    def test_state_invalidated(self):
+        model, widgets = create_workflow()
+        sm = model.signal_manager
+        widgets.w1.Outputs.out.send(42)
+        widgets.w2.Outputs.out.send(-42)
+
+        self.assertIn(widgets.add_node, sm.node_update_front())
+        widgets.w1.setInvalidated(True)
+        self.assertTrue(sm.is_invalidated(widgets.w1_node))
+        self.assertSequenceEqual(sm.node_update_front(), [])
+        widgets.w1.setInvalidated(False)
+        self.assertFalse(sm.is_invalidated(widgets.w1_node))
+        self.assertIn(widgets.add_node, sm.node_update_front())
+
+        spy = QSignalSpy(sm.processingStarted[SchemeNode])
+        assert spy.wait()
+        self.assertSequenceEqual(spy, [[widgets.add_node]])

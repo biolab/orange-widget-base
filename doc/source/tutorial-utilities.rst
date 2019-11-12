@@ -140,6 +140,9 @@ Widgets can optionally summarize their inputs/outputs via the
    self.info.set_input_summary("foo")
    self.info.set_output_summary("bar")
 
+If an integer is given, the summary automatically formats it using metric
+suffixes and adds the full number as the tooltip.
+
 Summaries are then displayed in the widget's status bar:
 
 .. image:: images/io-summary.png
@@ -170,7 +173,8 @@ in tool tip or popup::
 
 .. seealso::
    :func:`~orangewidget.widget.StateInfo.set_input_summary`,
-   :func:`~orangewidget.widget.StateInfo.set_output_summary`
+   :func:`~orangewidget.widget.StateInfo.set_output_summary`,
+   :func:`~orangewidget.widget.StateInfo.format_number`
 
 
 .. note::

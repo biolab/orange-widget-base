@@ -174,6 +174,10 @@ Class Member Documentation
    .. function:: set_input_summary(brief:str, detailed:str="", \
                     icon:QIcon=QIcon, format:Qt.TextFormat=Qt.PlainText)
 
+   .. function:: set_input_summary(number:int)
+
+      Automatically format number with metric suffixes and set it as input summary.
+
    .. function:: set_output_summary(summary: Optional[StateInfo.Summary]])
 
       Set the output summary description.
@@ -183,6 +187,14 @@ Class Member Documentation
 
    .. function:: set_output_summary(brief:str, detailed:str="", \
                     icon:QIcon=QIcon, format:Qt.TextFormat=Qt.PlainText)
+
+   .. function:: set_output_summary(number:int)
+
+      Automatically format number with metric suffixes and set it as output summary.
+
+   .. function:: format_number(n:int) -> str
+
+      Format integers larger then 9999 with metric suffix and at most 3 digits.
 
    .. autoattribute:: input_summary_changed(message: StateInfo.Message)
 

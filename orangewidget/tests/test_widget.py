@@ -13,7 +13,7 @@ from AnyQt.QtTest import QSignalSpy, QTest
 from orangewidget.gui import OWComponent
 from orangewidget.settings import Setting, SettingProvider
 from orangewidget.tests.base import WidgetTest
-from orangewidget.widget import OWBaseWidget, Msg
+from orangewidget.widget import OWBaseWidget, Msg, StateInfo
 from orangewidget.utils.messagewidget import MessagesWidget
 
 
@@ -430,6 +430,13 @@ class WidgetTestInfoSummary(WidgetTest):
         self.assertEqual(inmsg.summarize().text, "Foo")
         self.assertFalse(inmsg.summarize().icon.isNull())
 
+        info.set_input_summary(12_345)
+        info.set_output_summary(1234)
+
+        self.assertEqual(inmsg.summarize().text, "12.3k")
+        self.assertEqual(inmsg.summarize().informativeText, "12345")
+        self.assertEqual(outmsg.summarize().text, "1234")
+
         info.set_input_summary("Foo", "A foo that bars",)
 
         info.set_input_summary(None)
@@ -455,3 +462,16 @@ class WidgetTestInfoSummary(WidgetTest):
 
         with self.assertRaises(TypeError):
             info.set_output_summary(info.NoOutput, "a")
+
+        with self.assertRaises(TypeError):
+            info.set_output_summary(1234, "a")
+
+    def test_format_number(self):
+        self.assertEqual(StateInfo.format_number(9999), "9999")
+        self.assertEqual(StateInfo.format_number(12_345), "12.3k")
+        self.assertEqual(StateInfo.format_number(12_000), "12k")
+        self.assertEqual(StateInfo.format_number(123_456), "123k")
+        self.assertEqual(StateInfo.format_number(99_999), "100k")
+        self.assertEqual(StateInfo.format_number(1_234_567), "1.23M")
+        self.assertEqual(StateInfo.format_number(999_999), "1M")
+        self.assertEqual(StateInfo.format_number(1_000_000), "1M")

@@ -701,17 +701,10 @@ class Context:
         self.values = {}
         self.__dict__.update(argkw)
 
-    def __getstate__(self):
-        state = dict(self.__dict__)
-        for nc in getattr(self, "no_copy", []):
-            if nc in state:
-                del state[nc]
-        return state
-
     def __eq__(self, other):
-        self_state = self.__getstate__()
+        self_state = self.__dict__.copy()
         del self_state["time"]
-        other_state = other.__getstate__()
+        other_state = other.__dict__.copy()
         del other_state["time"]
         return self_state == other_state
 

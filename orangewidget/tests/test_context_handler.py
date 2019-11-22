@@ -247,3 +247,14 @@ class TestSettingsPrinter(TestCase):
         self.assertIn("param2=2", output)
         self.assertIn("param1=3", output)
         self.assertIn("param2=4", output)
+
+
+class TestContext(TestCase):
+    def test_context_eq(self):
+        context1 = Context(x=12, y=["a", "list"], time=3.14)
+        context2 = Context(x=12, y=["a", "list"], time=2.71)
+        context3 = Context(x=13, y=["a", "list"], time=2.71)
+        self.assertTrue(context1 == context2)
+        self.assertFalse(context2 == context3)
+
+        self.assertRaises(TypeError, hash, context1)

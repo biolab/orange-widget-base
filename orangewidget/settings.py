@@ -693,7 +693,7 @@ class ContextSetting(Setting):
 
 
 class Context:
-    """Class for data thad defines context and
+    """Class for data that defines context and
     values that should be applied to widget if given context
     is encountered."""
     def __init__(self, **argkw):
@@ -701,12 +701,12 @@ class Context:
         self.values = {}
         self.__dict__.update(argkw)
 
-    def __getstate__(self):
-        state = dict(self.__dict__)
-        for nc in getattr(self, "no_copy", []):
-            if nc in state:
-                del state[nc]
-        return state
+    def __eq__(self, other):
+        self_state = self.__dict__.copy()
+        del self_state["time"]
+        other_state = other.__dict__.copy()
+        del other_state["time"]
+        return self_state == other_state
 
 
 class ContextHandler(SettingsHandler):

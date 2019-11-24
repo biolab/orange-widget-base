@@ -1413,7 +1413,7 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     if box or label:
         hb = widgetBox(widget, box, orientation, addToLayout=False)
         if label is not None:
-            widgetLabel(hb, label, labelWidth)
+            widget_label = widgetLabel(hb, label, labelWidth)
     else:
         hb = widget
 
@@ -1427,7 +1427,7 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
         combo.setMinimumContentsLength(contentsLength)
 
     combo.box = hb
-    combo.label = label
+    combo.label = widget_label
     for item in items:
         if isinstance(item, (tuple, list)):
             combo.addItem(*item)

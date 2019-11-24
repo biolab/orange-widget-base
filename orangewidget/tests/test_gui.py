@@ -74,3 +74,131 @@ class TestDelayedNotification(WidgetTest):
         # notification should not be called again
         with self.assertRaises(TimeoutError):
             self.process_events(lambda: len(call.call_args_list) > 1, timeout=1000)
+
+
+class TestCheckBoxWithDisabledState(GuiTest):
+    def test_check_checkbox_disable_false(self):
+        widget = OWBaseWidget()
+        widget.some_option = False
+        cb = gui.checkBox(widget, widget, "some_option", "foo",
+                          stateWhenDisabled=False)
+        self.assertFalse(cb.isChecked())
+        cb.setEnabled(False)
+        self.assertFalse(cb.isChecked())
+        widget.some_option = True
+        self.assertFalse(cb.isChecked())
+        cb.setEnabled(True)
+        self.assertTrue(cb.isChecked())
+        widget.some_option = False
+        self.assertFalse(cb.isChecked())
+
+        cb.setDisabled(True)
+        self.assertFalse(cb.isChecked())
+        widget.some_option = True
+        self.assertFalse(cb.isChecked())
+        cb.setDisabled(False)
+        self.assertTrue(cb.isChecked())
+        widget.some_option = False
+        self.assertFalse(cb.isChecked())
+
+    def test_check_checkbox_disable_true(self):
+        widget = OWBaseWidget()
+        widget.some_option = False
+        cb = gui.checkBox(widget, widget, "some_option", "foo",
+                          stateWhenDisabled=True)
+        self.assertFalse(cb.isChecked())
+        cb.setEnabled(False)
+        self.assertTrue(cb.isChecked())
+        widget.some_option = True
+        self.assertTrue(cb.isChecked())
+        cb.setEnabled(True)
+        self.assertTrue(cb.isChecked())
+        widget.some_option = False
+        self.assertFalse(cb.isChecked())
+
+        cb.setDisabled(True)
+        self.assertTrue(cb.isChecked())
+        widget.some_option = True
+        self.assertTrue(cb.isChecked())
+        cb.setDisabled(False)
+        self.assertTrue(cb.isChecked())
+        widget.some_option = False
+        self.assertFalse(cb.isChecked())
+
+    def test_clicks(self):
+        widget = OWBaseWidget()
+        widget.some_option = False
+        cb = gui.checkBox(widget, widget, "some_option", "foo",
+                          stateWhenDisabled=False)
+        cb.clicked.emit(True)
+        cb.setEnabled(False)
+        cb.setEnabled(True)
+        self.assertTrue(cb.isChecked())
+
+    def test_set_checked(self):
+        widget = OWBaseWidget()
+
+        widget.some_option = False
+        cb = gui.checkBox(widget, widget, "some_option", "foo",
+                          stateWhenDisabled=False)
+        self.assertFalse(cb.isChecked())
+        cb.setEnabled(False)
+        cb.setChecked(True)
+        self.assertFalse(cb.isChecked())
+        cb.setEnabled(True)
+        self.assertTrue(cb.isChecked())
+
+        widget.some_option = True
+        cb = gui.checkBox(widget, widget, "some_option", "foo",
+                          stateWhenDisabled=True)
+        self.assertTrue(cb.isChecked())
+        cb.setEnabled(False)
+        cb.setChecked(False)
+        self.assertTrue(cb.isChecked())
+        cb.setEnabled(True)
+        self.assertFalse(cb.isChecked())
+
+    def test_set_check_state(self):
+        widget = OWBaseWidget()
+
+        widget.some_option = 0
+        cb = gui.checkBox(widget, widget, "some_option", "foo",
+                          stateWhenDisabled=Qt.Unchecked)
+        cb.setCheckState(Qt.Unchecked)
+        cb.setEnabled(False)
+        self.assertEqual(cb.checkState(), Qt.Unchecked)
+
+        cb.setCheckState(Qt.PartiallyChecked)
+        self.assertEqual(cb.checkState(), Qt.Unchecked)
+        cb.setEnabled(True)
+        self.assertEqual(cb.checkState(), Qt.PartiallyChecked)
+        cb.setEnabled(False)
+        self.assertEqual(cb.checkState(), Qt.Unchecked)
+
+        cb.setCheckState(Qt.Checked)
+        self.assertEqual(cb.checkState(), Qt.Unchecked)
+        cb.setEnabled(True)
+        self.assertEqual(cb.checkState(), Qt.Checked)
+        cb.setEnabled(False)
+        self.assertEqual(cb.checkState(), Qt.Unchecked)
+
+        widget.some_option = 2
+        cb = gui.checkBox(widget, widget, "some_option", "foo",
+                          stateWhenDisabled=Qt.PartiallyChecked)
+        cb.setCheckState(Qt.Unchecked)
+        cb.setEnabled(False)
+        self.assertEqual(cb.checkState(), Qt.PartiallyChecked)
+
+        cb.setCheckState(Qt.Unchecked)
+        self.assertEqual(cb.checkState(), Qt.PartiallyChecked)
+        cb.setEnabled(True)
+        self.assertEqual(cb.checkState(), Qt.Unchecked)
+        cb.setEnabled(False)
+        self.assertEqual(cb.checkState(), Qt.PartiallyChecked)
+
+        cb.setCheckState(Qt.Checked)
+        self.assertEqual(cb.checkState(), Qt.PartiallyChecked)
+        cb.setEnabled(True)
+        self.assertEqual(cb.checkState(), Qt.Checked)
+        cb.setEnabled(False)
+        self.assertEqual(cb.checkState(), Qt.PartiallyChecked)

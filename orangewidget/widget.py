@@ -4,6 +4,7 @@ import types
 import warnings
 import textwrap
 from operator import attrgetter
+from math import log10
 
 from typing import Optional, Union
 
@@ -1377,6 +1378,9 @@ Explicit = Explicit
 Dynamic = Dynamic
 
 
+metric_suffix = ['', 'k', 'M', 'G', 'T', 'P']
+
+
 class StateInfo(QObject):
     """
     A namespace for OWBaseWidget's detailed input/output/state summary reporting.
@@ -1511,7 +1515,7 @@ class StateInfo(QObject):
 
     def set_input_summary(self, summary, details="", icon=QIcon(),
                           format=Qt.PlainText):
-        # type: (Union[StateInfo.Summary, str, None], str, QIcon, Qt.TextFormat) -> None
+        # type: (Union[StateInfo.Summary, str, int, None], str, QIcon, Qt.TextFormat) -> None
         """
         Set the input summary description.
 
@@ -1525,12 +1529,13 @@ class StateInfo(QObject):
         ----
         `set_input_summary(None)` clears/resets the current summary. Use
         `set_input_summary(StateInfo.NoInput)` to indicate no input state.
+        `set_input_summary(int)` to have automatically formatted summary
 
         Parameters
         ----------
-        summary : Union[Optional[StateInfo.Message], str]
-            A populated `StateInfo.Message` instance or
-            a short text description (should not exceed 16 characters).
+        summary : Union[Optional[StateInfo.Message], str, int]
+            A populated `StateInfo.Message` instance or a short text
+            description (should not exceed 16 characters) or an integer.
         details : str
             A detailed description (only applicable if summary is a string).
         icon : QIcon
@@ -1557,6 +1562,11 @@ class StateInfo(QObject):
             summary = StateInfo.Summary(summary, details, icon, format=format)
             if summary.icon.isNull():
                 summary = summary.updated(icon=summary.default_icon("input"))
+        elif isinstance(summary, int):
+            assert_single_arg()
+            formatted_summary = self.format_number(summary)
+            summary = StateInfo.Summary(formatted_summary, str(summary),
+                                        StateInfo.Summary.default_icon("input"))
         else:
             raise TypeError("'None', 'str' or 'Message' instance expected, "
                             "got '{}'" .format(type(summary).__name__))
@@ -1567,7 +1577,7 @@ class StateInfo(QObject):
 
     def set_output_summary(self, summary, details="", icon=QIcon(),
                            format=Qt.PlainText):
-        # type: (Union[StateInfo.Summary, str, None], str, QIcon, Qt.TextFormat) -> None
+        # type: (Union[StateInfo.Summary, str, int, None], str, QIcon, Qt.TextFormat) -> None
         """
         Set the output summary description.
 
@@ -1575,12 +1585,13 @@ class StateInfo(QObject):
         ----
         `set_output_summary(None)` clears/resets the current summary. Use
         `set_output_summary(StateInfo.NoOutput)` to indicate no output state.
+        `set_output_summary(int)` to have automatically formatted summary
 
         Parameters
         ----------
-        summary : Union[StateInfo.Summary, str, None]
+        summary : Union[StateInfo.Summary, str, int, None]
             A populated `StateInfo.Summary` instance or a short text
-            description (should not exceed 16 characters).
+            description (should not exceed 16 characters) or an integer.
         details : str
             A detailed description (only applicable if `summary` is a string).
         icon : QIcon
@@ -1606,6 +1617,11 @@ class StateInfo(QObject):
             summary = StateInfo.Summary(summary, details, icon, format=format)
             if summary.icon.isNull():
                 summary = summary.updated(icon=summary.default_icon("output"))
+        elif isinstance(summary, int):
+            assert_single_arg()
+            formatted_summary = self.format_number(summary)
+            summary = StateInfo.Summary(formatted_summary, str(summary),
+                                        StateInfo.Summary.default_icon("output"))
         else:
             raise TypeError("'None', 'str' or 'Message' instance expected, "
                             "got '{}'" .format(type(summary).__name__))
@@ -1614,5 +1630,23 @@ class StateInfo(QObject):
             self.__output_summary = summary
             self.output_summary_changed.emit(summary)
 
+    @staticmethod
+    def format_number(n: int) -> str:
+        """
+        Format integers larger then 9999 with metric suffix and at most 3 digits.
+
+        Example:
+            >>> StateInfo.format_number(12_345)
+            '12.3k'
+        """
+        if n < 10_000:
+            return str(n)
+        mag = int(log10(n) // 3)
+        n = n / 10 ** (mag * 3)
+        if n >= 999.5:
+            # rounding to higher order
+            n = 1
+            mag += 1
+        return f"{n:.3g}{metric_suffix[mag]}"
 
 # pylint: disable=too-many-lines

@@ -773,9 +773,23 @@ class WidgetsSignalManager(SignalManager):
 
         Deliver input signals to an OWBaseWidget instance.
         """
-        widget = self.scheme().widget_for_node(node)
-        if widget is not None:
-            self.process_signals_for_widget(node, widget, signals)
+        scheme = self.scheme()
+        assert scheme is not None
+        widget = scheme.widget_for_node(node)
+        if widget is None:
+            return
+        # `signals` are in the order they were 'enqueued' for delivery.
+        # Reorder them to match the order of links in the model.
+        _order = {
+            l: i for i, l in enumerate(scheme.find_links(sink_node=node))
+        }
+
+        def order(signal: Signal) -> int:
+            # if link is not in the workflow we are processing the final
+            # 'reset' (None) delivery for a removed connection.
+            return _order.get(signal.link, -1)
+        signals = sorted(signals, key=order)
+        self.process_signals_for_widget(node, widget, signals)
 
     def compress_signals(self, signals):
         """

@@ -702,9 +702,42 @@ def doubleSpin(widget, master, value, minv, maxv, step=1, box=None, label=None,
                 decimals=decimals, spinType=float, **misc)
 
 
+class CheckBoxWithDisabledState(QtWidgets.QCheckBox):
+    def __init__(self, label, parent, disabledState):
+        super().__init__(label, parent)
+        self.disabledState = disabledState
+        # self.trueState is always stored as Qt.Checked, Qt.PartiallyChecked
+        # or Qt.Unchecked, even if the button is two-state, because in
+        # setCheckState, which is used for setting it, "true" would result
+        # in partially checked.
+        self.trueState = self.checkState()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == event.EnabledChange:
+            self._updateChecked()
+
+    def setCheckState(self, state):
+        self.trueState = state
+        self._updateChecked()
+
+    def setChecked(self, state):
+        self._storeTrueState(state)
+        self._updateChecked()
+
+    def _updateChecked(self):
+        if self.isEnabled():
+            super().setCheckState(self.trueState)
+        else:
+            super().setCheckState(self.disabledState)
+
+    def _storeTrueState(self, state):
+        self.trueState = Qt.Checked if state else Qt.Unchecked
+
+
 def checkBox(widget, master, value, label, box=None,
              callback=None, getwidget=False, id_=None, labelWidth=None,
-             disables=None, **misc):
+             disables=None, stateWhenDisabled=None, **misc):
     """
     A simple checkbox.
 
@@ -732,6 +765,9 @@ def checkBox(widget, master, value, label, box=None,
     :param disables: a list of widgets that are disabled if the check box is
         unchecked
     :type disables: list or QWidget or None
+    :param stateWhenDisabled: the shown state of the checkbox when it is
+        disabled (default: None, unaffected)
+    :type stateWhenDisabled: bool or Qt.CheckState or None
     :return: constructed check box; if is is placed within a box, the box is
         return in the attribute `box`
     :rtype: QCheckBox
@@ -740,7 +776,11 @@ def checkBox(widget, master, value, label, box=None,
         b = hBox(widget, box, addToLayout=False)
     else:
         b = widget
-    cbox = QtWidgets.QCheckBox(label, b)
+    if stateWhenDisabled is not None:
+        cbox = CheckBoxWithDisabledState(label, b, stateWhenDisabled)
+        cbox.clicked.connect(cbox._storeTrueState)
+    else:
+        cbox = QtWidgets.QCheckBox(label, b)
 
     if labelWidth:
         cbox.setFixedSize(labelWidth, cbox.sizeHint().height())

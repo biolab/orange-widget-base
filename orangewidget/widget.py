@@ -16,7 +16,7 @@ from AnyQt.QtWidgets import (
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QRect, QMargins, QByteArray, QDataStream, QBuffer,
     QSettings, QUrl, QThread, pyqtSignal as Signal, QSize)
-from AnyQt.QtGui import QIcon, QKeySequence, QDesktopServices, QPainter
+from AnyQt.QtGui import QIcon, QKeySequence, QDesktopServices, QPainter, QColor
 
 from orangewidget import settings, gui
 from orangewidget.report import Report
@@ -308,6 +308,10 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     class _Splitter(QSplitter):
         handleClicked = Signal()
 
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, *kwargs)
+            self.setHandleWidth(8)
+
         def _adjusted_size(self, size_method):
             size = size_method(super())()
             parent = self.parentWidget()
@@ -330,12 +334,40 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         def minimumSizeHint(self):
             return self._adjusted_size(attrgetter("minimumSizeHint"))
 
+        def setSizes(self, sizes):
+            super().setSizes(sizes)
+            if len(sizes) == 2:
+                self.handle(1).setControlAreaShown(bool(sizes[0]))
+
         def createHandle(self):
             """Create splitter handle"""
             return self._Handle(
                 self.orientation(), self, cursor=Qt.PointingHandCursor)
 
         class _Handle(QSplitterHandle):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.controlAreaShown = True
+
+            def setControlAreaShown(self, shown):
+                self.controlAreaShown = shown
+                self.update()
+
+            def paintEvent(self, event):
+                super(QSplitterHandle, self).paintEvent(event)
+                painter = QPainter(self)
+                painter.setPen(QColor(160, 160, 160))
+                w = self.width() - 2
+                if self.controlAreaShown:
+                    x0, x1 = 2, w
+                else:
+                    x0, x1 = w, 2
+                y = self.height() / 2
+                h = 0.75 * w
+                painter.setRenderHint(painter.Antialiasing)
+                painter.drawLine(x0, y - h, x1, y)
+                painter.drawLine(x1, y, x0, y + h)
+
             def mouseReleaseEvent(self, event):
                 """Resize on left button"""
                 if event.button() == Qt.LeftButton:

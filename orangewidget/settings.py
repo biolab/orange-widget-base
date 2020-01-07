@@ -41,6 +41,8 @@ import warnings
 from operator import itemgetter
 from typing import Any, Optional, Tuple
 
+import numpy as np
+
 from orangewidget.gui import OWComponent
 
 log = logging.getLogger(__name__)
@@ -48,7 +50,8 @@ log = logging.getLogger(__name__)
 __all__ = [
     "Setting", "SettingsHandler", "SettingProvider",
     "ContextSetting", "Context", "ContextHandler", "IncompatibleContext",
-    "SettingsPrinter", "rename_setting", "widget_settings_dir"
+    "SettingsPrinter", "rename_setting", "widget_settings_dir",
+    "is_setting_type_supported"
 ]
 
 _IMMUTABLES = (str, int, bytes, bool, float, tuple)
@@ -57,6 +60,32 @@ VERSION_KEY = "__version__"
 
 
 __WIDGET_SETTINGS_DIR = None  # type: Optional[Tuple[str, str]]
+
+
+def is_setting_type_supported(value: Any) -> bool:
+    """
+    Check validity of setting type.
+
+    Parameters
+    ----------
+    value: object
+        Value of the setting.
+
+    Returns
+    -------
+    bool
+        Return True if the setting type is valid.
+    """
+    if value is None or isinstance(value, (int, float, str, bytes,
+                                           np.integer)):
+        return True
+    elif isinstance(value, (dict, list, tuple, set, frozenset)):
+        values = value.values() if isinstance(value, dict) else value
+        for val in values:
+            if not is_setting_type_supported(val):
+                return False
+        return True
+    return False
 
 
 def set_widget_settings_dir_components(basedir: str, versionstr: str) -> None:

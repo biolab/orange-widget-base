@@ -18,7 +18,10 @@ from AnyQt.QtWidgets import (
     QApplication, QComboBox, QSpinBox, QDoubleSpinBox, QSlider
 )
 
+from orangewidget.gui import OWComponent
 from orangewidget.report.owreport import OWReport
+from orangewidget.settings import is_setting_type_supported, Setting, \
+    ContextSetting, SettingProvider, ContextHandler
 from orangewidget.widget import OWBaseWidget
 
 sip.setdestroyonexit(False)
@@ -211,8 +214,10 @@ class WidgetTest(GuiTest):
             report.show = Mock()
 
     def tearDown(self):
-        """Process any pending events before the next test is executed."""
+        """Process any pending events before the next test is executed and
+        check settings for all widgets."""
         self.process_events()
+        self.check_widgets_settings()
         super().tearDown()
 
     def create_widget(self, cls, stored_settings=None, reset_default_settings=True):
@@ -505,6 +510,27 @@ class WidgetTest(GuiTest):
         inspect("Warning")
         inspect("Information")
 
+    def check_widgets_settings(self):
+        """ Test settings types for all widgets created by the create_widget
+        method.
+        """
+        for w in self.widgets:
+            self._check_settings_types(w)
+
+    def _check_settings_types(self, widget: OWBaseWidget):
+        if not hasattr(widget, "settingsHandler") \
+                or widget.settingsHandler is None:
+            return
+
+        settings = widget.settingsHandler.pack_data(widget)
+        for key, value in settings.items():
+            if key == "context_settings":
+                for context in value:
+                    for val in context.values.values():
+                        self.assertTrue(is_setting_type_supported(val))
+            else:
+                self.assertTrue(is_setting_type_supported(value))
+
 
 class TestWidgetTest(WidgetTest):
     """Meta tests for widget test helpers"""
@@ -535,6 +561,73 @@ class TestWidgetTest(WidgetTest):
         self.check_msg_base_class(B())
         self.check_msg_base_class(C())  # It is unfortunate that this passes...
         self.assertRaises(AssertionError, self.check_msg_base_class, D())
+
+    def test_check_settings_types(self):
+        class Handler(ContextHandler):
+            def match(self, context, *args):
+                return ContextHandler.PERFECT_MATCH
+
+        class Component(OWComponent):
+            s = Setting(0)
+            cs = ContextSetting(0)
+
+        class Widget(OWBaseWidget):
+            name = "mock"
+
+        class W1(Widget):
+            s = Setting(0)
+
+        class W2(Widget):
+            settingsHandler = Handler()
+            cs = ContextSetting(0)
+
+        class W3(Widget):
+            settingsHandler = Handler()
+            sp = SettingProvider(Component)
+
+        class W4(Widget):
+            s = Setting(range(10))
+
+        class W5(Widget):
+            settingsHandler = Handler()
+            cs = ContextSetting(range(10))
+
+        class W6(Widget):
+            settingsHandler = Handler()
+            sp = SettingProvider(Component)
+
+        class W7(Widget):
+            settingsHandler = Handler()
+            sp = SettingProvider(Component)
+
+        w2 = W2()
+        w2.openContext(None)
+
+        w3 = W3()
+        w3.sp.s = 1
+        w3.sp.cs = 2
+        w3.openContext(None)
+
+        w5 = W5()
+        w5.openContext(None)
+
+        w6 = W6()
+        w6.sp.s = range(10)
+        w6.sp.cs = 1
+        w6.openContext(None)
+
+        w7 = W7()
+        w7.sp.s = 2
+        w7.sp.cs = range(10)
+        w7.openContext(None)
+
+        self._check_settings_types(W1())
+        self._check_settings_types(w2)
+        self._check_settings_types(w3)
+        self.assertRaises(AssertionError, self._check_settings_types, W4())
+        self.assertRaises(AssertionError, self._check_settings_types, w5)
+        self.assertRaises(AssertionError, self._check_settings_types, w6)
+        self.assertRaises(AssertionError, self._check_settings_types, w7)
 
 
 class BaseParameterMapping:

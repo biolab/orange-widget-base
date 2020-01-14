@@ -24,7 +24,7 @@ environment:
       TEST_DEP: PyQt5~=5.12.1 PyQtWebEngine~=5.12.1
 
     - PYTHON: C:\Python38-x64
-      TEST_DEP: PyQt5~=5.14.0 PyQtWebEngine~=5.14.0
+      TEST_DEP: "PyQt5~=5.14.0 PyQtWebEngine~=5.14.0 \"pyqtgraph>=0.11a0\""
 
 
 cache:

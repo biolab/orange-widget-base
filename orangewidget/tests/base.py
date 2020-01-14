@@ -210,6 +210,11 @@ class WidgetTest(GuiTest):
         if not (os.environ.get("TRAVIS") or os.environ.get("APPVEYOR")):
             report.show = Mock()
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        super().tearDownClass()
+        cls.widgets.clear()
+
     def tearDown(self):
         """Process any pending events before the next test is executed."""
         self.process_events()

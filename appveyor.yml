@@ -23,6 +23,10 @@ environment:
     - PYTHON: C:\Python37-x64
       TEST_DEP: PyQt5~=5.12.1 PyQtWebEngine~=5.12.1
 
+    - PYTHON: C:\Python38-x64
+      TEST_DEP: PyQt5~=5.14.0 PyQtWebEngine~=5.14.0
+
+
 cache:
   - '%LOCALAPPDATA%\pip\cache -> appveyor.yml'
 

@@ -24,6 +24,10 @@ matrix:
       env:
         - TEST_DEP="PyQt5~=5.12.1 PyQtWebEngine~=5.12.1"
 
+    - python: '3.8'
+      env:
+        - TEST_DEP="PyQt5~=5.14.0 PyQtWebEngine~=5.14.0"
+
 cache:
   pip: true
 

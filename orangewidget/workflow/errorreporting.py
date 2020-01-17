@@ -156,12 +156,6 @@ class ErrorReporting(QDialog):
         F = self.DataField
         data = self._data.copy()
 
-        if QSettings().value('error-reporting/add-scheme', True, type=bool):
-            data[F.WIDGET_SCHEME] = data['_' + F.WIDGET_SCHEME]
-        else:
-            data.pop(F.WIDGET_SCHEME, None)
-        del data['_' + F.WIDGET_SCHEME]
-
         def _post_report(data):
             MAX_RETRIES = 2
             for _retry in range(MAX_RETRIES):
@@ -253,17 +247,17 @@ class ErrorReporting(QDialog):
         if widget_class is not None:
             data[F.WIDGET_NAME] = widget_class.name
             data[F.WIDGET_MODULE] = widget_module
-        if workflow is not None:
+        if workflow is not None \
+                and QSettings().value('reporting/add-scheme', True, type=bool):
             fd, filename = mkstemp(prefix='ows-', suffix='.ows.xml')
             os.close(fd)
-            with open(filename, "wb") as f:
-                try:
+            try:
+                with open(filename, "wb") as f:
                     workflow.save_to(f, pretty=True, pickle_fallback=True)
-                except Exception:
-                    pass
-            data[F.WIDGET_SCHEME] = filename
-            with open(filename, encoding='utf-8') as f:
-                data['_' + F.WIDGET_SCHEME] = f.read()
+                with open(filename, encoding='utf-8') as f:
+                    data[F.WIDGET_SCHEME] = f.read()
+            except Exception:
+                pass
         data[F.VERSION] = QApplication.applicationVersion()
         data[F.ENVIRONMENT] = 'Python {} on {} {} {} {}'.format(
             platform.python_version(), platform.system(), platform.release(),

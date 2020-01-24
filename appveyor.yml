@@ -14,7 +14,7 @@ environment:
   global:
     PROJECT_NAME: "orange-widget-base"
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
-    BUILD_DEP: wheel==0.29.0 pip~=19.0.0
+    BUILD_DEP: wheel==0.29.0 pip~=19.3.1
     TEST_DEP: PyQt5~=5.9.2
 
   matrix:
@@ -22,6 +22,10 @@ environment:
 
     - PYTHON: C:\Python37-x64
       TEST_DEP: PyQt5~=5.12.1 PyQtWebEngine~=5.12.1
+
+    - PYTHON: C:\Python38-x64
+      TEST_DEP: "PyQt5~=5.14.0 PyQtWebEngine~=5.14.0 \"pyqtgraph>=0.11a0\""
+
 
 cache:
   - '%LOCALAPPDATA%\pip\cache -> appveyor.yml'
@@ -42,7 +46,7 @@ test_script:
   - build\.test\Scripts\activate
   - cd build\.test
   # Pre-populate the test environment
-  - python -m pip install pip~=19.0.0 wheel
+  - python -m pip install pip~=19.3 wheel
 
   - python -m pip install %TEST_DEP%
   - python -m pip install --no-index --no-deps -f ..\..\dist --pre %PROJECT_NAME%==%VERSION%

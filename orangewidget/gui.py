@@ -1450,6 +1450,7 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
         length (default: 25, use 0 to disable)
     :rtype: QComboBox
     """
+    widget_label = None
     if box or label:
         hb = widgetBox(widget, box, orientation, addToLayout=False)
         if label is not None:

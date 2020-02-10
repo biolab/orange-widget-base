@@ -389,13 +389,6 @@ class MessagesWidget(QWidget):
             sizePolicy=QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum),
             elide=elideText
         )
-        #: Indicator that extended contents are accessible with a click on the
-        #: widget.
-        self.__popupicon = QLabel(
-            sizePolicy=QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum),
-            text="\N{VERTICAL ELLIPSIS}",
-            visible=False,
-        )
         self.__textlabel.linkActivated.connect(self.linkActivated)
         self.__textlabel.linkHovered.connect(self.linkHovered)
         self.setLayout(QHBoxLayout())
@@ -404,7 +397,6 @@ class MessagesWidget(QWidget):
         self.layout().addWidget(self.__iconwidget, alignment=Qt.AlignLeft)
         self.layout().addSpacing(4)
         self.layout().addWidget(self.__textlabel)
-        self.layout().addWidget(self.__popupicon)
         self.__textlabel.setAttribute(Qt.WA_MacSmallSize)
         self.__defaultStyleSheet = defaultStyleSheet
 
@@ -594,7 +586,6 @@ class MessagesWidget(QWidget):
             self.__popuptext = ""
         else:
             self.__popuptext = fulltext
-        self.__popupicon.setVisible(bool(self.__popuptext))
         self.layout().activate()
 
     def mousePressEvent(self, event):
@@ -634,7 +625,7 @@ class MessagesWidget(QWidget):
     def paintEvent(self, event):
         opt = QStyleOption()
         opt.initFrom(self)
-        if not self.__popupicon.isVisible():
+        if not self.__popuptext:
             return
 
         if not (opt.state & QStyle.State_MouseOver or

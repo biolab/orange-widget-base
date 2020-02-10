@@ -293,6 +293,50 @@ def summarize(messages):
                    textFormat=Qt.RichText)
 
 
+class ElidingLabel(QLabel):
+    def __init__(self, elide=False, **kwargs):
+        super().__init__(**kwargs)
+        self.__elide = elide
+        self.__originalText = ""
+
+    def resizeEvent(self, event):
+        if self.__elide:
+            self.__setElidedText(self.__originalText)
+
+    def __setElidedText(self, text):
+        fm = self.fontMetrics()
+
+        # Qt sometimes elides even when text width == target width
+        width = self.width() + 1
+
+        elided = fm.elidedText(text, Qt.ElideRight, width)
+        super().setText(elided)
+
+    def setText(self, text):
+        self.__originalText = text
+        if self.__elide:
+            self.__setElidedText(text)
+        else:
+            super().setText(text)
+
+    def sizeHint(self):
+        fm = self.fontMetrics()
+        w = fm.width(self.__originalText)
+        h = super().minimumSizeHint().height()
+
+        return QSize(w, h)
+
+    def setElide(self, enabled):
+        if self.__elide == enabled:
+            return
+
+        self.__elide = enabled
+        if enabled:
+            self.__setElidedText(self.__originalText)
+        else:
+            super().setText(self.__originalText)
+
+
 class MessagesWidget(QWidget):
     """
     An iconified multiple message display area.
@@ -318,7 +362,7 @@ class MessagesWidget(QWidget):
 
     Message = Message
 
-    def __init__(self, parent=None, openExternalLinks=False,
+    def __init__(self, parent=None, openExternalLinks=False, elideText=False,
                  defaultStyleSheet="", **kwargs):
         kwargs.setdefault(
             "sizePolicy",
@@ -338,11 +382,12 @@ class MessagesWidget(QWidget):
             sizePolicy=QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
         #: Inline  message text
-        self.__textlabel = QLabel(
+        self.__textlabel = ElidingLabel(
             wordWrap=False,
             textInteractionFlags=Qt.LinksAccessibleByMouse,
             openExternalLinks=self.__openExternalLinks,
-            sizePolicy=QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+            sizePolicy=QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum),
+            elide=elideText
         )
         #: Indicator that extended contents are accessible with a click on the
         #: widget.

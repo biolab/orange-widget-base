@@ -542,7 +542,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                     margin-bottom: 0.5em;
                     margin-left: 1em;
                     margin-right: 1em;
-                }""")
+                }"""),
+                elideText=True
             )
             self.message_bar.setSizePolicy(QSizePolicy.Preferred,
                                            QSizePolicy.Preferred)

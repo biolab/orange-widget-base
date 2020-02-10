@@ -587,7 +587,13 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 c, objectName="owwidget-status-bar"
             )
             statusbar.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Maximum)
-            statusbar.setSizeGripEnabled(self.resizing_enabled)
+
+            if self.resizing_enabled:
+                statusbar.setSizeGripEnabled(True)
+            else:
+                statusbar.setSizeGripEnabled(False)
+                statusbar.setContentsMargins(0, 0, 7, 0)
+
             statusbar.ensurePolished()
             c.layout().addWidget(statusbar)
 

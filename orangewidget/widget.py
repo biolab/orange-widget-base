@@ -662,14 +662,14 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 in_msg = MessagesWidget(
                     objectName="input-summary", visible=False,
                     defaultStyleSheet=css,
-                    sizePolicy=QSizePolicy(QSizePolicy.Preferred,
-                                           QSizePolicy.Preferred)
+                    sizePolicy=QSizePolicy(QSizePolicy.Fixed,
+                                           QSizePolicy.Fixed)
                 )
                 out_msg = MessagesWidget(
                     objectName="output-summary", visible=False,
                     defaultStyleSheet=css,
-                    sizePolicy=QSizePolicy(QSizePolicy.Preferred,
-                                           QSizePolicy.Preferred)
+                    sizePolicy=QSizePolicy(QSizePolicy.Fixed,
+                                           QSizePolicy.Fixed)
                 )
 
                 in_out_msg = sb.findChild(QWidget, "in-out-msg")

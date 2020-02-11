@@ -596,6 +596,7 @@ class MessagesWidget(QWidget):
                     self, textInteractionFlags=Qt.TextBrowserInteraction,
                     openExternalLinks=self.__openExternalLinks,
                 )
+                label.setContentsMargins(4, 4, 4, 4)
                 label.setText(self.__styled(self.__defaultStyleSheet,
                                             self.__popuptext))
 

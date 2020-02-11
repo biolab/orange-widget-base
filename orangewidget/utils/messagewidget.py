@@ -356,7 +356,7 @@ class MessagesWidget(QWidget):
         self.setLayout(QHBoxLayout())
         self.layout().setContentsMargins(2, 1, 2, 1)
         self.layout().setSpacing(0)
-        self.layout().addWidget(self.__iconwidget)
+        self.layout().addWidget(self.__iconwidget, alignment=Qt.AlignLeft)
         self.layout().addSpacing(4)
         self.layout().addWidget(self.__textlabel)
         self.layout().addWidget(self.__popupicon)
@@ -369,7 +369,7 @@ class MessagesWidget(QWidget):
         self.anim.setKeyValueAt(0.5, 0)
         self.anim.setEndValue(1)
         self.anim.setEasingCurve(QEasingCurve.OutQuad)
-        self.anim.setLoopCount(5)
+        self.anim.setLoopCount(2)
 
     def sizeHint(self):
         sh = super().sizeHint()
@@ -528,7 +528,6 @@ class MessagesWidget(QWidget):
         icon = message_icon(summary)
         self.__iconwidget.setIcon(icon)
         self.__iconwidget.setVisible(not (summary.isEmpty() or icon.isNull()))
-        self.anim.start(QPropertyAnimation.KeepWhenStopped)
         self.__textlabel.setTextFormat(summary.textFormat)
         self.__textlabel.setText(summary.text)
         self.__textlabel.setVisible(bool(summary.text))
@@ -541,6 +540,7 @@ class MessagesWidget(QWidget):
             fulltext = ""
         self.__fulltext = fulltext
         self.setToolTip(self.__styled(self.__defaultStyleSheet, fulltext))
+        self.anim.start(QPropertyAnimation.KeepWhenStopped)
 
         def is_short(m):
             return not (m.informativeText or m.detailedText)

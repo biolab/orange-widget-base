@@ -11,8 +11,8 @@ from typing import Optional, Union
 from AnyQt.QtWidgets import (
     QWidget, QDialog, QVBoxLayout, QSizePolicy, QApplication, QStyle,
     QShortcut, QSplitter, QSplitterHandle, QPushButton, QStatusBar,
-    QProgressBar, QAction, QFrame, QStyleOption, QWIDGETSIZE_MAX
-)
+    QProgressBar, QAction, QFrame, QStyleOption, QWIDGETSIZE_MAX,
+    QHBoxLayout)
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QRect, QMargins, QByteArray, QDataStream, QBuffer,
     QSettings, QUrl, QThread, pyqtSignal as Signal, QSize)
@@ -474,6 +474,11 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
         if self.want_message_bar:
             sb = self.statusBar()
+
+            buttonsLayout = QHBoxLayout()
+            buttonsLayout.setContentsMargins(7, 0, 0, 0)
+            buttonsLayout.setSpacing(5)
+
             help = self.__help_action
             icon = QIcon(gui.resource_filename("icons/help.svg"))
             icon.addFile(gui.resource_filename("icons/help-hover.svg"), mode=QIcon.Active)
@@ -486,7 +491,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 help_button.setVisible(help.isVisible())
                 help_button.setEnabled(help.isEnabled())
             help_button.clicked.connect(help.trigger)
-            sb.addWidget(help_button)
+            buttonsLayout.addWidget(help_button)
 
             if self.graph_name is not None:
                 icon = QIcon(gui.resource_filename("icons/chart.svg"))
@@ -496,7 +501,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                     toolTip="Save Image",
                 )
                 b.clicked.connect(self.save_graph)
-                sb.addWidget(b)
+                buttonsLayout.addWidget(b)
             if hasattr(self, "send_report"):
                 icon = QIcon(gui.resource_filename("icons/report.svg"))
                 icon.addFile(gui.resource_filename("icons/report-hover.svg"), mode=QIcon.Active)
@@ -505,7 +510,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                     toolTip="Report"
                 )
                 b.clicked.connect(self.show_report)
-                sb.addWidget(b)
+                buttonsLayout.addWidget(b)
             if hasattr(self, "reset_settings"):
                 icon = QIcon(gui.resource_filename("icons/reset.svg"))
                 icon.addFile(gui.resource_filename("icons/reset-hover.svg"), mode=QIcon.Active)
@@ -514,7 +519,19 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                     toolTip="Reset settings to defaults"
                 )
                 b.clicked.connect(self.reset_settings)
-                sb.addWidget(b)
+                buttonsLayout.addWidget(b)
+
+            buttons = QWidget(objectName="buttons")
+            buttons.setLayout(buttonsLayout)
+            sb.addWidget(buttons)
+
+            in_out_msg = QWidget(objectName="in-out-msg")
+            in_out_msg.setLayout(QHBoxLayout())
+            in_out_msg.layout().setContentsMargins(5, 0, 0, 0)
+            in_out_msg.layout().setSpacing(5)
+            in_out_msg.setVisible(False)
+            sb.addWidget(in_out_msg)
+
             self.message_bar = MessagesWidget(
                 defaultStyleSheet=textwrap.dedent("""
                 div.field-text {
@@ -647,12 +664,19 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                     sizePolicy=QSizePolicy(QSizePolicy.Preferred,
                                            QSizePolicy.Preferred)
                 )
+
+                in_out_msg = sb.findChild(QWidget, "in-out-msg")
+
                 # Insert a separator if these are not the first elements
-                # TODO: This needs a better check.
-                if sb.findChildren(SimpleButton):
-                    sb.addWidget(QFrame(frameShape=QFrame.VLine))
-                sb.addWidget(in_msg)
-                sb.addWidget(out_msg)
+                buttons = sb.findChild(QWidget, "buttons")
+                if buttons.layout().count() != 0:
+                    sep = QFrame(frameShape=QFrame.VLine)
+                    sep.setContentsMargins(0, 0, 2, 0)
+                    in_out_msg.layout().addWidget(sep)
+
+                in_out_msg.layout().addWidget(in_msg)
+                in_out_msg.layout().addWidget(out_msg)
+                in_out_msg.setVisible(True)
 
                 def set_message(msgwidget, m):
                     # type: (MessagesWidget, StateInfo.Summary) -> None

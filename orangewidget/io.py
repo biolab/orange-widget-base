@@ -194,6 +194,7 @@ class SvgFormat(ImgFormat):
     @staticmethod
     def _get_buffer(size, filename):
         buffer = QtSvg.QSvgGenerator()
+        buffer.setResolution(QApplication.desktop().logicalDpiX())
         buffer.setFileName(filename)
         buffer.setSize(QtCore.QSize(int(size.width()), int(size.height())))
         return buffer

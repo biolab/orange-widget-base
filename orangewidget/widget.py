@@ -1595,9 +1595,9 @@ class StateInfo(QObject):
             if summary.icon.isNull():
                 summary = summary.updated(icon=summary.default_icon("input"))
         elif isinstance(summary, int):
-            assert_single_arg()
             formatted_summary = self.format_number(summary)
-            summary = StateInfo.Summary(formatted_summary, str(summary),
+            summary = StateInfo.Summary(formatted_summary,
+                                        details or str(summary),
                                         StateInfo.Summary.default_icon("input"))
         else:
             raise TypeError("'None', 'str' or 'Message' instance expected, "
@@ -1650,9 +1650,9 @@ class StateInfo(QObject):
             if summary.icon.isNull():
                 summary = summary.updated(icon=summary.default_icon("output"))
         elif isinstance(summary, int):
-            assert_single_arg()
             formatted_summary = self.format_number(summary)
-            summary = StateInfo.Summary(formatted_summary, str(summary),
+            summary = StateInfo.Summary(formatted_summary,
+                                        details or str(summary),
                                         StateInfo.Summary.default_icon("output"))
         else:
             raise TypeError("'None', 'str' or 'Message' instance expected, "

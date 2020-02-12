@@ -3,6 +3,7 @@
 import gc
 import weakref
 
+import unittest
 from unittest.mock import patch, MagicMock
 
 from AnyQt.QtCore import Qt, QPoint, QRect, QByteArray, QObject, pyqtSignal
@@ -463,8 +464,13 @@ class WidgetTestInfoSummary(WidgetTest):
         with self.assertRaises(TypeError):
             info.set_output_summary(info.NoOutput, "a")
 
-        with self.assertRaises(TypeError):
-            info.set_output_summary(1234, "a")
+        info.set_input_summary(1234, "Foo")
+        info.set_output_summary(1234, "Bar")
+
+        self.assertEqual(inmsg.summarize().text, "1234")
+        self.assertEqual(inmsg.summarize().informativeText, "Foo")
+        self.assertEqual(outmsg.summarize().text, "1234")
+        self.assertEqual(outmsg.summarize().informativeText, "Bar")
 
     def test_format_number(self):
         self.assertEqual(StateInfo.format_number(9999), "9999")
@@ -475,3 +481,7 @@ class WidgetTestInfoSummary(WidgetTest):
         self.assertEqual(StateInfo.format_number(1_234_567), "1.23M")
         self.assertEqual(StateInfo.format_number(999_999), "1M")
         self.assertEqual(StateInfo.format_number(1_000_000), "1M")
+
+
+if __name__ == "__main__":
+    unittest.main()

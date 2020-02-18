@@ -1576,7 +1576,7 @@ class StateInfo(QObject):
         format : Qt.TextFormat
             Specify how the `short` and `details` text should be interpreted.
             Can be `Qt.PlainText` or `Qt.RichText` (only applicable if
-            `summary` is a string).
+            `summary` is a string or an integer).
         """
         def assert_single_arg():
             if not (details == "" and icon.isNull() and format == Qt.PlainText):
@@ -1595,10 +1595,10 @@ class StateInfo(QObject):
             if summary.icon.isNull():
                 summary = summary.updated(icon=summary.default_icon("input"))
         elif isinstance(summary, int):
-            formatted_summary = self.format_number(summary)
-            summary = StateInfo.Summary(formatted_summary,
+            summary = StateInfo.Summary(self.format_number(summary),
                                         details or str(summary),
-                                        StateInfo.Summary.default_icon("input"))
+                                        StateInfo.Summary.default_icon("input"),
+                                        format=format)
         else:
             raise TypeError("'None', 'str' or 'Message' instance expected, "
                             "got '{}'" .format(type(summary).__name__))
@@ -1632,7 +1632,7 @@ class StateInfo(QObject):
         format : Qt.TextFormat
             Specify how the `summary` and `details` text should be interpreted.
             Can be `Qt.PlainText` or `Qt.RichText` (only applicable if
-            `summary` is a string).
+            `summary` is a string or an integer).
         """
         def assert_single_arg():
             if not (details == "" and icon.isNull() and format == Qt.PlainText):
@@ -1650,10 +1650,10 @@ class StateInfo(QObject):
             if summary.icon.isNull():
                 summary = summary.updated(icon=summary.default_icon("output"))
         elif isinstance(summary, int):
-            formatted_summary = self.format_number(summary)
-            summary = StateInfo.Summary(formatted_summary,
+            summary = StateInfo.Summary(self.format_number(summary),
                                         details or str(summary),
-                                        StateInfo.Summary.default_icon("output"))
+                                        StateInfo.Summary.default_icon("output"),
+                                        format=format)
         else:
             raise TypeError("'None', 'str' or 'Message' instance expected, "
                             "got '{}'" .format(type(summary).__name__))

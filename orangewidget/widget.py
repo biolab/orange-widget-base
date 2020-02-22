@@ -475,63 +475,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if self.want_message_bar:
             sb = self.statusBar()
 
-            buttonsLayout = QHBoxLayout()
-            buttonsLayout.setContentsMargins(7, 0, 0, 0)
-            buttonsLayout.setSpacing(5)
-
-            help = self.__help_action
-            icon = QIcon(gui.resource_filename("icons/help.svg"))
-            icon.addFile(gui.resource_filename("icons/help-hover.svg"), mode=QIcon.Active)
-            help_button = SimpleButton(
-                icon=icon,
-                toolTip="Show widget help", visible=help.isVisible(),
-            )
-            @help.changed.connect
-            def _():
-                help_button.setVisible(help.isVisible())
-                help_button.setEnabled(help.isEnabled())
-            help_button.clicked.connect(help.trigger)
-            buttonsLayout.addWidget(help_button)
-
-            if self.graph_name is not None:
-                icon = QIcon(gui.resource_filename("icons/chart.svg"))
-                icon.addFile(gui.resource_filename("icons/chart-hover.svg"), mode=QIcon.Active)
-                b = SimpleButton(
-                    icon=icon,
-                    toolTip="Save Image",
-                )
-                b.clicked.connect(self.save_graph)
-                buttonsLayout.addWidget(b)
-            if hasattr(self, "send_report"):
-                icon = QIcon(gui.resource_filename("icons/report.svg"))
-                icon.addFile(gui.resource_filename("icons/report-hover.svg"), mode=QIcon.Active)
-                b = SimpleButton(
-                    icon=icon,
-                    toolTip="Report"
-                )
-                b.clicked.connect(self.show_report)
-                buttonsLayout.addWidget(b)
-            if hasattr(self, "reset_settings"):
-                icon = QIcon(gui.resource_filename("icons/reset.svg"))
-                icon.addFile(gui.resource_filename("icons/reset-hover.svg"), mode=QIcon.Active)
-                b = SimpleButton(
-                    icon=icon,
-                    toolTip="Reset settings to defaults"
-                )
-                b.clicked.connect(self.reset_settings)
-                buttonsLayout.addWidget(b)
-
-            buttons = QWidget(objectName="buttons")
-            buttons.setLayout(buttonsLayout)
-            sb.addWidget(buttons)
-
-            in_out_msg = QWidget(objectName="in-out-msg")
-            in_out_msg.setLayout(QHBoxLayout())
-            in_out_msg.layout().setContentsMargins(5, 0, 0, 0)
-            in_out_msg.layout().setSpacing(5)
-            in_out_msg.setVisible(False)
-            sb.addWidget(in_out_msg)
-
             self.message_bar = MessagesWidget(
                 defaultStyleSheet=textwrap.dedent("""
                 div.field-text {
@@ -615,6 +558,66 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             )
             statusbar_action.toggled[bool].connect(statusbar.setVisible)
             self.addAction(statusbar_action)
+
+            # Create buttons
+            buttonsLayout = QHBoxLayout()
+            buttonsLayout.setContentsMargins(7, 0, 0, 0)
+            buttonsLayout.setSpacing(5)
+
+            help = self.__help_action
+            icon = QIcon(gui.resource_filename("icons/help.svg"))
+            icon.addFile(gui.resource_filename("icons/help-hover.svg"), mode=QIcon.Active)
+            help_button = SimpleButton(
+                icon=icon,
+                toolTip="Show widget help", visible=help.isVisible(),
+            )
+
+            @help.changed.connect
+            def _():
+                help_button.setVisible(help.isVisible())
+                help_button.setEnabled(help.isEnabled())
+
+            help_button.clicked.connect(help.trigger)
+            buttonsLayout.addWidget(help_button)
+
+            if self.graph_name is not None:
+                icon = QIcon(gui.resource_filename("icons/chart.svg"))
+                icon.addFile(gui.resource_filename("icons/chart-hover.svg"), mode=QIcon.Active)
+                b = SimpleButton(
+                    icon=icon,
+                    toolTip="Save Image",
+                )
+                b.clicked.connect(self.save_graph)
+                buttonsLayout.addWidget(b)
+            if hasattr(self, "send_report"):
+                icon = QIcon(gui.resource_filename("icons/report.svg"))
+                icon.addFile(gui.resource_filename("icons/report-hover.svg"), mode=QIcon.Active)
+                b = SimpleButton(
+                    icon=icon,
+                    toolTip="Report"
+                )
+                b.clicked.connect(self.show_report)
+                buttonsLayout.addWidget(b)
+            if hasattr(self, "reset_settings"):
+                icon = QIcon(gui.resource_filename("icons/reset.svg"))
+                icon.addFile(gui.resource_filename("icons/reset-hover.svg"), mode=QIcon.Active)
+                b = SimpleButton(
+                    icon=icon,
+                    toolTip="Reset settings to defaults"
+                )
+                b.clicked.connect(self.reset_settings)
+                buttonsLayout.addWidget(b)
+
+            buttons = QWidget(objectName="buttons")
+            buttons.setLayout(buttonsLayout)
+            statusbar.addWidget(buttons)
+
+            in_out_msg = QWidget(objectName="in-out-msg")
+            in_out_msg.setLayout(QHBoxLayout())
+            in_out_msg.layout().setContentsMargins(5, 0, 0, 0)
+            in_out_msg.layout().setSpacing(5)
+            in_out_msg.setVisible(False)
+            statusbar.addWidget(in_out_msg)
         return statusbar
 
     def __updateStatusBarOnChange(self):

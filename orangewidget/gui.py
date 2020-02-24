@@ -23,7 +23,9 @@ from AnyQt.QtWidgets import (
 
 from orangewidget.utils import getdeepattr
 from orangewidget.utils.buttons import VariableTextPushButton
-from orangewidget.utils.combobox import ComboBox as OrangeComboBox
+from orangewidget.utils.combobox import (
+    ComboBox as OrangeComboBox, ComboBoxSearch as OrangeComboBoxSearch
+)
 from orangewidget.utils.itemmodels import PyListModel
 
 __re_label = re.compile(r"(^|[^%])%\((?P<value>[a-zA-Z]\w*)\)")
@@ -1402,7 +1404,7 @@ def valueSlider(widget, master, value, box=None, label=None,
 def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
              orientation=Qt.Vertical, items=(), callback=None,
              sendSelectedValue=None, emptyString=None, editable=False,
-             contentsLength=None, maximumContentsLength=25,
+             contentsLength=None, maximumContentsLength=25, searchable=False,
              *, model=None, **misc):
     """
     Construct a combo box.
@@ -1437,7 +1439,8 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     :param emptyString: the string value in the combo box that gets stored as
         an empty string in `value`
     :type emptyString: str
-    :param editable: a flag telling whether the combo is editable
+    :param editable: a flag telling whether the combo is editable. Editable is
+        ignored when searchable=True.
     :type editable: bool
     :param int contentsLength: Contents character length to use as a
         fixed size hint. When not None, equivalent to::
@@ -1445,11 +1448,17 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
             combo.setSizeAdjustPolicy(
                 QComboBox.AdjustToMinimumContentsLengthWithIcon)
             combo.setMinimumContentsLength(contentsLength)
-    :param int maximumContentsLength: Specifies the upper bound on the
-        `sizeHint` and `minimumSizeHint` width specified in character
-        length (default: 25, use 0 to disable)
+    :param int maximumContentsLength: deprecated 4.5.0
+    :param searchable: decides whether combo box has search-filter option
+    :type searchable: bool
     :rtype: QComboBox
     """
+    if maximumContentsLength != 25:
+        warnings.warn(
+            f"'maximumContentsLength' is deprecated and has no effect. It "
+            "will be removed in orange-widget-base 4.6",
+            FutureWarning
+        )
     widget_label = None
     if box or label:
         hb = widgetBox(widget, box, orientation, addToLayout=False)
@@ -1458,9 +1467,14 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     else:
         hb = widget
 
-    combo = OrangeComboBox(
-        hb, maximumContentsLength=maximumContentsLength,
-        editable=editable)
+    if searchable:
+        combo = OrangeComboBoxSearch(hb)
+        if editable:
+            warnings.warn(
+                "'editable' is ignored for searchable combo box."
+            )
+    else:
+        combo = OrangeComboBox(hb, editable=editable)
 
     if contentsLength is not None:
         combo.setSizeAdjustPolicy(

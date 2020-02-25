@@ -103,7 +103,7 @@ class Message(
         return super().__new__(cls, Severity(severity), QIcon(icon), text,
                                informativeText, detailedText, textFormat)
 
-    def asHtml(self):
+    def asHtml(self, includeShortText=True):
         # type: () -> str
         """
         Render the message as an HTML fragment.
@@ -126,14 +126,16 @@ class Message(
         imgsize = 12
         parts = [
             ('<div class="message {}">'
-             .format(self.severity.name.lower())),
-            ('<div class="field-text">'
-             '<img src="{iconurl}" width="{imgsize}" height="{imgsize}" />'
-             '{text}'
-             '</div>'
-             .format(iconurl=iconsrc(self, size=imgsize * 2), imgsize=imgsize,
-                     text=render(self.text)))
+             .format(self.severity.name.lower()))
         ]
+        if includeShortText:
+            parts += [('<div class="field-text">'
+                       '<img src="{iconurl}" width="{imgsize}" height="{imgsize}" />'
+                       ' {text}'
+                       '</div>'
+                       .format(iconurl=iconsrc(self, size=imgsize * 2),
+                               imgsize=imgsize,
+                               text=render(self.text)))]
         if self.informativeText:
             parts += ['<div class="field-informative-text">{}</div>'
                       .format(render(self.informativeText))]
@@ -293,6 +295,50 @@ def summarize(messages):
                    textFormat=Qt.RichText)
 
 
+class ElidingLabel(QLabel):
+    def __init__(self, elide=False, **kwargs):
+        super().__init__(**kwargs)
+        self.__elide = elide
+        self.__originalText = ""
+
+    def resizeEvent(self, event):
+        if self.__elide:
+            self.__setElidedText(self.__originalText)
+
+    def __setElidedText(self, text):
+        fm = self.fontMetrics()
+
+        # Qt sometimes elides even when text width == target width
+        width = self.width() + 1
+
+        elided = fm.elidedText(text, Qt.ElideRight, width)
+        super().setText(elided)
+
+    def setText(self, text):
+        self.__originalText = text
+        if self.__elide:
+            self.__setElidedText(text)
+        else:
+            super().setText(text)
+
+    def sizeHint(self):
+        fm = self.fontMetrics()
+        w = fm.width(self.__originalText)
+        h = super().minimumSizeHint().height()
+
+        return QSize(w, h)
+
+    def setElide(self, enabled):
+        if self.__elide == enabled:
+            return
+
+        self.__elide = enabled
+        if enabled:
+            self.__setElidedText(self.__originalText)
+        else:
+            super().setText(self.__originalText)
+
+
 class MessagesWidget(QWidget):
     """
     An iconified multiple message display area.
@@ -318,7 +364,7 @@ class MessagesWidget(QWidget):
 
     Message = Message
 
-    def __init__(self, parent=None, openExternalLinks=False,
+    def __init__(self, parent=None, openExternalLinks=False, elideText=False,
                  defaultStyleSheet="", **kwargs):
         kwargs.setdefault(
             "sizePolicy",
@@ -338,28 +384,21 @@ class MessagesWidget(QWidget):
             sizePolicy=QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         )
         #: Inline  message text
-        self.__textlabel = QLabel(
+        self.__textlabel = ElidingLabel(
             wordWrap=False,
             textInteractionFlags=Qt.LinksAccessibleByMouse,
             openExternalLinks=self.__openExternalLinks,
-            sizePolicy=QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        )
-        #: Indicator that extended contents are accessible with a click on the
-        #: widget.
-        self.__popupicon = QLabel(
-            sizePolicy=QSizePolicy(QSizePolicy.Maximum, QSizePolicy.Maximum),
-            text="\N{VERTICAL ELLIPSIS}",
-            visible=False,
+            sizePolicy=QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum),
+            elide=elideText
         )
         self.__textlabel.linkActivated.connect(self.linkActivated)
         self.__textlabel.linkHovered.connect(self.linkHovered)
         self.setLayout(QHBoxLayout())
         self.layout().setContentsMargins(2, 1, 2, 1)
         self.layout().setSpacing(0)
-        self.layout().addWidget(self.__iconwidget)
+        self.layout().addWidget(self.__iconwidget, alignment=Qt.AlignLeft)
         self.layout().addSpacing(4)
         self.layout().addWidget(self.__textlabel)
-        self.layout().addWidget(self.__popupicon)
         self.__textlabel.setAttribute(Qt.WA_MacSmallSize)
         self.__defaultStyleSheet = defaultStyleSheet
 
@@ -369,7 +408,7 @@ class MessagesWidget(QWidget):
         self.anim.setKeyValueAt(0.5, 0)
         self.anim.setEndValue(1)
         self.anim.setEasingCurve(QEasingCurve.OutQuad)
-        self.anim.setLoopCount(5)
+        self.anim.setLoopCount(2)
 
     def sizeHint(self):
         sh = super().sizeHint()
@@ -528,28 +567,30 @@ class MessagesWidget(QWidget):
         icon = message_icon(summary)
         self.__iconwidget.setIcon(icon)
         self.__iconwidget.setVisible(not (summary.isEmpty() or icon.isNull()))
-        self.anim.start(QPropertyAnimation.KeepWhenStopped)
         self.__textlabel.setTextFormat(summary.textFormat)
         self.__textlabel.setText(summary.text)
         self.__textlabel.setVisible(bool(summary.text))
+
+        def is_short(m):
+            return not (m.informativeText or m.detailedText)
+
         messages = [m for m in self.__messages.values() if not m.isEmpty()]
-        if messages:
+        if not messages:
+            fulltext = ""
+        elif len(messages) > 1 or len(messages) == 1 and is_short(messages[0]):
             messages = sorted(messages, key=attrgetter("severity"),
                               reverse=True)
             fulltext = "<hr/>".join(m.asHtml() for m in messages)
         else:
-            fulltext = ""
+            fulltext = messages[0].asHtml(includeShortText=False)
         self.__fulltext = fulltext
         self.setToolTip(self.__styled(self.__defaultStyleSheet, fulltext))
-
-        def is_short(m):
-            return not (m.informativeText or m.detailedText)
+        self.anim.start(QPropertyAnimation.KeepWhenStopped)
 
         if not messages or len(messages) == 1 and is_short(messages[0]):
             self.__popuptext = ""
         else:
             self.__popuptext = fulltext
-        self.__popupicon.setVisible(bool(self.__popuptext))
         self.layout().activate()
 
     def mousePressEvent(self, event):
@@ -560,6 +601,7 @@ class MessagesWidget(QWidget):
                     self, textInteractionFlags=Qt.TextBrowserInteraction,
                     openExternalLinks=self.__openExternalLinks,
                 )
+                label.setContentsMargins(4, 4, 4, 4)
                 label.setText(self.__styled(self.__defaultStyleSheet,
                                             self.__popuptext))
 
@@ -589,7 +631,7 @@ class MessagesWidget(QWidget):
     def paintEvent(self, event):
         opt = QStyleOption()
         opt.initFrom(self)
-        if not self.__popupicon.isVisible():
+        if not self.__popuptext:
             return
 
         if not (opt.state & QStyle.State_MouseOver or

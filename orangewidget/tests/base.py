@@ -456,7 +456,9 @@ class WidgetTest(GuiTest):
         The last sent value of given output or None if nothing has been sent.
         """
         if widget is None:
-            widget = getattr(output, "widget", self.widget)
+            # `output` may be an unbound signal with `widget` set to `None`
+            # In this case, we use `self.widget`.
+            widget = getattr(output, "widget") or self.widget
 
         if not isinstance(output, str):
             output = output.name

@@ -716,6 +716,7 @@ class ContextHandler(SettingsHandler):
     """
 
     NO_MATCH = 0
+    MATCH = 1
     PERFECT_MATCH = 2
 
     MAX_SAVED_CONTEXTS = 50
@@ -862,14 +863,15 @@ class ContextHandler(SettingsHandler):
         best_score and best_context can be used to provide base_values.
         """
 
+        best_idx = None
         for i, context in enumerate(known_contexts):
             score = self.match(context, *args)
-            if score == self.PERFECT_MATCH:
-                if move_up:
-                    self.move_context_up(known_contexts, i)
-                return context, score
             if score > best_score:  # NO_MATCH is not OK!
-                best_context, best_score = context, score
+                best_context, best_score, best_idx = context, score, i
+                if score == self.PERFECT_MATCH:
+                    break
+        if best_idx is not None and move_up:
+            self.move_context_up(known_contexts, best_idx)
         return best_context, best_score
 
     @staticmethod

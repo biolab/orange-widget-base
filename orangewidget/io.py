@@ -219,16 +219,20 @@ class SvgFormat(ImgFormat):
     def write_image(cls, filename, scene):
         # WebviewWidget exposes its SVG contents more directly;
         # no need to go via QPainter if we can avoid it
+        svg = None
         if WebviewWidget is not None and isinstance(scene, WebviewWidget):
             try:
                 svg = scene.svg()
-                with open(filename, 'w') as f:
-                    f.write(svg)
-                return
             except (ValueError, IOError):
                 pass
-
-        super().write_image(filename, scene)
+        if svg is None:
+            super().write_image(filename, scene)
+            svg = open(filename).read()
+        svg = svg.replace(
+            "<svg ",
+            '<svg style="image-rendering:optimizeSpeed;image-rendering:pixelated" ')
+        with open(filename, 'w') as f:
+            f.write(svg)
 
 
 class MatplotlibFormat:

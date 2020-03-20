@@ -1,3 +1,4 @@
+import warnings
 from typing import Optional
 
 from AnyQt.QtCore import (
@@ -13,6 +14,10 @@ from AnyQt.QtWidgets import (
 )
 
 
+# we want to have combo box maximally 25 characters wide
+MAXIMUM_CONTENTS_LENGTH = 25
+
+
 class ComboBox(QComboBox):
     """
     A QComboBox subclass extended to support bounded contents width hint.
@@ -21,8 +26,14 @@ class ComboBox(QComboBox):
     model will possibly contain many items.
     """
     def __init__(self, parent=None, maximumContentsLength=-1, **kwargs):
-        # Forward-declared for sizeHint()
-        self.__maximumContentsLength = maximumContentsLength
+        if maximumContentsLength != -1:
+            warnings.warn(
+                f"'{__name__}.ComboBox.maximumContentsLength' is deprecated "
+                "and has no effect. It will be removed in orange-widget-base "
+                "4.6",
+                FutureWarning
+            )
+        self.__maximumContentsLength = MAXIMUM_CONTENTS_LENGTH
         super().__init__(parent, **kwargs)
 
         self.__in_mousePressEvent = False
@@ -63,23 +74,23 @@ class ComboBox(QComboBox):
         """
         return self.__maximumContentsLength
 
-    def sizeHint(self):  # type: () -> QSize
-        # reimplemented
+    def _get_size_hint(self):
         sh = super().sizeHint()
         if self.__maximumContentsLength > 0:
-            width = (self.fontMetrics().width("X") * self.__maximumContentsLength
-                     + self.iconSize().width() + 4)
+            width = (
+                self.fontMetrics().width("X") * self.__maximumContentsLength
+                + self.iconSize().width() + 4
+            )
             sh = sh.boundedTo(QSize(width, sh.height()))
         return sh
 
+    def sizeHint(self):  # type: () -> QSize
+        # reimplemented
+        return self._get_size_hint()
+
     def minimumSizeHint(self):  # type: () -> QSize
         # reimplemented
-        sh = super().minimumSizeHint()
-        if self.__maximumContentsLength > 0:
-            width = (self.fontMetrics().width("X") * self.__maximumContentsLength
-                     + self.iconSize().width() + 4)
-            sh = sh.boundedTo(QSize(width, sh.height()))
-        return sh
+        return self._get_size_hint()
 
     # workaround for QTBUG-67583
     def mousePressEvent(self, event):  # type: (QMouseEvent) -> None
@@ -132,6 +143,7 @@ class ComboBoxSearch(QComboBox):
     # NOTE: Setting editable + QComboBox.NoInsert policy + ... did not achieve
     # the same results.
     def __init__(self, *args, **kwargs):
+        self.__maximumContentsLength = MAXIMUM_CONTENTS_LENGTH
         super().__init__(*args, **kwargs)
         self.__searchline = QLineEdit(self, visible=False, frame=False)
         self.__searchline.setAttribute(Qt.WA_MacShowFocusRect, False)
@@ -140,6 +152,46 @@ class ComboBoxSearch(QComboBox):
         self.__proxy = None  # type: Optional[QSortFilterProxyModel]
         self.__popupTimer = QElapsedTimer()
         self.setFocusPolicy(Qt.ClickFocus | Qt.TabFocus)
+
+    def setMaximumContentsLength(self, length):  # type: (int) -> None
+        """
+        Set the maximum contents length hint.
+
+        The hint specifies the upper bound on the `sizeHint` and
+        `minimumSizeHint` width specified in character length.
+        Set to 0 or negative value to disable.
+
+        Note
+        ----
+        This property does not affect the widget's `maximumSize`.
+        The widget can still grow depending on its `sizePolicy`.
+
+        Parameters
+        ----------
+        length : int
+            Maximum contents length hint.
+        """
+        if self.__maximumContentsLength != length:
+            self.__maximumContentsLength = length
+            self.updateGeometry()
+
+    def _get_size_hint(self):
+        sh = super().sizeHint()
+        if self.__maximumContentsLength > 0:
+            width = (
+                self.fontMetrics().width("X") * self.__maximumContentsLength
+                + self.iconSize().width() + 4
+            )
+            sh = sh.boundedTo(QSize(width, sh.height()))
+        return sh
+
+    def sizeHint(self):  # type: () -> QSize
+        # reimplemented
+        return self._get_size_hint()
+
+    def minimumSizeHint(self):  # type: () -> QSize
+        # reimplemented
+        return self._get_size_hint()
 
     def showPopup(self):
         # type: () -> None

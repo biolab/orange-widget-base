@@ -2,6 +2,7 @@
 
 import unittest
 
+import pkg_resources
 from AnyQt.QtCore import Qt, QRect
 from AnyQt.QtWidgets import QListView, QApplication
 from AnyQt.QtTest import QTest, QSignalSpy
@@ -133,3 +134,14 @@ class TestComboBoxSearch(GuiTest):
             geom, QRect(0, 500, 100, 20), screen
         )
         self.assertEqual(g4, QRect(0, 500 - 400, 100, 400))
+
+    def test_deprecation(self):
+        """
+        When this test fails remove maximumContentsLength. Also remove
+        maximumContentsLength from gui.comboBox
+        """
+        version = pkg_resources.get_distribution("orange-widget-base").version
+        self.assertLess(
+            version, "4.6.0",
+            "Remove maximumContentsLength from ComboBox class and this test."
+        )

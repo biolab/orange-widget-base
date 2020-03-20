@@ -142,6 +142,6 @@ class TestComboBoxSearch(GuiTest):
         """
         version = pkg_resources.get_distribution("orange-widget-base").version
         self.assertLess(
-            version, "4.6.0",
+            version, "4.7.0",
             "Remove maximumContentsLength from ComboBox class and this test."
         )

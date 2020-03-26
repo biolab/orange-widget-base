@@ -1,4 +1,4 @@
-import warnings
+import sys
 from typing import Optional
 
 from AnyQt.QtCore import (
@@ -238,6 +238,10 @@ class ComboBoxSearch(QComboBox):
         popuprect_origin = style.subControlRect(
             QStyle.CC_ComboBox, opt, QStyle.SC_ComboBoxListBoxPopup, self
         )  # type: QRect
+        if sys.platform == "darwin":
+            slmargin = self.__searchline.style() \
+                .pixelMetric(QStyle.PM_FocusFrameVMargin)
+            popuprect_origin.adjust(slmargin / 2, 0, -slmargin * 1.5, slmargin)
         popuprect_origin = QRect(
             self.mapToGlobal(popuprect_origin.topLeft()),
             popuprect_origin.size()

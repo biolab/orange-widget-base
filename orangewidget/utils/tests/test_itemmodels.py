@@ -98,6 +98,14 @@ class TestPyTableModel(unittest.TestCase):
         self.assertEqual(self.model.rowCount(), 1)
         self.assertEqual(self.model.columnCount(), 1)
 
+    def test_init_wrap_empty(self):
+        # pylint: disable=protected-access
+        t = []
+        model = PyTableModel(t)
+        self.assertIs(model._table, t)
+        t.append([1, 2, 3])
+        self.assertEqual(list(model), [[1, 2, 3]])
+
     def test_clear(self):
         self.model.clear()
         self.assertEqual(self.model.rowCount(), 0)

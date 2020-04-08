@@ -931,7 +931,7 @@ class ContextHandler(SettingsHandler):
                 self.provider.traverse_settings(data=context.values, instance=widget):
             if not isinstance(setting, ContextSetting) or setting.name not in data:
                 continue
-            value = self.decode_setting(setting, data[setting.name])
+            value = self.decode_setting(setting, data[setting.name], *args)
             _apply_setting(setting, instance, value)
 
     def settings_from_widget(self, widget, *args):
@@ -978,7 +978,7 @@ class ContextHandler(SettingsHandler):
         """Encode value to be stored in settings dict"""
         return copy.copy(value)
 
-    def decode_setting(self, setting, value):
+    def decode_setting(self, setting, value, *args):
         """Decode settings value from the setting dict format"""
         return value
 

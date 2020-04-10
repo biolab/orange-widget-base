@@ -1,6 +1,7 @@
 import os
 import sys
 import typing
+from fnmatch import fnmatch
 from typing import Tuple
 
 from AnyQt.QtCore import QFileInfo, Qt
@@ -121,7 +122,7 @@ def open_filename_dialog_save(start_dir, start_filter, file_formats):
         return filename, format, filter
 
 
-def open_filename_dialog(start_dir, start_filter, file_formats,
+def open_filename_dialog(start_dir: str, start_filter: str, file_formats,
                          add_all=True, title="Open...", dialog=None):
     """
     Open file dialog with file formats.
@@ -161,7 +162,22 @@ def open_filename_dialog(start_dir, start_filter, file_formats,
     if not filename:
         return None, None, None
 
-    file_format = file_formats[filters.index(filter)]
+    if filter and not (add_all and filter == filters[0]):
+        file_format = file_formats[filters.index(filter)]
+    else:
+        base = os.path.basename(filename)
+        for file_format in file_formats[add_all:]:
+            if any(fnmatch(base, '*' + ext)
+                   for ext in file_format.EXTENSIONS
+                   # Skip ambiguous compression-only extensions added on OSX
+                   if ext not in Compression.all):
+                break
+        else:
+            # This shouldn't happen, but if it does, returning the first
+            # filter is the best we can do. Let the reader fail then.
+            file_format = file_formats[1 if add_all else 0]
+        filter = format_filter(file_format)
+
     return filename, file_format, filter
 
 

@@ -255,7 +255,9 @@ class PyTableModel(AbstractSortTableModel):
         self._editable = editable
         self._table = None
         self._roleData = None
-        self.wrap(sequence or [])
+        if sequence is None:
+            sequence = []
+        self.wrap(sequence)
 
     def rowCount(self, parent=QModelIndex()):
         return 0 if parent.isValid() else len(self)

@@ -402,7 +402,8 @@ class MessagesWidget(QWidget):
         self.__textlabel.setAttribute(Qt.WA_MacSmallSize)
         self.__defaultStyleSheet = defaultStyleSheet
 
-        self.anim = QPropertyAnimation(self.__iconwidget, b"opacity")
+        self.anim = QPropertyAnimation(
+            self.__iconwidget, b"opacity", self.__iconwidget)
         self.anim.setDuration(350)
         self.anim.setStartValue(1)
         self.anim.setKeyValueAt(0.5, 0)

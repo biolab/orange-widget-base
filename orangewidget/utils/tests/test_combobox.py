@@ -7,7 +7,7 @@ from AnyQt.QtCore import Qt, QRect
 from AnyQt.QtWidgets import QListView, QApplication
 from AnyQt.QtTest import QTest, QSignalSpy
 from orangewidget.tests.base import GuiTest
-from orangewidget.tests.utils import mouseMove
+from orangewidget.tests.utils import mouseMove, excepthook_catch
 
 from orangewidget.utils import combobox
 
@@ -114,6 +114,12 @@ class TestComboBoxSearch(GuiTest):
         cb.showPopup()
         popup = cb.findChild(QListView)  # type: QListView
         self.assertIsNone(popup)
+
+    def test_kwargs_enabled_focus_out(self):
+        # PyQt5's property via kwargs can invoke virtual overrides while still
+        # not fully constructed
+        with excepthook_catch(raise_on_exit=True):
+            combobox.ComboBoxSearch(enabled=False)
 
     def test_popup_util(self):
         geom = QRect(10, 10, 100, 400)

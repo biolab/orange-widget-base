@@ -142,15 +142,16 @@ class ComboBoxSearch(QComboBox):
     """
     # NOTE: Setting editable + QComboBox.NoInsert policy + ... did not achieve
     # the same results.
-    def __init__(self, *args, **kwargs):
+    def __init__(self, parent=None, **kwargs):
         self.__maximumContentsLength = MAXIMUM_CONTENTS_LENGTH
-        super().__init__(*args, **kwargs)
-        self.__searchline = QLineEdit(self, visible=False, frame=False)
+        self.__searchline = QLineEdit(visible=False, frame=False)
         self.__searchline.setAttribute(Qt.WA_MacShowFocusRect, False)
-        self.__searchline.setFocusProxy(self)
         self.__popup = None  # type: Optional[QAbstractItemModel]
         self.__proxy = None  # type: Optional[QSortFilterProxyModel]
         self.__popupTimer = QElapsedTimer()
+        super().__init__(parent, **kwargs)
+        self.__searchline.setParent(self)
+        self.__searchline.setFocusProxy(self)
         self.setFocusPolicy(Qt.ClickFocus | Qt.TabFocus)
 
     def setMaximumContentsLength(self, length):  # type: (int) -> None

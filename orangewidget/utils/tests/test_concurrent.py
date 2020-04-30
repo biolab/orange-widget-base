@@ -2,16 +2,20 @@ import unittest
 import unittest.mock
 import threading
 import random
+import weakref
 
 from concurrent.futures import Future, ThreadPoolExecutor
 from types import SimpleNamespace
 from typing import Iterable, Set
 
-from AnyQt.QtCore import QObject, QCoreApplication, QThread, pyqtSlot
+from AnyQt.QtCore import (
+    Qt, QObject, QCoreApplication, QThread, QEventLoop, QTimer, pyqtSlot,
+    pyqtSignal
+)
 from AnyQt.QtTest import QSignalSpy
 
 from orangewidget.utils.concurrent import (
-    FutureWatcher, FutureSetWatcher, methodinvoke
+    FutureWatcher, FutureSetWatcher, methodinvoke, PyOwned
 )
 
 
@@ -216,3 +220,75 @@ class TestFutureSetWatcher(CoreAppTestCase):
         with unittest.mock.patch.object(watcher, "thread", lambda: 42), \
                 self.assertRaises(RuntimeError):
             watcher.flush()
+
+
+class TestPyOwned(CoreAppTestCase):
+    def test_py_owned(self):
+        class Obj(QObject, PyOwned):
+            pass
+
+        executor = ThreadPoolExecutor()
+        ref = SimpleNamespace(obj=Obj())
+        wref = weakref.ref(ref.obj)
+        event = threading.Event()
+        event.clear()
+
+        def clear_ref():
+            del ref.obj
+            event.set()
+
+        executor.submit(clear_ref)
+        event.wait()
+        self.assertIsNotNone(wref())
+        self.assertIn(wref(), PyOwned._PyOwned__delete_later_set)
+        loop = QEventLoop()
+        QTimer.singleShot(0, loop.quit)
+        loop.exec()
+        self.assertIsNone(wref())
+
+    def test_py_owned_enqueued(self):
+        # https://www.riverbankcomputing.com/pipermail/pyqt/2020-April/042734.html
+        class Emitter(QObject, PyOwned):
+            signal = pyqtSignal()
+            _p_signal = pyqtSignal()
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                # queued signal -> signal connection
+                self._p_signal.connect(self.signal, Qt.QueuedConnection)
+
+            def schedule_emit(self):
+                """Schedule `signal` emit"""
+                self._p_signal.emit()
+
+        executor = ThreadPoolExecutor(max_workers=4)
+
+        def test_one():
+            ref = SimpleNamespace()  # hold single reference to Emitter obj
+            ref.obj = Emitter()
+            # enqueue 200 meta call events to the obj
+            for i in range(200):
+                ref.obj.schedule_emit()
+
+            # event signaling the event loop is about to be entered
+            event = threading.Event()
+
+            def clear_obj(ref=ref):
+                # wait for main thread to signal it is about to enter the event loop
+                event.wait()
+                del ref.obj  # clear the last/single ref to obj
+
+            executor.submit(clear_obj)
+
+            loop = QEventLoop()
+            QTimer.singleShot(0, loop.quit)
+            # bytecode optimizations, reduce the time between event.set and
+            # exec to minimum
+            set = event.set
+            exec = loop.exec
+
+            set()  # signal/unblock the worker;
+            exec()  # enter event loop to process the queued meta calls
+
+        for i in range(10):
+            test_one()

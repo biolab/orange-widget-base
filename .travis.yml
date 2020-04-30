@@ -40,4 +40,4 @@ install:
 
 script:
   - pip list --format=freeze
-  - catchsegv xvfb-run -a -s "$XVFBARGS" python -m unittest discover -v -b .
+  - xvfb-run -a -s "$XVFBARGS" python -m unittest discover -v -b .

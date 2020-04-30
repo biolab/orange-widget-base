@@ -621,11 +621,8 @@ class PyListModel(QAbstractListModel):
 
     def extend(self, iterable):
         list_ = list(iterable)
-        count = len(list_)
-        if count == 0:
-            return
         self.beginInsertRows(QModelIndex(),
-                             len(self), len(self) + count - 1)
+                             len(self), len(self) + len(list_) - 1)
         self._list.extend(list_)
         self._other_data.extend([_store() for _ in list_])
         self.endInsertRows()
@@ -685,8 +682,6 @@ class PyListModel(QAbstractListModel):
     def __delitem__(self, s):
         if isinstance(s, slice):
             start, stop, _ = _as_contiguous_range(s, len(self))
-            if not len(self) or start == stop:
-                return
             self.beginRemoveRows(QModelIndex(), start, stop - 1)
         else:
             s = operator.index(s)
@@ -703,8 +698,6 @@ class PyListModel(QAbstractListModel):
 
             if not isinstance(value, list):
                 value = list(value)
-            if len(value) == 0:
-                return
             separators = [start + i for i, v in enumerate(value) if v is self.Separator]
             self.beginInsertRows(QModelIndex(), start, start + len(value) - 1)
             self._list[start:start] = value

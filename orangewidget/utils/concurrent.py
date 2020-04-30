@@ -17,50 +17,8 @@ from AnyQt.QtCore import (
     QCoreApplication, QEvent, Q_ARG,
     pyqtSignal as Signal, pyqtSlot as Slot
 )
-import sip
 
 _log = logging.getLogger(__name__)
-
-
-class PyOwned:
-    """
-    A mixin for python owned QObject's used as queued cross thread
-    communication channels.
-
-    When this object is released from a thread that is not self.thread()
-    it is *resurrected* and scheduled for deferred deletion from its own
-    thread with self.deleteLater()
-    """
-    # This is a workaround for:
-    # https://www.riverbankcomputing.com/pipermail/pyqt/2020-April/042734.html
-    # Should not be necessary with PyQt5-sip>=12.8 (i.e sip api 12.8)
-    __delete_later_set = set()
-
-    def __del__(self: QObject):
-        # Note: This is otherwise quite similar to how PyQt5 does this except
-        # for the resurrection (i.e. the wrapper is allowed to be freed, but
-        # C++ part is deleteLater-ed).
-        if sip.ispyowned(self):
-            try:
-                own_thread = self.thread() is QThread.currentThread()
-            except RuntimeError:
-                return
-            if not own_thread:
-                # object resurrection; keep python wrapper alive and schedule
-                # deletion from the object's own thread.
-                PyOwned.__delete_later_set.add(self)
-                ref = weakref.ref(self)
-
-                # Clear final ref from 'destroyed' signal. As late as possible
-                # in QObject' destruction.
-                def clear():
-                    self = ref()
-                    try:
-                        PyOwned.__delete_later_set.remove(self)
-                    except KeyError:
-                        pass
-                self.destroyed.connect(clear, Qt.DirectConnection)
-                self.deleteLater()
 
 
 class FutureRunnable(QRunnable):
@@ -113,7 +71,7 @@ class FutureRunnable(QRunnable):
             log.critical("Exception in worker thread.", exc_info=True)
 
 
-class FutureWatcher(QObject, PyOwned):
+class FutureWatcher(QObject):
     """
     An `QObject` watching the state changes of a `concurrent.futures.Future`
 
@@ -277,7 +235,7 @@ class FutureWatcher(QObject, PyOwned):
         super().customEvent(event)
 
 
-class FutureSetWatcher(QObject, PyOwned):
+class FutureSetWatcher(QObject):
     """
     An `QObject` watching the state changes of a list of
     `concurrent.futures.Future` instances

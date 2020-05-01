@@ -2,6 +2,7 @@
 Testing framework for OWWidgets
 """
 import os
+import sys
 import tempfile
 
 import time
@@ -159,6 +160,14 @@ class GuiTest(unittest.TestCase):
         global app
         if app is None:
             app = QApplication([])
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if "pyqtgraph" in sys.modules:
+            import pyqtgraph
+            pyqtgraph.setConfigOption("exitCleanup", False)
+        super().tearDownClass()
 
 
 class WidgetTest(GuiTest):

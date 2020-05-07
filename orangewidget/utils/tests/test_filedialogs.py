@@ -25,62 +25,17 @@ class TestRecentPath(unittest.TestCase):
 
 class TestOpenFilenameDialog(unittest.TestCase):
     def test_empty_filter(self):
-        class XYZFormat:
-            EXTENSIONS = ('.xyz',)
-            DESCRIPTION = 'xyz file'
-            PRIORITY = 20
-
-        class XYZGZFormat:
-            EXTENSIONS = ('.xyz.gz',)
-            DESCRIPTION = 'Compressed xyz file'
-            PRIORITY = 20
-
         class ABCFormat:
             EXTENSIONS = ('.abc', '.jkl')
             DESCRIPTION = 'abc file'
             PRIORITY = 30
 
         name, file_format, file_filter = open_filename_dialog(
-            ".", "", [ABCFormat, XYZFormat],
+            ".", "", [ABCFormat],
             dialog=Mock(return_value=("foo.xyz", "")))
         self.assertEqual(name, "foo.xyz")
-        self.assertEqual(file_format, XYZFormat)
-        self.assertEqual(file_filter, "xyz file (*.xyz)")
-
-        name, file_format, file_filter = open_filename_dialog(
-            ".", "", [ABCFormat, XYZFormat, XYZGZFormat],
-            dialog=Mock(return_value=("foo.xyz.gz", "")))
-        self.assertEqual(name, "foo.xyz.gz")
-        self.assertEqual(file_format, XYZGZFormat)
-        self.assertEqual(file_filter, "Compressed xyz file (*.xyz.gz)")
-
-        name, file_format, file_filter = open_filename_dialog(
-            ".", "", [ABCFormat, XYZFormat],
-            dialog=Mock(return_value=("foo.abc", "")))
-        self.assertEqual(name, "foo.abc")
-        self.assertEqual(file_format, ABCFormat)
-        self.assertEqual(file_filter, "abc file (*.abc *.jkl)")
-
-        name, file_format, file_filter = open_filename_dialog(
-            ".", "", [ABCFormat, XYZFormat],
-            dialog=Mock(return_value=("foo.jkl", "")))
-        self.assertEqual(name, "foo.jkl")
-        self.assertEqual(file_format, ABCFormat)
-        self.assertEqual(file_filter, "abc file (*.abc *.jkl)")
-
-        name, file_format, file_filter = open_filename_dialog(
-            ".", "", [ABCFormat, XYZFormat],
-            dialog=Mock(return_value=("foo.def", "")))
-        self.assertEqual(name, "foo.def")
-        self.assertEqual(file_format, XYZFormat)
-        self.assertEqual(file_filter, "xyz file (*.xyz)")
-
-        name, file_format, file_filter = open_filename_dialog(
-            ".", "", [ABCFormat, XYZFormat],
-            dialog=Mock(return_value=("foo.def", "")), add_all=False)
-        self.assertEqual(name, "foo.def")
-        self.assertEqual(file_format, XYZFormat)
-        self.assertEqual(file_filter, "xyz file (*.xyz)")
+        self.assertEqual(file_format, None)
+        self.assertEqual(file_filter, None)
 
 
 if __name__ == "__main__":

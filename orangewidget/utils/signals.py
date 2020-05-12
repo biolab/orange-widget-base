@@ -68,6 +68,15 @@ def can_summarize(type_, name):
     return True
 
 
+Closed = type(
+    "Closed", (object,), {
+        "__doc__": "Explicit connection closing sentinel.",
+        "__repr__": lambda self: "Closed",
+        "__str__": lambda self: "Closed",
+    }
+)()
+
+
 class _Signal:
     @staticmethod
     def get_flags(multiple, default, explicit, dynamic):
@@ -143,13 +152,16 @@ class Input(InputSignal, _Signal):
         if changed to `False` (default is `True`) the signal is excluded from
         auto summary
     """
+    Closed = Closed
+
     def __init__(self, name, type, id=None, doc=None, replaces=None, *,
                  multiple=False, default=False, explicit=False,
-                 auto_summary=True):
+                 auto_summary=True, closing_sentinel=None):
         flags = self.get_flags(multiple, default, explicit, False)
         super().__init__(name, type, "", flags, id, doc, replaces or [])
         self.auto_summary = auto_summary and can_summarize(type, name)
         self._seq_id = next(_counter)
+        self.closing_sentinel = closing_sentinel
 
     def __call__(self, method):
         """

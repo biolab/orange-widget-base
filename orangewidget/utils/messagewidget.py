@@ -376,9 +376,6 @@ class MessagesWidget(QWidget):
         #: The full (joined all messages text - rendered as html), displayed
         #: in a tooltip.
         self.__fulltext = ""
-        #: The full text displayed in a popup. Is empty if the message is
-        #: short
-        self.__popuptext = ""
         #: Leading icon
         self.__iconwidget = IconWidget(
             sizePolicy=QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -588,15 +585,11 @@ class MessagesWidget(QWidget):
         self.setToolTip(self.__styled(self.__defaultStyleSheet, fulltext))
         self.anim.start(QPropertyAnimation.KeepWhenStopped)
 
-        if not messages or len(messages) == 1 and is_short(messages[0]):
-            self.__popuptext = ""
-        else:
-            self.__popuptext = fulltext
         self.layout().activate()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            if self.__popuptext:
+            if self.__fulltext:
                 popup = QMenu(self)
                 label = QLabel(
                     self, textInteractionFlags=Qt.TextBrowserInteraction,
@@ -604,7 +597,7 @@ class MessagesWidget(QWidget):
                 )
                 label.setContentsMargins(4, 4, 4, 4)
                 label.setText(self.__styled(self.__defaultStyleSheet,
-                                            self.__popuptext))
+                                            self.__fulltext))
 
                 label.linkActivated.connect(self.linkActivated)
                 label.linkHovered.connect(self.linkHovered)
@@ -632,7 +625,7 @@ class MessagesWidget(QWidget):
     def paintEvent(self, event):
         opt = QStyleOption()
         opt.initFrom(self)
-        if not self.__popuptext:
+        if not self.__fulltext:
             return
 
         if not (opt.state & QStyle.State_MouseOver or

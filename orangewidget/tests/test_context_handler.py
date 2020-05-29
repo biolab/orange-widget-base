@@ -6,10 +6,16 @@ from unittest.mock import Mock, patch, call
 from AnyQt.QtCore import pyqtSignal as Signal, QObject
 from orangewidget.settings import (
     ContextHandler, ContextSetting, Context, Setting, SettingsPrinter,
-    VERSION_KEY, IncompatibleContext
-)
+    VERSION_KEY, IncompatibleContext, SettingProvider)
+from orangewidget.tests.base import override_default_settings
 
 __author__ = 'anze'
+
+
+class Component:
+    int_setting = Setting(42)
+    context_setting = ContextSetting("global")
+    schema_only_context_setting = ContextSetting("only", schema_only=True)
 
 
 class SimpleWidget(QObject):
@@ -19,10 +25,19 @@ class SimpleWidget(QObject):
     schema_only_setting = Setting(None, schema_only=True)
 
     context_setting = ContextSetting(42)
+    schema_only_context_setting = ContextSetting(None, schema_only=True)
     settingsAboutToBePacked = Signal()
+
+    component = SettingProvider(Component)
 
     migrate_settings = Mock()
     migrate_context = Mock()
+
+    storeSpecificSettings = Mock()
+
+    def __init__(self):
+        super().__init__()
+        self.component = Component()
 
 
 class DummyContext(Context):
@@ -227,6 +242,43 @@ class TestContextHandler(TestCase):
         handler.update_defaults(widget)
         self.assertEqual(2, fn.call_count)
 
+    def test_schema_only_settings(self):
+        handler = ContextHandler()
+        with override_default_settings(SimpleWidget, handler=ContextHandler):
+            handler.bind(SimpleWidget)
+
+        # fast_save should not update defaults
+        widget = SimpleWidget()
+        handler.initialize(widget)
+        context = widget.current_context = handler.new_context()
+        widget.context_settings.append(context)
+        handler.fast_save(widget, 'schema_only_context_setting', 5)
+        self.assertEqual(
+            handler.known_settings['schema_only_context_setting'].default, None)
+        handler.fast_save(widget, 'component.schema_only_context_setting', 5)
+        self.assertEqual(
+            handler.known_settings['component.schema_only_context_setting'].default, "only")
+
+        # update_defaults should not update defaults
+        widget.schema_only_context_setting = 5
+        handler.update_defaults(widget)
+        self.assertEqual(
+            handler.known_settings['schema_only_context_setting'].default, None)
+        widget.component.schema_only_setting = 5
+        self.assertEqual(
+            handler.known_settings['component.schema_only_context_setting'].default, "only")
+
+        # close_context should pack setting
+        widget.schema_only_context_setting = 5
+        widget.component.context_setting = 5
+        widget.component.schema_only_context_setting = 5
+        handler.close_context(widget)
+        global_values = handler.global_contexts[0].values
+        self.assertTrue('context_setting' in global_values)
+        self.assertFalse('schema_only_context_setting' in global_values)
+        self.assertTrue('context_setting' in global_values["component"])
+        self.assertFalse('schema_only_context_setting' in global_values["component"])
+
 
 class TestSettingsPrinter(TestCase):
     def test_formats_contexts(self):
@@ -251,9 +303,9 @@ class TestSettingsPrinter(TestCase):
 
 class TestContext(TestCase):
     def test_context_eq(self):
-        context1 = Context(x=12, y=["a", "list"], time=3.14)
-        context2 = Context(x=12, y=["a", "list"], time=2.71)
-        context3 = Context(x=13, y=["a", "list"], time=2.71)
+        context1 = Context(x=12, y=["a", "list"])
+        context2 = Context(x=12, y=["a", "list"])
+        context3 = Context(x=13, y=["a", "list"])
         self.assertTrue(context1 == context2)
         self.assertFalse(context2 == context3)
 

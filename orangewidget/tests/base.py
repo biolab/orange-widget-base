@@ -3,6 +3,7 @@ Testing framework for OWWidgets
 """
 import os
 import sys
+import pickle
 import tempfile
 
 import time
@@ -20,6 +21,7 @@ from AnyQt.QtWidgets import (
 )
 
 from orangewidget.report.owreport import OWReport
+from orangewidget.settings import SettingsHandler
 from orangewidget.widget import OWBaseWidget
 
 sip.setdestroyonexit(False)
@@ -687,6 +689,26 @@ class ParameterMapping(BaseParameterMapping):
 def open_widget_classes():
     with patch.object(OWBaseWidget, "__init_subclass__"):
         yield
+
+
+@contextmanager
+def override_default_settings(widget, defaults=None, handler=None):
+    if defaults is None:
+        defaults = {}
+
+    h = (handler or SettingsHandler)()
+    h.widget_class = widget
+    h.defaults = defaults
+    filename = h._get_settings_filename()
+
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, "wb") as f:
+        pickle.dump(defaults, f)
+
+    yield
+
+    if os.path.isfile(filename):
+        os.remove(filename)
 
 
 if __name__ == "__main__":

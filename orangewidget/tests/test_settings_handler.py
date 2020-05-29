@@ -1,5 +1,4 @@
 # pylint: disable=protected-access
-from contextlib import contextmanager
 import os
 import pickle
 from tempfile import mkstemp, NamedTemporaryFile
@@ -10,7 +9,7 @@ import warnings
 
 from AnyQt.QtCore import pyqtSignal as Signal, QObject
 
-from orangewidget.tests.base import named_file
+from orangewidget.tests.base import named_file, override_default_settings
 from orangewidget.settings import SettingsHandler, Setting, SettingProvider,\
     VERSION_KEY, rename_setting, Context
 
@@ -35,7 +34,7 @@ class SettingHandlerTestCase(unittest.TestCase):
         template = SettingsHandler()
         template.a = 'a'
         template.b = 'b'
-        with self.override_default_settings(SimpleWidget):
+        with override_default_settings(SimpleWidget):
             handler = SettingsHandler.create(SimpleWidget, template)
         self.assertEqual(handler.a, 'a')
         self.assertEqual(handler.b, 'b')
@@ -49,7 +48,7 @@ class SettingHandlerTestCase(unittest.TestCase):
         handler.widget_class = SimpleWidget
 
         defaults = {'a': 5, 'b': {1: 5}}
-        with self.override_default_settings(SimpleWidget, defaults):
+        with override_default_settings(SimpleWidget, defaults):
             handler.read_defaults()
 
         self.assertEqual(handler.defaults, defaults)
@@ -176,7 +175,7 @@ class SettingHandlerTestCase(unittest.TestCase):
     def test_fast_save(self):
         handler = SettingsHandler()
 
-        with self.override_default_settings(SimpleWidget):
+        with override_default_settings(SimpleWidget):
             handler.bind(SimpleWidget)
 
         widget = SimpleWidget()
@@ -192,7 +191,7 @@ class SettingHandlerTestCase(unittest.TestCase):
 
     def test_fast_save_siblings_spill(self):
         handler_mk1 = SettingsHandler()
-        with self.override_default_settings(SimpleWidgetMk1):
+        with override_default_settings(SimpleWidgetMk1):
             handler_mk1.bind(SimpleWidgetMk1)
 
         widget_mk1 = SimpleWidgetMk1()
@@ -213,7 +212,7 @@ class SettingHandlerTestCase(unittest.TestCase):
         self.assertEqual(widget_mk1.component.int_setting, 1)
 
         handler_mk2 = SettingsHandler()
-        with self.override_default_settings(SimpleWidgetMk2):
+        with override_default_settings(SimpleWidgetMk2):
             handler_mk2.bind(SimpleWidgetMk2)
 
         widget_mk2 = SimpleWidgetMk2()
@@ -232,7 +231,7 @@ class SettingHandlerTestCase(unittest.TestCase):
 
     def test_schema_only_settings(self):
         handler = SettingsHandler()
-        with self.override_default_settings(SimpleWidget):
+        with override_default_settings(SimpleWidget):
             handler.bind(SimpleWidget)
 
         # fast_save should not update defaults
@@ -268,7 +267,7 @@ class SettingHandlerTestCase(unittest.TestCase):
         with patch.object(SimpleWidget, "migrate_settings", migrate_settings):
             # Old settings without version
             settings = {"value": 5}
-            with self.override_default_settings(SimpleWidget, settings):
+            with override_default_settings(SimpleWidget, settings):
                 handler.read_defaults()
             migrate_settings.assert_called_with(settings, 0)
 
@@ -276,13 +275,13 @@ class SettingHandlerTestCase(unittest.TestCase):
             # Settings with version
             settings_with_version = dict(settings)
             settings_with_version[VERSION_KEY] = 1
-            with self.override_default_settings(SimpleWidget, settings_with_version):
+            with override_default_settings(SimpleWidget, settings_with_version):
                 handler.read_defaults()
             migrate_settings.assert_called_with(settings, 1)
 
     def test_initialize_migrates_settings(self):
         handler = SettingsHandler()
-        with self.override_default_settings(SimpleWidget):
+        with override_default_settings(SimpleWidget):
             handler.bind(SimpleWidget)
 
         widget = SimpleWidget()
@@ -324,25 +323,6 @@ class SettingHandlerTestCase(unittest.TestCase):
         handler.initialize(widget2)
 
         self.assertNotEqual(id(widget.list_setting), id(widget2.list_setting))
-
-    @contextmanager
-    def override_default_settings(self, widget, defaults=None):
-        if defaults is None:
-            defaults = {}
-
-        h = SettingsHandler()
-        h.widget_class = widget
-        h.defaults = defaults
-        filename = h._get_settings_filename()
-
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
-        with open(filename, "wb") as f:
-            pickle.dump(defaults, f)
-
-        yield
-
-        if os.path.isfile(filename):
-            os.remove(filename)
 
     def test_about_pack_settings_signal(self):
         handler = SettingsHandler()

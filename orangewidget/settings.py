@@ -36,7 +36,6 @@ import os
 import logging
 import pickle
 import pprint
-import time
 import warnings
 from operator import itemgetter
 from typing import Any, Optional, Tuple
@@ -697,16 +696,11 @@ class Context:
     values that should be applied to widget if given context
     is encountered."""
     def __init__(self, **argkw):
-        self.time = time.time()
         self.values = {}
         self.__dict__.update(argkw)
 
     def __eq__(self, other):
-        self_state = self.__dict__.copy()
-        del self_state["time"]
-        other_state = other.__dict__.copy()
-        del other_state["time"]
-        return self_state == other_state
+        return self.__dict__ == other.__dict__
 
 
 class ContextHandler(SettingsHandler):
@@ -795,9 +789,15 @@ class ContextHandler(SettingsHandler):
         self.settings_from_widget(widget)
         globs = self.global_contexts
         assert widget.context_settings is not globs
-        ids = {id(c) for c in globs}
-        globs += (c for c in widget.context_settings if id(c) not in ids)
-        globs.sort(key=lambda c: -c.time)
+        new_contexts = []
+        for context in widget.context_settings:
+            context = copy.deepcopy(context)
+            for setting, data, _ in self.provider.traverse_settings(data=context.values):
+                if setting.schema_only:
+                    data.pop(setting.name, None)
+            if context not in globs:
+                new_contexts.append(context)
+        globs[:0] = reversed(new_contexts)
         del globs[self.MAX_SAVED_CONTEXTS:]
 
         # Save non-context settings. Do not call super().update_defaults, so that
@@ -876,11 +876,8 @@ class ContextHandler(SettingsHandler):
 
     @staticmethod
     def move_context_up(contexts, index):
-        """Move the context to the top of the list and set
-        the timestamp to current."""
-        setting = contexts.pop(index)
-        setting.time = time.time()
-        contexts.insert(0, setting)
+        """Move the context to the top of the list"""
+        contexts.insert(0, contexts.pop(index))
 
     def add_context(self, contexts, setting):
         """Add the context to the top of the list."""
@@ -957,7 +954,7 @@ class ContextHandler(SettingsHandler):
         setting = self.known_settings.get(name)
         if isinstance(setting, ContextSetting):
             context = widget.current_context
-            if context is None:
+            if setting.schema_only or context is None:
                 return
 
             value = self.encode_setting(context, setting, value)

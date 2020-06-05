@@ -1,11 +1,12 @@
 import os
+import re
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from AnyQt.QtCore import Qt
-from AnyQt.QtGui import QFont, QBrush
-
+from AnyQt.QtCore import Qt, QRectF
+from AnyQt.QtGui import QFont, QBrush, QPixmap, QColor, QIcon
+from PyQt5.QtWidgets import QGraphicsScene
 
 from orangewidget.report.owreport import OWReport
 from orangewidget import gui
@@ -121,6 +122,54 @@ class TestReport(GuiTest):
         rep.clear()
         self.assertFalse(rep.save_button.isEnabled())
         self.assertFalse(rep.print_button.isEnabled())
+
+    def test_report_table_with_images(self):
+        def basic_icon():
+            pixmap = QPixmap(15, 15)
+            pixmap.fill(QColor("red"))
+            return QIcon(pixmap)
+
+        def basic_scene():
+            scene = QGraphicsScene()
+            scene.addRect(QRectF(0, 0, 100, 100));
+            return scene
+
+        rep = OWReport()
+        model = PyTableModel([['x', 1, 2]])
+        model.setHorizontalHeaderLabels(['a', 'b', 'c'])
+
+        model.setData(model.index(0, 1), basic_icon(), Qt.DecorationRole)
+        model.setData(model.index(0, 2), basic_scene(), Qt.DisplayRole)
+
+        view = gui.TableView()
+        view.show()
+        view.setModel(model)
+        rep.report_table('Name', view)
+        self.maxDiff = None
+        pattern = re.compile(
+            re.escape(
+                '<h2>Name</h2><table>\n'
+                '<tr>'
+                '<th style="color:black;border:0;background:transparent;'
+                'text-align:left;vertical-align:middle;">a</th>'
+                '<th style="color:black;border:0;background:transparent;'
+                'text-align:left;vertical-align:middle;">b</th>'
+                '<th style="color:black;border:0;background:transparent;'
+                'text-align:left;vertical-align:middle;">c</th>'
+                '</tr>'
+                '<tr>'
+                '<td style="color:black;border:0;background:transparent;'
+                'text-align:left;vertical-align:middle;">x</td>'
+                '<td style="color:black;border:0;background:transparent;'
+                'text-align:right;vertical-align:middle;">'
+                '<img src="data:image/png;base64,'
+            ) + '(.+)' + re.escape(  # any string for the icon
+                '"/>1</td>'
+                '<td style="color:black;border:0;background:transparent;'
+                'text-align:right;vertical-align:middle;">'
+            ) + '(.+)' + re.escape('</td></tr></table>')  # str for the scene
+        )
+        self.assertTrue(bool(pattern.match(rep.report_html)))
 
 
 if __name__ == "__main__":

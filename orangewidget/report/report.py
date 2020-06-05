@@ -1,12 +1,13 @@
 import itertools
 import time
 from collections import OrderedDict, Iterable
+from typing import Optional
 
 from AnyQt.QtCore import (
-    Qt, QAbstractItemModel, QByteArray, QBuffer, QIODevice
-)
-from AnyQt.QtGui import QColor, QBrush
-from AnyQt.QtWidgets import QGraphicsScene, QTableView, QMessageBox
+    Qt, QAbstractItemModel, QByteArray, QBuffer, QIODevice,
+    QSize)
+from AnyQt.QtGui import QColor, QBrush, QIcon
+from AnyQt.QtWidgets import QGraphicsScene, QTableView, QMessageBox, QStyle
 
 from orangewidget.io import PngFormat
 from orangewidget.utils import getdeepattr
@@ -199,9 +200,6 @@ class Report:
         name, table = self._fix_args(name, table)
         join = "".join
 
-        def data(item):
-            return item and item.data(Qt.DisplayRole) or ""
-
         def report_abstract_model(model, view=None):
             columns = [i for i in range(model.columnCount())
                        if not view or not view.isColumnHidden(i)]
@@ -211,15 +209,27 @@ class Report:
             has_horizontal_header = (try_(lambda: not view.horizontalHeader().isHidden()) or
                                      try_(lambda: not view.header().isHidden()))
             has_vertical_header = try_(lambda: not view.verticalHeader().isHidden())
+            if view is not None:
+                opts = view.viewOptions()
+                decoration_size = QSize(opts.decorationSize)
+            else:
+                decoration_size = QSize(16, 16)
 
             def item_html(row, col):
-
                 def data(role=Qt.DisplayRole,
                          orientation=Qt.Horizontal if row is None else Qt.Vertical):
                     if row is None or col is None:
                         return model.headerData(col if row is None else row,
                                                 orientation, role)
-                    return model.data(model.index(row, col), role)
+                    data_ = model.data(model.index(row, col), role)
+                    if isinstance(data_, QGraphicsScene):
+                        data_ = get_html_img(
+                            data_,
+                            max_height=view.verticalHeader().defaultSectionSize()
+                        )
+                    elif isinstance(data_, QIcon):
+                        data_ = get_icon_html(data_, size=decoration_size)
+                    return data_
 
                 selected = (view.selectionModel().isSelected(model.index(row, col))
                             if view and row is not None and col is not None else False)
@@ -250,9 +260,11 @@ class Report:
                         'background:{bgcolor};'
                         '{weight}'
                         'text-align:{halign};'
-                        'vertical-align:{valign};">{text}</{tag}>'.format(
+                        'vertical-align:{valign};">{decoration}'
+                        '{text}</{tag}>'.format(
                             tag='th' if row is None or col is None else 'td',
                             border='1px solid black' if selected else '0',
+                            decoration=data(role=Qt.DecorationRole) or '',
                             text=data() or '', weight=weight, fgcolor=fgcolor,
                             bgcolor=bgcolor, halign=halign, valign=valign))
 
@@ -581,16 +593,43 @@ def render_items_vert(items):
                      if value is not None and value is not False)
 
 
-def get_html_img(scene):
+def get_html_img(
+        scene: QGraphicsScene, max_height: Optional[int] = None
+) -> str:
     """
-    Create HTML img element with base64-encoded image from the scene
+    Create HTML img element with base64-encoded image from the scene.
+    If max_height is not none set the max height of the image in html.
     """
     byte_array = QByteArray()
     filename = QBuffer(byte_array)
     filename.open(QIODevice.WriteOnly)
     PngFormat.write(filename, scene)
     img_encoded = byte_array.toBase64().data().decode("utf-8")
-    return "<img src='data:image/png;base64,%s'/>" % img_encoded
+    return '<img {} src="data:image/png;base64,{}"/>'.format(
+        ("" if max_height is None
+         else 'style="max-height: {}px"'.format(max_height)),
+        img_encoded
+    )
+
+
+def get_icon_html(icon: QIcon, size: QSize) -> str:
+    """
+    Transform an icon to html <img> tag.
+    """
+    if not size.isValid():
+        return ""
+    if size.width() < 0 or size.height() < 0:
+        size = QSize(16, 16)  # just in case
+    byte_array = QByteArray()
+    buffer = QBuffer(byte_array)
+    buffer.open(QIODevice.WriteOnly)
+    pixmap = icon.pixmap(size)
+    if pixmap.isNull():
+        return ""
+    pixmap.save(buffer, "PNG")
+    buffer.close()
+    img_encoded = byte_array.toBase64().data().decode("utf-8")
+    return '<img src="data:image/png;base64,{}"/>'.format(img_encoded)
 
 
 def colored_square(r, g, b):

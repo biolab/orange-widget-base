@@ -1,4 +1,5 @@
 import itertools
+import math
 import time
 from collections import OrderedDict, Iterable
 from typing import Optional
@@ -628,8 +629,17 @@ def get_icon_html(icon: QIcon, size: QSize) -> str:
         return ""
     pixmap.save(buffer, "PNG")
     buffer.close()
+
+    dpr = pixmap.devicePixelRatioF()
+    if dpr != 1.0:
+        size_ = pixmap.size() / dpr
+        size_part = ' width="{}" height="{}"'.format(
+            int(math.floor(size_.width())), int(math.floor(size_.height()))
+        )
+    else:
+        size_part = ''
     img_encoded = byte_array.toBase64().data().decode("utf-8")
-    return '<img src="data:image/png;base64,{}"/>'.format(img_encoded)
+    return '<img src="data:image/png;base64,{}"{}/>'.format(img_encoded, size_part)
 
 
 def colored_square(r, g, b):

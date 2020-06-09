@@ -157,6 +157,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     save_position = True
     #: Used for visual settings dialog initialization
     initial_visual_settings = None  # type: Dict
+    VISUAL_SETTINGS_DLG_CLS = VisualSettingsDialog
 
     #: If false the widget will receive fixed size constraint
     #: (derived from it's layout). Use for widgets which have simple
@@ -611,9 +612,12 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 b.clicked.connect(self.reset_settings)
                 buttonsLayout.addWidget(b)
             if hasattr(self, "set_visual_settings"):
-                assert self.initial_visual_settings is not None
-                dlg = VisualSettingsDialog(self)
-                dlg.initialize(self.initial_visual_settings)
+                dlg = self.VISUAL_SETTINGS_DLG_CLS(self)
+                assert hasattr(dlg, "setting_changed")
+                assert hasattr(dlg, "show_dlg")
+
+                if hasattr(dlg, "initialize") and self.initial_visual_settings:
+                    dlg.initialize(self.initial_visual_settings)
                 dlg.setting_changed.connect(self.set_visual_settings)
 
                 icon = QIcon(gui.resource_filename("icons/visual-settings.svg"))

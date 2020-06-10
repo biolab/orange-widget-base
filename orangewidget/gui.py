@@ -1404,8 +1404,7 @@ def valueSlider(widget, master, value, box=None, label=None,
 def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
              orientation=Qt.Vertical, items=(), callback=None,
              sendSelectedValue=None, emptyString=None, editable=False,
-             contentsLength=None, maximumContentsLength=25, searchable=False,
-             *, model=None, **misc):
+             contentsLength=None, searchable=False, *, model=None, **misc):
     """
     Construct a combo box.
 
@@ -1448,17 +1447,10 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
             combo.setSizeAdjustPolicy(
                 QComboBox.AdjustToMinimumContentsLengthWithIcon)
             combo.setMinimumContentsLength(contentsLength)
-    :param int maximumContentsLength: deprecated 4.5.0
     :param searchable: decides whether combo box has search-filter option
     :type searchable: bool
     :rtype: QComboBox
     """
-    if maximumContentsLength != 25:
-        warnings.warn(
-            f"'maximumContentsLength' is deprecated and has no effect. It "
-            "will be removed in orange-widget-base 4.6",
-            FutureWarning
-        )
     widget_label = None
     if box or label:
         hb = widgetBox(widget, box, orientation, addToLayout=False)

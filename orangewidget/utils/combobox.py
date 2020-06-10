@@ -25,14 +25,7 @@ class ComboBox(QComboBox):
     Prefer to use this class in place of plain QComboBox when the used
     model will possibly contain many items.
     """
-    def __init__(self, parent=None, maximumContentsLength=-1, **kwargs):
-        if maximumContentsLength != -1:
-            warnings.warn(
-                f"'{__name__}.ComboBox.maximumContentsLength' is deprecated "
-                "and has no effect. It will be removed in orange-widget-base "
-                "4.6",
-                FutureWarning
-            )
+    def __init__(self, parent=None, **kwargs):
         self.__maximumContentsLength = MAXIMUM_CONTENTS_LENGTH
         super().__init__(parent, **kwargs)
 

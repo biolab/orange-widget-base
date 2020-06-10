@@ -1,28 +1,26 @@
 import unittest
 from unittest.mock import Mock
-from collections import OrderedDict
 
 from AnyQt.QtWidgets import QComboBox, QCheckBox, QSpinBox
 
 from orangewidget.tests.base import GuiTest
-from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
+from orangewidget.utils.visual_settings_dlg import SettingsDialog
 
 
-class TestVisualSettingsDialog(GuiTest):
+class TestSettingsDialog(GuiTest):
     def setUp(self):
         self.defaults = {
-            "Box": {"Items": OrderedDict({
+            "Box": {"Items": {
                 "P1": (["Foo", "Bar", "Baz"], "Bar"),
                 "P2": (range(3, 10, 2), 5),
                 "P3": (None, True),
-            })}
+            }}
         }
-        self.dlg = VisualSettingsDialog(None)
-        self.dlg.initialize(self.defaults)
+        self.dlg = SettingsDialog(None, self.defaults)
 
     @property
     def dialog_controls(self):
-        return self.dlg._VisualSettingsDialog__controls
+        return self.dlg._SettingsDialog__controls
 
     def test_initialize(self):
         controls = self.dialog_controls
@@ -46,7 +44,7 @@ class TestVisualSettingsDialog(GuiTest):
         ctrls[("Box", "Items", "P2")][0].setValue(7)
         ctrls[("Box", "Items", "P3")][0].setChecked(False)
 
-        self.dlg._VisualSettingsDialog__reset()
+        self.dlg._SettingsDialog__reset()
         self.assertDictEqual(self.dlg.changed_settings, {})
         self.assertEqual(ctrls[("Box", "Items", "P1")][0].currentText(), "Bar")
         self.assertEqual(ctrls[("Box", "Items", "P2")][0].value(), 5)

@@ -91,6 +91,18 @@ class VisualSettingsDialog(QDialog):
             self.__controls[key] = (control, default_value)
         form.addRow(f"{label}:", box)
 
+    def apply_settings(self, settings: Iterable[Tuple[Tuple[str], Union[str, int, bool]]]):
+        """ Assign values to controls.
+
+        Parameters
+        ----------
+        settings : Iterable[Tuple[Tuple[str], Union[str, int, bool]]
+            Collection of box names, label texts, parameter names
+            and control values.
+        """
+        for key, value in settings:
+            _set_control_value(self.__controls[key][0], value)
+
     def show_dlg(self):
         """ Open the dialog. """
         self.show()

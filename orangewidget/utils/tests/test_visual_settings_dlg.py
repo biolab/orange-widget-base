@@ -62,6 +62,18 @@ class TestVisualSettingsDialog(GuiTest):
         self.dialog_controls[("Box", "Items", "P3")][0].setChecked(False)
         handler.assert_called_with(('Box', 'Items', 'P3'), False)
 
+    def test_apply_settings(self):
+        changed = [(("Box", "Items", "P1"), "Foo"),
+                   (("Box", "Items", "P2"), 7),
+                   (("Box", "Items", "P3"), False)]
+        self.dlg.apply_settings(changed)
+        ctrls = self.dialog_controls
+        self.assertEqual(ctrls[("Box", "Items", "P1")][0].currentText(), "Foo")
+        self.assertEqual(ctrls[("Box", "Items", "P2")][0].value(), 7)
+        self.assertEqual(ctrls[("Box", "Items", "P3")][0].isChecked(), False)
+        self.assertDictEqual(self.dlg.changed_settings,
+                             {k: v for k, v in changed})
+
 
 if __name__ == '__main__':
     unittest.main()

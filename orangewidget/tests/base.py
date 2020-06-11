@@ -162,6 +162,15 @@ class GuiTest(unittest.TestCase):
         global app
         if app is None:
             app = QApplication([])
+        # Disable App Nap on macOS (see
+        # https://codereview.qt-project.org/c/qt/qtbase/+/202515 for more)
+        if sys.platform == "darwin":
+            try:
+                import appnope
+            except ImportError:
+                pass
+            else:
+                appnope.nope()
         super().setUpClass()
 
     @classmethod

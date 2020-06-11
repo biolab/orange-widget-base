@@ -57,6 +57,7 @@ INSTALL_REQUIRES = [
     "pyqtgraph",
     "AnyQt",
     "orange-canvas-core>=0.1.8a,<0.2a",
+    'appnope; sys_platform=="darwin"'
 ]
 
 EXTRAS_REQUIRE = {

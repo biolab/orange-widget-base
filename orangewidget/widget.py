@@ -24,7 +24,6 @@ from orangewidget.gui import OWComponent, VerticalScrollArea
 from orangewidget.io import ClipboardFormat, ImgFormat
 from orangewidget.settings import SettingsHandler
 from orangewidget.utils import saveplot, getdeepattr
-from orangewidget.utils.visual_settings_dlg import VisualSettingsDialog
 from orangewidget.utils.progressbar import ProgressBarMixin
 from orangewidget.utils.messages import (
     WidgetMessagesMixin, UnboundMsg, MessagesWidget
@@ -155,8 +154,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                      and getattr(f, "EXTENSIONS", None)]
 
     save_position = True
-    #: Used for visual settings dialog initialization
-    initial_visual_settings = None  # type: Dict
 
     #: If false the widget will receive fixed size constraint
     #: (derived from it's layout). Use for widgets which have simple
@@ -199,6 +196,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     contextAboutToBeOpened = Signal(object)
     contextOpened = Signal()
     contextClosed = Signal()
+    openVisualSettingsClicked = Signal()
 
     # pylint: disable=protected-access, access-member-before-definition
     def __new__(cls, *args, captionTitle=None, **kwargs):
@@ -611,16 +609,11 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 b.clicked.connect(self.reset_settings)
                 buttonsLayout.addWidget(b)
             if hasattr(self, "set_visual_settings"):
-                assert self.initial_visual_settings is not None
-                dlg = VisualSettingsDialog(self)
-                dlg.initialize(self.initial_visual_settings)
-                dlg.setting_changed.connect(self.set_visual_settings)
-
                 icon = QIcon(gui.resource_filename("icons/visual-settings.svg"))
                 icon.addFile(gui.resource_filename("icons/visual-settings-hover.svg"),
                              mode=QIcon.Active)
                 b = SimpleButton(icon=icon, toolTip="Set visual settings")
-                b.clicked.connect(dlg.show_dlg)
+                b.clicked.connect(self.openVisualSettingsClicked)
                 buttonsLayout.addWidget(b)
 
             buttons = QWidget(objectName="buttons")

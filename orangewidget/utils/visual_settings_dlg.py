@@ -91,6 +91,7 @@ class SettingsDialog(QDialog):
             key = (box_name, label, parameter)
             control = _add_control(values or default_value, default_value, box,
                                    key, self.setting_changed)
+            control.setToolTip(parameter)
             self.__controls[key] = (control, default_value)
         form.addRow(f"{label}:", box)
 

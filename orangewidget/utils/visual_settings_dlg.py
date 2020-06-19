@@ -89,9 +89,10 @@ class SettingsDialog(QDialog):
         box = gui.hBox(None, box=None)
         for parameter, (values, default_value) in settings.items():
             key = (box_name, label, parameter)
-            control = _add_control(values or default_value, default_value, box,
-                                   key, self.setting_changed)
+            control = _add_control(values or default_value, default_value, key,
+                                   self.setting_changed)
             control.setToolTip(parameter)
+            box.layout().addWidget(control)
             self.__controls[key] = (control, default_value)
         form.addRow(f"{label}:", box)
 
@@ -147,40 +148,34 @@ def _add_control(*_):
 
 
 @_add_control.register(list)
-def _(values: List[str], value: str, parent: QGroupBox, key: KeyType,
-      signal: Callable) -> QComboBox:
+def _(values: List[str], value: str, key: KeyType, signal: Callable) \
+        -> QComboBox:
     combo = QComboBox()
     combo.addItems(values)
     combo.setCurrentText(value)
-    parent.layout().addWidget(combo)
     combo.currentTextChanged.connect(lambda text: signal.emit(key, text))
     return combo
 
 
 @_add_control.register(range)
-def _(values: Iterable[int], value: int, parent: QGroupBox, key: KeyType,
-      signal: Callable) -> QSpinBox:
+def _(values: Iterable[int], value: int, key: KeyType, signal: Callable) \
+        -> QSpinBox:
     spin = QSpinBox(minimum=values.start, maximum=values.stop,
                     singleStep=values.step, value=value)
-    parent.layout().addWidget(spin)
     spin.valueChanged.connect(lambda val: signal.emit(key, val))
     return spin
 
 
 @_add_control.register(bool)
-def _(_: bool, value: bool, parent: QGroupBox, key: KeyType,
-      signal: Callable) -> QCheckBox:
+def _(_: bool, value: bool, key: KeyType, signal: Callable) -> QCheckBox:
     check = QCheckBox(text=f"{key[-1]} ", checked=value)
-    parent.layout().addWidget(check)
     check.stateChanged.connect(lambda val: signal.emit(key, bool(val)))
     return check
 
 
 @_add_control.register(str)
-def _(_: str, value: str, parent: QGroupBox, key: KeyType,
-      signal: Callable) -> QLineEdit:
+def _(_: str, value: str, key: KeyType, signal: Callable) -> QLineEdit:
     line_edit = QLineEdit(value)
-    parent.layout().addWidget(line_edit)
     line_edit.textChanged.connect(lambda text: signal.emit(key, text))
     return line_edit
 

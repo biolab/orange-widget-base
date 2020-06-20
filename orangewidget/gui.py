@@ -800,6 +800,10 @@ def checkBox(widget, master, value, label, box=None,
     cbox.toggled[bool].connect(cbox.makeConsistent)
     cbox.makeConsistent(value)
     miscellanea(cbox, b, widget, **misc)
+
+    # QTBUG-2699
+    cbox.setAttribute(Qt.WA_LayoutUsesWidgetRect)
+
     return cbox
 
 
@@ -999,6 +1003,10 @@ def button(widget, master, label, callback=None, width=None, height=None,
         button.clicked.connect(callback)
 
     miscellanea(button, None, widget, **misc)
+
+    # QTBUG-2699
+    button.setAttribute(Qt.WA_LayoutUsesWidgetRect)
+
     return button
 
 
@@ -1515,6 +1523,10 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
         log.warning("comboBox no longer accepts argument 'valueType'")
     miscellanea(combo, hb, widget, **misc)
     combo.emptyString = emptyString
+
+    # QTBUG-2699
+    combo.setAttribute(Qt.WA_LayoutUsesWidgetRect)
+
     return combo
 
 

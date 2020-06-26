@@ -29,7 +29,7 @@ from AnyQt.QtWidgets import (
 from orangewidget.workflow.widgetsscheme import WidgetsScheme
 from orangewidget.widget import OWBaseWidget
 
-REPORT_POST_URL = 'https://qa.orange.biolab.si/error_report/v1/'
+REPORT_POST_URL = 'https://service.biolab.si/error_report/'
 
 log = logging.getLogger()
 

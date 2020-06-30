@@ -45,9 +45,9 @@ class SettingsDialog(QDialog):
 
         buttons = QDialogButtonBox(
             orientation=Qt.Horizontal,
-            standardButtons=QDialogButtonBox.Ok | QDialogButtonBox.Reset,
+            standardButtons=QDialogButtonBox.Close | QDialogButtonBox.Reset,
         )
-        buttons.accepted.connect(self.accept)
+        buttons.button(QDialogButtonBox.Close).clicked.connect(self.close)
         buttons.button(QDialogButtonBox.Reset).clicked.connect(self.__reset)
         layout.addWidget(buttons)
 

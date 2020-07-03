@@ -4,7 +4,8 @@ from functools import singledispatch
 
 from AnyQt.QtCore import Qt, pyqtSignal as Signal
 from AnyQt.QtWidgets import QDialog, QVBoxLayout, QComboBox, QCheckBox, \
-    QDialogButtonBox, QSpinBox, QWidget, QGroupBox, QApplication, QFormLayout
+    QDialogButtonBox, QSpinBox, QWidget, QGroupBox, QApplication, \
+    QFormLayout, QLineEdit
 
 from orangewidget import gui
 from orangewidget.widget import OWBaseWidget
@@ -88,8 +89,10 @@ class SettingsDialog(QDialog):
         box = gui.hBox(None, box=None)
         for parameter, (values, default_value) in settings.items():
             key = (box_name, label, parameter)
-            control = _add_control(default_value, values, box,
-                                   key, self.setting_changed)
+            control = _add_control(values or default_value, default_value, key,
+                                   self.setting_changed)
+            control.setToolTip(parameter)
+            box.layout().addWidget(control)
             self.__controls[key] = (control, default_value)
         form.addRow(f"{label}:", box)
 
@@ -113,7 +116,7 @@ class SettingsDialog(QDialog):
 
 
 class VisualSettingsDialog(SettingsDialog):
-    """ A dialog for visual settings manipulation, that can be uses along 
+    """ A dialog for visual settings manipulation, that can be used along
     OWBaseWidget.
 
     The OWBaseWidget should implement set_visual_settings.
@@ -144,34 +147,37 @@ def _add_control(*_):
     raise NotImplementedError
 
 
-@_add_control.register(str)
-def _(value: str, values: List[str], parent: QGroupBox, key: KeyType,
-      signal: Callable) -> QComboBox:
+@_add_control.register(list)
+def _(values: List[str], value: str, key: KeyType, signal: Callable) \
+        -> QComboBox:
     combo = QComboBox()
     combo.addItems(values)
     combo.setCurrentText(value)
-    parent.layout().addWidget(combo)
     combo.currentTextChanged.connect(lambda text: signal.emit(key, text))
     return combo
 
 
-@_add_control.register(int)
-def _(value: int, values: Iterable[int], parent: QGroupBox, key: KeyType,
-      signal: Callable) -> QSpinBox:
+@_add_control.register(range)
+def _(values: Iterable[int], value: int, key: KeyType, signal: Callable) \
+        -> QSpinBox:
     spin = QSpinBox(minimum=values.start, maximum=values.stop,
                     singleStep=values.step, value=value)
-    parent.layout().addWidget(spin)
     spin.valueChanged.connect(lambda val: signal.emit(key, val))
     return spin
 
 
 @_add_control.register(bool)
-def _(value: int, _, parent: QGroupBox, key: KeyType,
-      signal: Callable) -> QCheckBox:
+def _(_: bool, value: bool, key: KeyType, signal: Callable) -> QCheckBox:
     check = QCheckBox(text=f"{key[-1]} ", checked=value)
-    parent.layout().addWidget(check)
     check.stateChanged.connect(lambda val: signal.emit(key, bool(val)))
     return check
+
+
+@_add_control.register(str)
+def _(_: str, value: str, key: KeyType, signal: Callable) -> QLineEdit:
+    line_edit = QLineEdit(value)
+    line_edit.textChanged.connect(lambda text: signal.emit(key, text))
+    return line_edit
 
 
 @singledispatch
@@ -190,8 +196,13 @@ def _(spin: QSpinBox, value: int):
 
 
 @_set_control_value.register(QCheckBox)
-def _(spin: QCheckBox, value: bool):
-    spin.setChecked(value)
+def _(check: QCheckBox, value: bool):
+    check.setChecked(value)
+
+
+@_set_control_value.register(QLineEdit)
+def _(edit: QLineEdit, value: str):
+    edit.setText(value)
 
 
 if __name__ == "__main__":
@@ -237,11 +248,11 @@ if __name__ == "__main__":
                 "Parameter 2": (None, False)
             },
             "Item 5": {
-                "Parameter 1": (_items[:10], _items[1]),
+                "Parameter 1": ("", "Foo"),
                 "Parameter 2": (None, False)
             },
             "Item 6": {
-                "Parameter 1": (None, False),
+                "Parameter 1": ("", ""),
                 "Parameter 2": (None, False)
             },
         },

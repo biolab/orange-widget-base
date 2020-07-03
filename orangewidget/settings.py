@@ -54,6 +54,9 @@ _IMMUTABLES = (str, int, bytes, bool, float, tuple)
 
 VERSION_KEY = "__version__"
 
+# protocol v4 is supported since Python 3.4, protocol v5 since Python 3.8
+PICKLE_PROTOCOL = 4
+
 
 __WIDGET_SETTINGS_DIR = None  # type: Optional[Tuple[str, str]]
 
@@ -541,7 +544,7 @@ class SettingsHandler:
         """
         defaults = dict(self.defaults)
         defaults[VERSION_KEY] = self.widget_class.settings_version
-        pickle.dump(defaults, settings_file, -1)
+        pickle.dump(defaults, settings_file, protocol=PICKLE_PROTOCOL)
 
     def _get_settings_filename(self):
         """Return the name of the file with default settings for the widget"""
@@ -765,7 +768,7 @@ class ContextHandler(SettingsHandler):
             return context
 
         pickle.dump([add_version(context) for context in self.global_contexts],
-                    settings_file, -1)
+                    settings_file, protocol=PICKLE_PROTOCOL)
 
     def pack_data(self, widget):
         """Call the inherited method, then add local contexts to the dict."""

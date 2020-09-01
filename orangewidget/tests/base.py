@@ -242,6 +242,7 @@ class WidgetTest(GuiTest):
 
     @classmethod
     def tearDownClass(cls) -> None:
+        del cls.signal_manager
         widgets = cls.widgets[:]
         cls.widgets.clear()
         while widgets:

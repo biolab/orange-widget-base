@@ -163,6 +163,8 @@ class GuiTest(unittest.TestCase):
         """
         global app
         if app is None:
+            app = QApplication.instance()
+        if app is None:
             app = QApplication(["-", "-widgetcount"])
 
         # Disable App Nap on macOS (see

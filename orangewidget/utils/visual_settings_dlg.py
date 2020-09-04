@@ -2,12 +2,14 @@ import sys
 from typing import List, Iterable, Tuple, Callable, Union, Dict
 from functools import singledispatch
 
-from AnyQt.QtCore import Qt, pyqtSignal as Signal
+from AnyQt.QtCore import Qt, pyqtSignal as Signal, QStringListModel
 from AnyQt.QtWidgets import QDialog, QVBoxLayout, QComboBox, QCheckBox, \
     QDialogButtonBox, QSpinBox, QWidget, QGroupBox, QApplication, \
     QFormLayout, QLineEdit
 
 from orangewidget import gui
+from orangewidget.utils.combobox import _ComboBoxListDelegate
+from orangewidget.utils.itemmodels import PyListModel
 from orangewidget.widget import OWBaseWidget
 
 KeyType = Tuple[str, str, str]
@@ -154,6 +156,39 @@ def _(values: List[str], value: str, key: KeyType, signal: Callable) \
     combo.addItems(values)
     combo.setCurrentText(value)
     combo.currentTextChanged.connect(lambda text: signal.emit(key, text))
+    return combo
+
+
+class FontList(list):
+    pass
+
+
+@_add_control.register(FontList)
+def _(values: FontList, value: str, key: KeyType, signal: Callable) \
+        -> QComboBox:
+    class FontModel(QStringListModel):
+        def data(self, index, role=Qt.DisplayRole):
+            if role == Qt.AccessibleDescriptionRole \
+                    and super().data(index, Qt.DisplayRole) == "":
+                return "separator"
+
+            value = super().data(index, role)
+            if role in (Qt.DisplayRole, Qt.EditRole) and value.startswith("."):
+                value = value[1:]
+            return value
+
+        def flags(self, index):
+            if index.data(Qt.DisplayRole) == "separator":
+                return Qt.NoItemFlags
+            else:
+                return super().flags(index)
+
+    combo = QComboBox()
+    model = FontModel(values)
+    combo.setModel(model)
+    combo.setCurrentIndex(values.index(value))
+    combo.currentIndexChanged.connect(lambda i: signal.emit(key, values[i]))
+    combo.setItemDelegate(_ComboBoxListDelegate())
     return combo
 
 

@@ -1490,6 +1490,7 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
             combo.addItem(str(item))
 
     if value:
+        combo.setObjectName(value)
         cindex = getdeepattr(master, value)
         if model is not None:
             combo.setModel(model)
@@ -1902,8 +1903,12 @@ class CallFrontComboBox(ControlledCallFront):
             try:
                 index = items.index(value or self.emptyString)
             except ValueError:
-                log.warning("Unable to set '{}' to '{}'; valid values are '{}'".
-                            format(self.control, value, ", ".join(items)))
+                if items:
+                    msg = f"Combo '{combo.objectName()}' has no item '{value}'; " \
+                          f"current items are {', '.join(map(repr, items))}."
+                else:
+                    msg = f"combo '{combo.objectName()}' is empty."
+                warnings.warn(msg, stacklevel=5)
             else:
                 self.control.setCurrentIndex(index)
 
@@ -1911,8 +1916,13 @@ class CallFrontComboBox(ControlledCallFront):
             if value < combo.count():
                 combo.setCurrentIndex(value)
             else:
-                log.warning("Unable to set '{}' to {}; largest index is {}".
-                            format(combo, value, combo.count() - 1))
+                if combo.count():
+                    msg = f"index {value} is out of range " \
+                          f"for combo box '{combo.objectName()}' " \
+                          f"with {combo.count()} item(s)."
+                else:
+                    msg = f"combo box '{combo.objectName()}' is empty."
+                warnings.warn(msg, stacklevel=5)
 
         combo = self.control
         if isinstance(value, int):

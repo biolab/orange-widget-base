@@ -1,6 +1,6 @@
 from typing import Iterable
 
-from PyQt5.QtWidgets import QListView, QLineEdit
+from PyQt5.QtWidgets import QListView, QLineEdit, QStyle
 from PyQt5.QtGui import QResizeEvent
 from PyQt5.QtCore import (
     Qt,
@@ -129,8 +129,10 @@ class ListViewSearch(QListView):
         size = self.size()
         margins.setTop(sh.height())
         vscroll = self.verticalScrollBar()
+        style = self.style()
+        transient = style.styleHint(QStyle.SH_ScrollBar_Transient, None, vscroll)
         w = size.width()
-        if vscroll.isVisibleTo(self):
+        if vscroll.isVisibleTo(self) and not transient:
             w = w - vscroll.width() - 1
         search.setGeometry(0, 0, w, sh.height())
         self.setViewportMargins(margins)

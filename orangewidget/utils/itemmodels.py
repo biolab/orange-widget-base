@@ -1,4 +1,5 @@
-from collections import defaultdict, Sequence
+from collections import defaultdict
+from typing import Sequence
 from math import isnan, isinf
 from numbers import Number, Integral
 

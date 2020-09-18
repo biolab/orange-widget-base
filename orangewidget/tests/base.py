@@ -232,15 +232,20 @@ class WidgetTest(GuiTest):
 
         cls.signal_manager = DummySignalManager()
 
-        report = OWReport()
-        cls.widgets.append(report)
+        report = None
+
+        def get_instance():
+            nonlocal report
+            if report is None:
+                report = OWReport()
+                if not (os.environ.get("TRAVIS") or os.environ.get("APPVEYOR")):
+                    report.show = Mock()
+                cls.widgets.append(report)
+            return report
 
         cls.tear_down_stack.enter_context(
-            patch.object(OWReport, "get_instance", lambda: report)
+            patch.object(OWReport, "get_instance", get_instance)
         )
-
-        if not (os.environ.get("TRAVIS") or os.environ.get("APPVEYOR")):
-            report.show = Mock()
 
     @classmethod
     def tearDownClass(cls) -> None:

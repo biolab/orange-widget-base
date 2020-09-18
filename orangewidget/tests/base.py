@@ -90,6 +90,9 @@ class DummySignalManager:
     def __init__(self):
         self.outputs = {}
 
+    def clear(self):
+        self.outputs.clear()
+
     def send(self, widget, signal_name, value, id):
         if not isinstance(signal_name, str):
             signal_name = signal_name.name
@@ -249,6 +252,7 @@ class WidgetTest(GuiTest):
 
     @classmethod
     def tearDownClass(cls) -> None:
+        cls.signal_manager.clear()
         del cls.signal_manager
         widgets = cls.widgets[:]
         cls.widgets.clear()
@@ -258,10 +262,12 @@ class WidgetTest(GuiTest):
                 w.onDeleteWidget()
             if not sip.isdeleted(w):
                 w.deleteLater()
+            w.signalManager = None
         super().tearDownClass()
 
     def tearDown(self):
         """Process any pending events before the next test is executed."""
+        self.signal_manager.clear()
         QTest.qWait(0)
         super().tearDown()
 

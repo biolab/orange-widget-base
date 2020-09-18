@@ -18,8 +18,7 @@ from AnyQt.QtGui import QCursor, QColor
 from AnyQt.QtWidgets import (
     QApplication, QStyle, QSizePolicy, QWidget, QLabel, QGroupBox, QSlider,
     QTableWidgetItem, QStyledItemDelegate, QTableView, QHeaderView,
-    QScrollArea
-)
+    QScrollArea, QLineEdit)
 
 from orangewidget.utils import getdeepattr
 from orangewidget.utils.buttons import VariableTextPushButton
@@ -476,7 +475,65 @@ def label(widget, master, label, labelWidth=None, box=None,
     return lbl
 
 
-class SpinBoxWFocusOut(QtWidgets.QSpinBox):
+class DraggableSpinBoxMixin:
+    """
+    Click and drag to increase/decrease the spinbox's value.
+    """
+    def __init__(self, *args, verticalDrag=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.verticalDirection = verticalDrag
+        self.reset()  # initialize instance variables
+
+        self.installEventFilter(self)
+        self.lineEdit().installEventFilter(self)
+
+    def reset(self):
+        self.mouseStartPosY = 0
+        self.startValue = 0
+        self.mouseHeld = False
+        self.stepSize = 0
+
+    def eventFilter(self, obj, event):
+        if not (isinstance(obj, DraggableSpinBoxMixin) or isinstance(obj, QLineEdit)):
+            return super().eventFilter(obj, event)
+
+        cursor = Qt.SizeVerCursor if self.verticalDirection else Qt.SizeHorCursor
+
+        if event.type() == QEvent.MouseButtonPress:
+            self.mouseStartPosY = event.globalPos().y()
+            self.startValue = self.value()
+            self.mouseHeld = True
+        elif event.type() == QEvent.MouseMove and self.mouseHeld:
+            # override default cursor on drag
+            if QApplication.overrideCursor() != cursor:
+                QApplication.setOverrideCursor(cursor)
+
+            # disable click and hold behavior
+            if self.stepSize == 0:
+                self.stepSize = self.singleStep()
+                self.setSingleStep(0)
+
+            pos = event.globalPos()
+            posVal = pos.y() if self.verticalDirection else -pos.x()
+            valueOffset = (self.mouseStartPosY - posVal) * self.stepSize
+            self.setValue(self.startValue + valueOffset)
+
+            event.accept()
+            return True
+        elif event.type() == QEvent.MouseButtonRelease:
+            # restore default cursor on release
+            if QApplication.overrideCursor() == cursor:
+                QApplication.restoreOverrideCursor()
+
+            # restore click and hold behavior
+            if self.stepSize != 0:
+                self.setSingleStep(self.stepSize)
+
+            self.reset()
+        return super().eventFilter(obj, event)
+
+
+class SpinBoxWFocusOut(DraggableSpinBoxMixin, QtWidgets.QSpinBox):
     """
     A class derived from QSpinBox, which postpones the synchronization
     of the control's value with the master's attribute until the control looses
@@ -520,7 +577,7 @@ class SpinBoxWFocusOut(QtWidgets.QSpinBox):
         self.changed = False
 
 
-class DoubleSpinBoxWFocusOut(QtWidgets.QDoubleSpinBox):
+class DoubleSpinBoxWFocusOut(DraggableSpinBoxMixin, QtWidgets.QDoubleSpinBox):
     """
     Same as :obj:`SpinBoxWFocusOut`, except that it is derived from
     :obj:`~QDoubleSpinBox`"""

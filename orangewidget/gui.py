@@ -483,6 +483,9 @@ class SpinBoxMixin:
     Also, click and drag to increase/decrease the spinbox's value,
     instead of scrolling.
     """
+
+    valueCommitted = Signal(object)
+
     def __init__(self, minv, maxv, step, parent=None, verticalDrag=True):
         """
         Construct the object and set the range (`minv`, `maxv`) and the step.
@@ -500,40 +503,51 @@ class SpinBoxMixin:
         super().__init__(parent)
         self.setRange(minv, maxv)
         self.setSingleStep(step)
-        self.changed = False
 
         self.formatter = lambda text: int(str(text))
+        self.equalityChecker = int.__eq__
 
-        self.verticalDirection = verticalDrag
-        self.mouseStartPosY = 0
-        self.startValue = 0
         self.mouseHeld = False
+        self.verticalDirection = verticalDrag
+        self.mouseStartPos = 0
+        self.preDragValue = 0
         self.stepSize = 0
+
+        self.textEditing = False
+        self.preEditvalue = 0
 
         self.installEventFilter(self)
         self.lineEdit().installEventFilter(self)
+        self.editingFinished.connect(self.onEditingFinished)
 
         # don't focus on scroll
         self.setFocusPolicy(Qt.StrongFocus)
 
-    def onValueChanged(self):
-        """
-        Sets the flag to determine whether the value has been changed.
-        """
-        self.changed = True
-
-    def onEnter(self):
+    def onEditingFinished(self):
         """
         Commits the change by calling the appropriate callbacks.
         """
-        print('commit')
-        if not self.changed:
+        if not self.mouseHeld and not self.textEditing:
+            # value hasn't been altered
             return
+        if self.mouseHeld:
+            self.mouseHeld = False
+            initialValue = self.preDragValue
+        if self.textEditing:
+            # mouse held can be triggered after editing, but not vice versa
+            self.textEditing = False
+            initialValue = self.preEditvalue
+        if not self.equalityChecker(initialValue, self.value()):
+            # if value has changed, commit it
+            self.commitValue()
+
+    def commitValue(self):
+        value = self.value()
+        self.valueCommitted.emit(value)
         if self.cback:
             self.cback(self.formatter(self.text()))
         if self.cfunc:
             self.cfunc()
-        self.changed = False
 
     def eventFilter(self, obj, event):
         if not (isinstance(obj, SpinBoxMixin) or isinstance(obj, QLineEdit)):
@@ -542,10 +556,12 @@ class SpinBoxMixin:
         cursor = Qt.SizeVerCursor if self.verticalDirection else Qt.SizeHorCursor
 
         if event.type() == QEvent.MouseButtonPress:
-            self.mouseStartPosY = event.globalPos().y()
-            self.startValue = self.value()
+            # prepare click+drag
+            self.mouseStartPos = event.globalPos().y()
+            self.preDragValue = self.value()
             self.mouseHeld = True
         elif event.type() == QEvent.MouseMove and self.mouseHeld:
+            # do click+drag
             # override default cursor on drag
             if QApplication.overrideCursor() != cursor:
                 QApplication.setOverrideCursor(cursor)
@@ -557,12 +573,13 @@ class SpinBoxMixin:
 
             pos = event.globalPos()
             posVal = pos.y() if self.verticalDirection else -pos.x()
-            valueOffset = (self.mouseStartPosY - posVal) * self.stepSize
-            self.setValue(self.startValue + valueOffset)
+            valueOffset = (self.mouseStartPos - posVal) * self.stepSize
+            self.setValue(self.preDragValue + valueOffset)
 
             event.accept()
             return True
         elif event.type() == QEvent.MouseButtonRelease:
+            # end click+drag
             # restore default cursor on release
             if QApplication.overrideCursor() == cursor:
                 QApplication.restoreOverrideCursor()
@@ -570,16 +587,22 @@ class SpinBoxMixin:
             # restore click and hold behavior
             if self.stepSize != 0:
                 self.setSingleStep(self.stepSize)
+                self.stepSize = 0
 
-            # reset click/drag variables
-            self.mouseStartPosY = 0
-            self.startValue = 0
-            self.mouseHeld = False
-            self.stepSize = 0
+            self.onEditingFinished()
         elif event.type() == QEvent.Wheel:
             # disable wheelEvents (scrolling to change value)
             event.ignore()
             return True
+        elif event.type() in (QEvent.KeyPress, QEvent.KeyRelease):
+            # handle committing keyboard entry only on editingFinished
+            if self.mouseHeld:
+                # if performing click+drag, ignore key events
+                event.ignore()
+                return True
+            elif not self.textEditing:
+                self.preEditvalue = self.value()
+                self.textEditing = True
         return super().eventFilter(obj, event)
 
 
@@ -599,6 +622,7 @@ class DoubleSpinBoxWFocusOut(SpinBoxMixin, QtWidgets.QDoubleSpinBox):
         super().__init__(*args, **kwargs)
         self.setDecimals(math.ceil(-math.log10(self.singleStep())))
         self.formatter = lambda text: float(str(text).replace(",", "."))
+        self.equalityChecker = math.isclose
 
 
 def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
@@ -714,15 +738,13 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
     cfront, sbox.cback, sbox.cfunc = connectControl(
         master, value, callback,
         not (callback and callbackOnReturn) and
-        sbox.valueChanged[(int, float)[isDouble]],
+        sbox.valueCommitted,
         (CallFrontSpin, CallFrontDoubleSpin)[isDouble](sbox))
     if checked:
         sbox.cbox = cbox
         cbox.disables = [sbox]
         cbox.makeConsistent()
     if callback and callbackOnReturn:
-        sbox.valueChanged.connect(sbox.onValueChanged)
-        sbox.editingFinished.connect(sbox.onEnter)
         if hasattr(sbox, "upButton"):
             sbox.upButton().clicked.connect(
                 lambda c=sbox.editor(): c.setFocus())

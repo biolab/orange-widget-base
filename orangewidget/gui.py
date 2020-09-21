@@ -504,7 +504,6 @@ class SpinBoxMixin:
         self.setRange(minv, maxv)
         self.setSingleStep(step)
 
-        self.formatter = lambda text: int(str(text))
         self.equalityChecker = int.__eq__
 
         self.mouseHeld = False
@@ -545,7 +544,7 @@ class SpinBoxMixin:
         value = self.value()
         self.valueCommitted.emit(value)
         if self.cback:
-            self.cback(self.formatter(self.text()))
+            self.cback(value)
         if self.cfunc:
             self.cfunc()
 
@@ -621,7 +620,6 @@ class DoubleSpinBox(SpinBoxMixin, QtWidgets.QDoubleSpinBox):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setDecimals(math.ceil(-math.log10(self.singleStep())))
-        self.formatter = lambda text: float(str(text).replace(",", "."))
         self.equalityChecker = math.isclose
 
 

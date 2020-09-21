@@ -477,7 +477,8 @@ def label(widget, master, label, labelWidth=None, box=None,
 
 class DraggableSpinBoxMixin:
     """
-    Click and drag to increase/decrease the spinbox's value.
+    Click and drag to increase/decrease the spinbox's value,
+    instead of scrolling.
     """
     def __init__(self, *args, verticalDrag=True, **kwargs):
         super().__init__(*args, **kwargs)
@@ -486,6 +487,9 @@ class DraggableSpinBoxMixin:
 
         self.installEventFilter(self)
         self.lineEdit().installEventFilter(self)
+
+        # don't focus on scroll
+        self.setFocusPolicy(Qt.StrongFocus)
 
     def reset(self):
         self.mouseStartPosY = 0
@@ -530,6 +534,10 @@ class DraggableSpinBoxMixin:
                 self.setSingleStep(self.stepSize)
 
             self.reset()
+        elif event.type() == QEvent.Wheel:
+            # disable wheelEvents (scrolling to change value)
+            event.ignore()
+            return True
         return super().eventFilter(obj, event)
 
 

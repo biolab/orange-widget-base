@@ -657,14 +657,12 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
     :param orientation: tells whether to put the label above or to the left
     :type orientation: `Qt.Horizontal` (default), `Qt.Vertical` or
         instance of `QLayout`
-    :param callback: a function that is called when the value is entered; if
-        :obj:`callbackOnReturn` is `True`, the function is called when the
-        user commits the value by pressing Enter or clicking the icon
+    :param callback: a function that is called when the value is entered;
+        the function is called when the user finishes editing the value
     :type callback: function
     :param controlWidth: the width of the spin box
     :type controlWidth: int
-    :param callbackOnReturn: if `True`, the spin box has an associated icon
-        that must be clicked to confirm the value (default: False)
+    :param callbackOnReturn: (deprecated)
     :type callbackOnReturn: bool
     :param checked: if not None, a check box is put in front of the spin box;
         when unchecked, the spin box is disabled. Argument `checked` gives the
@@ -691,6 +689,12 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
     :rtype: tuple or gui.SpinBoxWFocusOut
     """
 
+    if callbackOnReturn:
+        warnings.warn(
+            "'callbackOnReturn' is deprecated, all spinboxes callback "
+            "only when the user is finished editing the value.",
+            DeprecationWarning, stacklevel=2
+        )
     # b is the outermost box or the widget if there are no boxes;
     #    b is the widget that is inserted into the layout
     # bi is the box that contains the control or the checkbox and the control;
@@ -703,7 +707,7 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
     else:
         b = widget
         hasHBox = False
-    if not hasHBox and (checked or callback and callbackOnReturn or posttext):
+    if not hasHBox and (checked or callback or posttext):
         bi = hBox(b, addToLayout=False)
     else:
         bi = b
@@ -737,14 +741,14 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
 
     cfront, sbox.cback, sbox.cfunc = connectControl(
         master, value, callback,
-        not (callback and callbackOnReturn) and
+        not (callback) and
         sbox.valueCommitted,
         (CallFrontSpin, CallFrontDoubleSpin)[isDouble](sbox))
     if checked:
         sbox.cbox = cbox
         cbox.disables = [sbox]
         cbox.makeConsistent()
-    if callback and callbackOnReturn:
+    if callback:
         if hasattr(sbox, "upButton"):
             sbox.upButton().clicked.connect(
                 lambda c=sbox.editor(): c.setFocus())

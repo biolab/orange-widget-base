@@ -606,15 +606,15 @@ class SpinBoxMixin:
         return super().eventFilter(obj, event)
 
 
-class SpinBoxWFocusOut(SpinBoxMixin, QtWidgets.QSpinBox):
+class SpinBox(SpinBoxMixin, QtWidgets.QSpinBox):
     """
     A class derived from QSpinBox, which postpones the synchronization
-    of the control's value with the master's attribute until the control looses
-    focus or user presses Tab when the value has changed.
+    of the control's value with the master's attribute until the control loses
+    focus, and adds click-and-drag to change value functionality.
     """
 
 
-class DoubleSpinBoxWFocusOut(SpinBoxMixin, QtWidgets.QDoubleSpinBox):
+class DoubleSpinBox(SpinBoxMixin, QtWidgets.QDoubleSpinBox):
     """
     Same as :obj:`SpinBoxWFocusOut`, except that it is derived from
     :obj:`~QDoubleSpinBox`"""
@@ -623,6 +623,11 @@ class DoubleSpinBoxWFocusOut(SpinBoxMixin, QtWidgets.QDoubleSpinBox):
         self.setDecimals(math.ceil(-math.log10(self.singleStep())))
         self.formatter = lambda text: float(str(text).replace(",", "."))
         self.equalityChecker = math.isclose
+
+
+# deprecated
+SpinBoxWFocusOut = SpinBox
+DoubleSpinBoxWFocusOut = DoubleSpinBox
 
 
 def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
@@ -723,8 +728,8 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
 
     isDouble = spinType == float
     sbox = bi.control = b.control = \
-        (SpinBoxWFocusOut, DoubleSpinBoxWFocusOut)[isDouble](minv, maxv,
-                                                             step, bi)
+        (SpinBox, DoubleSpinBox)[isDouble](minv, maxv,
+                                           step, bi)
     if bi is not widget:
         bi.setDisabled(disabled)
     else:

@@ -475,15 +475,40 @@ def label(widget, master, label, labelWidth=None, box=None,
     return lbl
 
 
-class DraggableSpinBoxMixin:
+class SpinBoxMixin:
     """
-    Click and drag to increase/decrease the spinbox's value,
+    The class overloads :obj:`onChange` event handler to show the commit button,
+    and :obj:`onEnter` to commit the change when enter is pressed.
+
+    Also, click and drag to increase/decrease the spinbox's value,
     instead of scrolling.
     """
-    def __init__(self, *args, verticalDrag=True, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, minv, maxv, step, parent=None, verticalDrag=True):
+        """
+        Construct the object and set the range (`minv`, `maxv`) and the step.
+        :param minv: Minimal value
+        :type minv: int
+        :param maxv: Maximal value
+        :type maxv: int
+        :param step: Step
+        :type step: int
+        :param parent: Parent widget
+        :type parent: QWidget
+        :param verticalDrag: Drag direction
+        :type verticalDrag: bool
+        """
+        super().__init__(parent)
+        self.setRange(minv, maxv)
+        self.setSingleStep(step)
+        self.changed = False
+
+        self.formatter = lambda text: int(str(text))
+
         self.verticalDirection = verticalDrag
-        self.reset()  # initialize instance variables
+        self.mouseStartPosY = 0
+        self.startValue = 0
+        self.mouseHeld = False
+        self.stepSize = 0
 
         self.installEventFilter(self)
         self.lineEdit().installEventFilter(self)
@@ -491,14 +516,27 @@ class DraggableSpinBoxMixin:
         # don't focus on scroll
         self.setFocusPolicy(Qt.StrongFocus)
 
-    def reset(self):
-        self.mouseStartPosY = 0
-        self.startValue = 0
-        self.mouseHeld = False
-        self.stepSize = 0
+    def onValueChanged(self):
+        """
+        Sets the flag to determine whether the value has been changed.
+        """
+        self.changed = True
+
+    def onEnter(self):
+        """
+        Commits the change by calling the appropriate callbacks.
+        """
+        print('commit')
+        if not self.changed:
+            return
+        if self.cback:
+            self.cback(self.formatter(self.text()))
+        if self.cfunc:
+            self.cfunc()
+        self.changed = False
 
     def eventFilter(self, obj, event):
-        if not (isinstance(obj, DraggableSpinBoxMixin) or isinstance(obj, QLineEdit)):
+        if not (isinstance(obj, SpinBoxMixin) or isinstance(obj, QLineEdit)):
             return super().eventFilter(obj, event)
 
         cursor = Qt.SizeVerCursor if self.verticalDirection else Qt.SizeHorCursor
@@ -533,7 +571,11 @@ class DraggableSpinBoxMixin:
             if self.stepSize != 0:
                 self.setSingleStep(self.stepSize)
 
-            self.reset()
+            # reset click/drag variables
+            self.mouseStartPosY = 0
+            self.startValue = 0
+            self.mouseHeld = False
+            self.stepSize = 0
         elif event.type() == QEvent.Wheel:
             # disable wheelEvents (scrolling to change value)
             event.ignore()
@@ -541,73 +583,22 @@ class DraggableSpinBoxMixin:
         return super().eventFilter(obj, event)
 
 
-class SpinBoxWFocusOut(DraggableSpinBoxMixin, QtWidgets.QSpinBox):
+class SpinBoxWFocusOut(SpinBoxMixin, QtWidgets.QSpinBox):
     """
     A class derived from QSpinBox, which postpones the synchronization
     of the control's value with the master's attribute until the control looses
     focus or user presses Tab when the value has changed.
-
-    The class overloads :obj:`onChange` event handler to show the commit button,
-    and :obj:`onEnter` to commit the change when enter is pressed.
     """
 
-    def __init__(self, minv, maxv, step, parent=None):
-        """
-        Construct the object and set the range (`minv`, `maxv`) and the step.
-        :param minv: Minimal value
-        :type minv: int
-        :param maxv: Maximal value
-        :type maxv: int
-        :param step: Step
-        :type step: int
-        :param parent: Parent widget
-        :type parent: QWidget
-        """
-        super().__init__(parent)
-        self.setRange(minv, maxv)
-        self.setSingleStep(step)
-        self.changed = False
 
-    def onValueChanged(self):
-        """
-        Sets the flag to determine whether the value has been changed.
-        """
-        self.changed = True
-
-    def onEnter(self):
-        """
-        Commits the change by calling the appropriate callbacks.
-        """
-        if self.cback and self.changed:
-            self.cback(int(str(self.text())))
-        if self.cfunc and self.changed:
-            self.cfunc()
-        self.changed = False
-
-
-class DoubleSpinBoxWFocusOut(DraggableSpinBoxMixin, QtWidgets.QDoubleSpinBox):
+class DoubleSpinBoxWFocusOut(SpinBoxMixin, QtWidgets.QDoubleSpinBox):
     """
     Same as :obj:`SpinBoxWFocusOut`, except that it is derived from
     :obj:`~QDoubleSpinBox`"""
-    def __init__(self, minv, maxv, step, parent):
-        super().__init__(parent)
-        self.setDecimals(math.ceil(-math.log10(step)))
-        self.setRange(minv, maxv)
-        self.setSingleStep(step)
-        self.changed = False
-
-    def onValueChanged(self):
-        """
-        Sets the flag to determine whether the value has been changed.
-        """
-        self.changed = True
-
-    def onEnter(self):
-        if self.cback and self.changed:
-            self.cback(float(str(self.text()).replace(",", ".")))
-        if self.cfunc and self.changed:
-            self.cfunc()
-        self.changed = False
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setDecimals(math.ceil(-math.log10(self.singleStep())))
+        self.formatter = lambda text: float(str(text).replace(",", "."))
 
 
 def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,

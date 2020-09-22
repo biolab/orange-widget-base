@@ -149,19 +149,6 @@ class TestContextHandler(TestCase):
                 all(context.foo == i
                     for i, context in enumerate(contexts)))
 
-    def test_fast_save(self):
-        handler = ContextHandler()
-        handler.bind(SimpleWidget)
-
-        widget = SimpleWidget()
-        handler.initialize(widget)
-
-        context = widget.current_context = handler.new_context()
-        handler.fast_save(widget, 'context_setting', 55)
-        self.assertEqual(context.values['context_setting'], 55)
-        self.assertEqual(handler.known_settings['context_setting'].default,
-                         SimpleWidget.context_setting.default)
-
     def test_find_or_create_context(self):
         widget = SimpleWidget()
         handler = ContextHandler()
@@ -253,12 +240,6 @@ class TestContextHandler(TestCase):
         handler.initialize(widget)
         context = widget.current_context = handler.new_context()
         widget.context_settings.append(context)
-        handler.fast_save(widget, 'schema_only_context_setting', 5)
-        self.assertEqual(
-            handler.known_settings['schema_only_context_setting'].default, None)
-        handler.fast_save(widget, 'component.schema_only_context_setting', 5)
-        self.assertEqual(
-            handler.known_settings['component.schema_only_context_setting'].default, "only")
 
         # update_defaults should not update defaults
         widget.schema_only_context_setting = 5

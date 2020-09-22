@@ -174,76 +174,12 @@ class SettingHandlerTestCase(unittest.TestCase):
         SettingProvider.assert_called_once_with(SimpleWidget)
         provider.initialize.assert_called_once_with(widget, None)
 
-    def test_fast_save(self):
-        handler = SettingsHandler()
-
-        with override_default_settings(SimpleWidget):
-            handler.bind(SimpleWidget)
-
-        widget = SimpleWidget()
-
-        handler.fast_save(widget, 'component.int_setting', 5)
-
-        self.assertEqual(
-            handler.known_settings['component.int_setting'].default, 5)
-
-        self.assertEqual(Component.int_setting.default, 42)
-
-        handler.fast_save(widget, 'non_setting', 4)
-
-    def test_fast_save_siblings_spill(self):
-        handler_mk1 = SettingsHandler()
-        with override_default_settings(SimpleWidgetMk1):
-            handler_mk1.bind(SimpleWidgetMk1)
-
-        widget_mk1 = SimpleWidgetMk1()
-
-        handler_mk1.fast_save(widget_mk1, "setting", -1)
-        handler_mk1.fast_save(widget_mk1, "component.int_setting", 1)
-
-        self.assertEqual(
-            handler_mk1.known_settings['setting'].default, -1)
-        self.assertEqual(
-            handler_mk1.known_settings['component.int_setting'].default, 1)
-
-        handler_mk1.initialize(widget_mk1, data=None)
-        handler_mk1.provider.providers["component"].initialize(
-            widget_mk1.component, data=None)
-
-        self.assertEqual(widget_mk1.setting, -1)
-        self.assertEqual(widget_mk1.component.int_setting, 1)
-
-        handler_mk2 = SettingsHandler()
-        with override_default_settings(SimpleWidgetMk2):
-            handler_mk2.bind(SimpleWidgetMk2)
-
-        widget_mk2 = SimpleWidgetMk2()
-
-        handler_mk2.initialize(widget_mk2, data=None)
-        handler_mk2.provider.providers["component"].initialize(
-            widget_mk2.component, data=None)
-
-        self.assertEqual(widget_mk2.setting, 42,
-                         "spils defaults into sibling classes")
-
-        self.assertEqual(Component.int_setting.default, 42)
-
-        self.assertEqual(widget_mk2.component.int_setting, 42,
-                         "spils defaults into sibling classes")
-
     def test_schema_only_settings(self):
         handler = SettingsHandler()
         with override_default_settings(SimpleWidget):
             handler.bind(SimpleWidget)
 
-        # fast_save should not update defaults
         widget = SimpleWidget()
-        handler.fast_save(widget, 'schema_only_setting', 5)
-        self.assertEqual(
-            handler.known_settings['schema_only_setting'].default, None)
-        handler.fast_save(widget, 'component.schema_only_setting', 5)
-        self.assertEqual(
-            handler.known_settings['component.schema_only_setting'].default, "only")
 
         # update_defaults should not update defaults
         widget.schema_only_setting = 5

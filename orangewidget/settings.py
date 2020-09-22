@@ -662,21 +662,6 @@ class SettingsHandler:
         self._prepare_defaults(widget)
         self.write_defaults()
 
-    def fast_save(self, widget, name, value):
-        """Store the (changed) widget's setting immediately to the context.
-
-        Parameters
-        ----------
-        widget : OWBaseWidget
-        name : str
-        value : object
-
-        """
-        if name in self.known_settings:
-            setting = self.known_settings[name]
-            if not setting.schema_only:
-                setting.default = value
-
     def reset_settings(self, widget: "OWBaseWidget") -> None:
         """Reset widget settings to defaults"""
         for setting, _, inst \
@@ -984,20 +969,6 @@ class ContextHandler(SettingsHandler):
                 yield setting.name, self.encode_setting(context, setting, value)
 
         context.values = self.provider.pack(widget, packer=packer)
-
-    def fast_save(self, widget, name, value):
-        """Update value of `name` setting in the current context to `value`
-        """
-        setting = self.known_settings.get(name)
-        if isinstance(setting, ContextSetting):
-            context = widget.current_context
-            if setting.schema_only or context is None:
-                return
-
-            value = self.encode_setting(context, setting, value)
-            self.update_packed_data(context.values, name, value)
-        else:
-            super().fast_save(widget, name, value)
 
     @staticmethod
     def update_packed_data(data: dict, name: str, value) -> None:

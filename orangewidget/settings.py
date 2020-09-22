@@ -407,12 +407,6 @@ class SettingProvider:
             if setting.name in _data and inst is not None:
                 _apply_setting(setting, inst, _data[setting.name])
 
-    def get_provider(self, provider_class):
-        """Return provider for provider_class.
-
-        If this provider matches, return it, otherwise pass
-        the call to child providers.
-
     def get_provider(self, provider_class: Type[OWComponent]) \
             -> Union["SettingProvider", None]:
         """Return provider for the given provider_class."""
@@ -525,31 +519,25 @@ class SettingsHandler:
 
         self.known_settings[prefix + setting.name] = setting
 
-    def read_defaults(self):
-        """Read (global) defaults for this widget class from a file.
-        Opens a file and calls :obj:`read_defaults_file`. Derived classes
-        should overload the latter."""
+    def read_defaults(self) -> None:
+        """
+        Read (global) defaults for this widget class from a file.
+
+        Opens a file and calls :obj:`read_defaults_file`.
+        Derived classes should overload the latter."""
         filename = self._get_settings_filename()
         if os.path.isfile(filename):
-            settings_file = open(filename, "rb")
-            try:
-                self.read_defaults_file(settings_file)
-            # Unpickling exceptions can be of any type
-            # pylint: disable=broad-except
-            except Exception as ex:
-                warnings.warn("Could not read defaults for widget {0}\n"
-                              "The following error occurred:\n\n{1}"
-                              .format(self.widget_class, ex))
-            finally:
-                settings_file.close()
+            with open(filename, "rb") as settings_file:
+                try:
+                    self.read_defaults_file(settings_file)
+                # Unpickling exceptions can be of any type
+                except Exception as ex:  # pylint: disable=broad-except
+                    warnings.warn(
+                        "Error reading defaults for "
+                        f"{_cname(self.widget_class)}:\n\n{ex}")
 
-    def read_defaults_file(self, settings_file):
-        """Read (global) defaults for this widget class from a file.
-
-        Parameters
-        ----------
-        settings_file : file-like object
-        """
+    def read_defaults_file(self, settings_file: BinaryIO) -> None:
+        """Read (global) defaults for this widget class from a file."""
         defaults = pickle.load(settings_file)
         self.defaults = {
             key: value
@@ -566,19 +554,15 @@ class SettingsHandler:
         filename = self._get_settings_filename()
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         try:
-            settings_file = open(filename, "wb")
-            try:
+            with open(filename, "wb") as settings_file:
                 self.write_defaults_file(settings_file)
-            except (EOFError, IOError, pickle.PicklingError) as ex:
-                log.error("Could not write default settings for %s (%s).",
-                          self.widget_class, ex)
-                settings_file.close()
-                os.remove(filename)
-            else:
-                settings_file.close()
         except PermissionError as ex:
             log.error("Could not write default settings for %s (%s).",
                       self.widget_class, type(ex).__name__)
+        except (EOFError, IOError, pickle.PicklingError) as ex:
+            log.error("Error writing defaults for %s (%s).",
+                      _cname(self.widget_class), type(ex).__name__)
+            os.remove(filename)
 
     def write_defaults_file(self, settings_file: BinaryIO) -> None:
         """Write defaults for this widget class to a file."""

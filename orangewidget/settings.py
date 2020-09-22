@@ -62,9 +62,9 @@ import warnings
 from enum import IntEnum
 from numbers import Number, Integral
 from operator import itemgetter
-from typing import get_type_hints,\
-    Any, List, Tuple, Dict, Union, BinaryIO,\
-    Type, TypeVar, Callable, Generator, Optional
+from typing import get_type_hints, \
+    Any, List, Tuple, Dict, Union, BinaryIO, \
+    Type, TypeVar, Callable, Generator, Optional, Iterator
 
 from orangewidget.gui import OWComponent
 
@@ -254,22 +254,21 @@ class SettingProvider:
     from/to the instances of the class this provider belongs to.
     """
 
-    def __init__(self, provider_class):
-        """ Construct a new instance of SettingProvider.
+    def __init__(self, provider_class: Type[OWComponent]):
+        """
+        Construct a new instance of SettingProvider.
 
         Traverse provider_class members and store all instances of
         Setting and SettingProvider.
 
-        Parameters
-        ----------
-        provider_class : class
-            class containing settings definitions
+        Args:
+            provider_class (OWComponent): class containing settings definitions
         """
         self.name = ""
         self.provider_class = provider_class
         self.providers: Dict[str, SettingProvider] = {}
         self.settings: Dict[str, Setting] = {}
-        self.initialization_data: Optional[dict] = None
+        self.initialization_data = {}
 
         try:
             type_hints = get_type_hints(provider_class)
@@ -302,65 +301,51 @@ class SettingProvider:
                 value.name = name
                 self.providers[name] = value
 
-    def initialize(self, instance, data=None):
-        """Initialize instance settings to their default values.
+    def initialize(self, component: OWComponent, data: Optional[dict] = None) \
+            -> None:
+        """
+        Initialize instance settings to given data or to defaults.
 
         Mutable values are (shallow) copied before they are assigned to the
         widget. Immutable are used as-is.
 
-        Parameters
-        ----------
-        instance : OWBaseWidget
-            widget instance to initialize
-        data : Optional[dict]
-            optional data used to override the defaults
-            (used when settings are loaded from schema)
+        Args:
+            component (OWComponent): widget or component to initialize
+            data (dict or None): data used to override the defaults
         """
-        if data is None and self.initialization_data is not None:
+        if data is None:
             data = self.initialization_data
 
-        self._initialize_settings(instance, data)
-        self._initialize_providers(instance, data)
-
-    def reset_to_original(self, instance):
-        self._initialize_settings(instance, None)
-        self._initialize_providers(instance, None)
-
-    def _initialize_settings(self, instance, data):
-        if data is None:
-            data = {}
         for name, setting in self.settings.items():
             value = data.get(name, setting.default)
-            if isinstance(value, _IMMUTABLES):
-                setattr(instance, name, value)
-            else:
-                setattr(instance, name, copy.copy(value))
-
-    def _initialize_providers(self, instance, data):
-        if not data:
-            return
+            if not isinstance(value, _IMMUTABLES):
+                value = copy.copy(value)
+            setattr(component, name, value)
 
         for name, provider in self.providers.items():
             if name not in data:
                 continue
 
-            member = getattr(instance, name, None)
+            member = getattr(component, name, None)
             if member is None or isinstance(member, SettingProvider):
                 provider.store_initialization_data(data[name])
             else:
                 provider.initialize(member, data[name])
 
-    def store_initialization_data(self, initialization_data):
-        """Store initialization data for later use.
+    def reset_to_original(self, instance):
+        self.initialize(instance)
+
+    def store_initialization_data(self, initialization_data: dict) -> None:
+        """
+        Store initialization data for later use.
 
         Used when settings handler is initialized, but member for this
-        provider does not exists yet (because handler.initialize is called in
+        provider does not exists yet, because handler.initialize is called in
         __new__, but member will be created in __init__.
 
-        Parameters
-        ----------
-        initialization_data : dict
-            data to be used for initialization when the component is created
+        Args:
+            initialization_data (dict):
+                data for initialization of a new component
         """
         self.initialization_data = initialization_data
 
@@ -428,10 +413,9 @@ class SettingProvider:
         If this provider matches, return it, otherwise pass
         the call to child providers.
 
-        Parameters
-        ----------
-        provider_class : class
-        """
+    def get_provider(self, provider_class: Type[OWComponent]) \
+            -> Union["SettingProvider", None]:
+        """Return provider for the given provider_class."""
         if issubclass(provider_class, self.provider_class):
             return self
 
@@ -441,18 +425,21 @@ class SettingProvider:
                 return provider
         return None
 
-    def traverse_settings(self, data=None, instance=None):
-        """Generator of tuples (setting, data, instance) for each setting
-        in this and child providers..
-
-        Parameters
-        ----------
-        data : dict
-            dictionary with setting values
-        instance : OWBaseWidget
-            instance matching setting_provider
+    def traverse_settings(self,
+                          data: Optional[dict] = None,
+                          instance: Optional[OWComponent] = None) \
+            -> Generator[Tuple[Setting, dict, OWComponent], None, None]:
         """
-        data = data if data is not None else {}
+        Iterate over settings of this component and its child providers.
+
+        Generator returns tuples (setting, data, instance)
+
+        Args:
+            data (dict): dictionary with values for this component and children
+            instance (OWComponent): instance matching setting_provider
+        """
+        if data is None:
+            data = {}
 
         for setting in self.settings.values():
             yield setting, data, instance
@@ -460,9 +447,7 @@ class SettingProvider:
         for provider in self.providers.values():
             data_ = data.get(provider.name, {})
             instance_ = getattr(instance, provider.name, None)
-            for setting, component_data, component_instance in \
-                    provider.traverse_settings(data_, instance_):
-                yield setting, component_data, component_instance
+            yield from provider.traverse_settings(data_, instance_)
 
 
 class SettingsHandler:
@@ -474,26 +459,21 @@ class SettingsHandler:
         Used in class definition. Bound instance will be created
         when SettingsHandler.create is called.
         """
-        self.widget_class = None
-        self.provider = None
-        """:type: SettingProvider"""
+        self.widget_class: Union[Type["OWWidgetBase"], None] = None  #
+        self.provider: Union[SettingProvider, None] = None
         self.defaults = {}
         self.known_settings = {}
 
     @staticmethod
-    def create(widget_class, template=None):
-        """Create a new settings handler based on the template and bind it to
-        widget_class.
+    def create(widget_class: Type["OWWidgetBase"],
+               template: Optional["SettingsHandler"] = None) \
+            -> "SettingsHandler":
+        """
+        Return a new handler based on the template and bound to widget_class.
 
-        Parameters
-        ----------
-        widget_class : class
-        template : SettingsHandler
-            SettingsHandler to copy setup from
-
-        Returns
-        -------
-        SettingsHandler
+        Args:
+            widget_class (WidgetMetaClass): widget class
+            template (SettingsHandler): SettingsHandler to copy setup from
         """
 
         if template is None:
@@ -504,34 +484,27 @@ class SettingsHandler:
         setting_handler.bind(widget_class)
         return setting_handler
 
-    def bind(self, widget_class):
-        """Bind settings handler instance to widget_class.
-
-        Parameters
-        ----------
-        widget_class : class
-        """
+    def bind(self, widget_class: Type["OWWidgetBase"]) -> None:
+        """Bind settings handler instance to widget_class."""
         self.widget_class = widget_class
         self.provider = SettingProvider(widget_class)
         self.known_settings = {}
         self.analyze_settings(self.provider, "")
         self.read_defaults()
 
-    def analyze_settings(self, provider, prefix):
-        """Traverse through all settings known to the provider
-        and analyze each of them.
+    def analyze_settings(self, provider: SettingProvider, prefix: str) -> None:
+        """
+        Analyze settings at and below the provider
 
-        Parameters
-        ----------
-        provider : SettingProvider
-        prefix : str
-            prefix the provider is registered to handle
+        Args:
+            provider (SettingProvider): setting provider
+            prefix (str): prefix (relative to widget) that matches the provider
         """
         for setting in provider.settings.values():
             self.analyze_setting(prefix, setting)
 
         for name, sub_provider in provider.providers.items():
-            new_prefix = '{0}{1}.'.format(prefix or '', name)
+            new_prefix = f"{prefix}{name}."
             self.analyze_settings(sub_provider, new_prefix)
 
     def analyze_setting(self, prefix: str, setting: Setting) -> None:
@@ -585,8 +558,9 @@ class SettingsHandler:
         }
         self._migrate_settings(self.defaults)
 
-    def write_defaults(self):
-        """Write (global) defaults for this widget class to a file.
+    def write_defaults(self) -> None:
+        """
+        Write (global) defaults for this widget class to a file.
         Opens a file and calls :obj:`write_defaults_file`. Derived classes
         should overload the latter."""
         filename = self._get_settings_filename()
@@ -606,36 +580,29 @@ class SettingsHandler:
             log.error("Could not write default settings for %s (%s).",
                       self.widget_class, type(ex).__name__)
 
-    def write_defaults_file(self, settings_file):
-        """Write defaults for this widget class to a file
-
-        Parameters
-        ----------
-        settings_file : file-like object
-        """
+    def write_defaults_file(self, settings_file: BinaryIO) -> None:
+        """Write defaults for this widget class to a file."""
         defaults = dict(self.defaults)
         defaults[VERSION_KEY] = self.widget_class.settings_version
         pickle.dump(defaults, settings_file, protocol=PICKLE_PROTOCOL)
 
-    def _get_settings_filename(self):
+    def _get_settings_filename(self) -> str:
         """Return the name of the file with default settings for the widget"""
+        cls = self.widget_class
         return os.path.join(widget_settings_dir(),
-                            "{0.__module__}.{0.__qualname__}.pickle"
-                            .format(self.widget_class))
+                            f"{cls.__module__}.{cls.__qualname__}.pickle")
 
-    def initialize(self, instance, data=None):
+    def initialize(self,
+                   component: OWComponent,
+                   data: Union[bytes, dict, None] = None) -> None:
         """
-        Initialize widget's settings.
+        Set widget's or compoennt's settings to default
 
-        Replace all instance settings with their default values.
-
-        Parameters
-        ----------
-        instance : OWBaseWidget
-        data : dict or bytes that unpickle into a dict
-            values used to override the defaults
+        Args:
+            widget (OWBaseWidget): widget to initialize
+            data (dict or bytes): data or bytes that unpickle to data
         """
-        provider = self._select_provider(instance)
+        provider = self._select_provider(component)
 
         if isinstance(data, bytes):
             data = pickle.loads(data)
@@ -644,33 +611,35 @@ class SettingsHandler:
         if provider is self.provider:
             data = self._add_defaults(data)
 
-        provider.initialize(instance, data)
+        provider.initialize(component, data)
 
-    def reset_to_original(self, instance):
-        provider = self._select_provider(instance)
-        provider.reset_to_original(instance)
+    def reset_to_original(self, widget: "OWBaseWidget") -> None:
+        provider = self._select_provider(widget)
+        provider.reset_to_original(widget)
 
-    def _migrate_settings(self, settings):
-        """Ask widget to migrate settings to the latest version."""
-        if settings:
-            try:
-                self.widget_class.migrate_settings(
-                    settings, settings.pop(VERSION_KEY, 0))
-            except Exception:  # pylint: disable=broad-except
-                sys.excepthook(*sys.exc_info())
-                settings.clear()
+    def _migrate_settings(self, settings: dict) -> None:
+        """Let widget migrate settings to the latest version."""
+        if not settings:
+            return
 
-    def _select_provider(self, instance):
+        try:
+            self.widget_class.migrate_settings(
+                settings, settings.pop(VERSION_KEY, 0))
+        except Exception:  # pylint: disable=broad-except
+            sys.excepthook(*sys.exc_info())
+            settings.clear()
+
+    def _select_provider(self, instance: "OWBaseWidget") -> SettingProvider:
         provider = self.provider.get_provider(instance.__class__)
         if provider is None:
-            message = "{0} has not been declared as setting provider in {1}. " \
-                      "Settings will not be saved/loaded properly. Defaults will be used instead." \
-                      .format(instance.__class__, self.widget_class)
-            warnings.warn(message)
+            warnings.warn(
+                f"{_cname(instance)} has not been declared as setting provider"
+                f"in {_cname(self.widget_class)}. Settings will not be"
+                f"saved/loaded properly. Defaults will be used instead.")
             provider = SettingProvider(instance.__class__)
         return provider
 
-    def _add_defaults(self, data):
+    def _add_defaults(self, data: Optional[dict] = None) -> dict:
         if data is None:
             return self.defaults
 
@@ -678,13 +647,13 @@ class SettingsHandler:
         new_data.update(data)
         return new_data
 
-    def _prepare_defaults(self, widget):
+    def _prepare_defaults(self, widget: "OWBaseWidget") -> None:
         self.defaults = self.provider.pack(widget)
         for setting, data, _ in self.provider.traverse_settings(data=self.defaults):
             if setting.schema_only:
                 data.pop(setting.name, None)
 
-    def pack_data(self, widget):
+    def pack_data(self, widget: "OWBaseWidget") -> dict:
         """
         Pack the settings for the given widget. This method is used when
         saving schema, so that when the schema is reloaded the widget is
@@ -694,24 +663,16 @@ class SettingsHandler:
 
         Inherited classes add other data, in particular widget-specific
         local contexts.
-
-        Parameters
-        ----------
-        widget : OWBaseWidget
         """
         widget.settingsAboutToBePacked.emit()
         packed_settings = self.provider.pack(widget)
         packed_settings[VERSION_KEY] = self.widget_class.settings_version
         return packed_settings
 
-    def update_defaults(self, widget):
+    def update_defaults(self, widget: "OWBaseWidget") -> None:
         """
         Writes widget instance's settings to class defaults. Called when the
         widget is deleted.
-
-        Parameters
-        ----------
-        widget : OWBaseWidget
         """
         widget.settingsAboutToBePacked.emit()
         self._prepare_defaults(widget)
@@ -732,14 +693,10 @@ class SettingsHandler:
             if not setting.schema_only:
                 setting.default = value
 
-    def reset_settings(self, instance):
-        """Reset widget settings to defaults
-
-        Parameters
-        ----------
-        instance : OWBaseWidget
-        """
-        for setting, _, inst in self.provider.traverse_settings(instance=instance):
+    def reset_settings(self, widget: "OWBaseWidget") -> None:
+        """Reset widget settings to defaults"""
+        for setting, _, inst \
+                in self.provider.traverse_settings(instance=widget):
             if setting.packable:
                 _apply_setting(setting, inst, setting.default)
 
@@ -813,9 +770,8 @@ class ContextHandler(SettingsHandler):
     def __init__(self):
         super().__init__()
         self.global_contexts = []
-        self.known_settings = {}
 
-    def initialize(self, instance, data=None):
+    def initialize(self, instance: "OWBaseWidget", data=None):
         """Initialize the widget: call the inherited initialization and
         add an attribute 'context_settings' to the widget. This method
         does not open a context."""
@@ -827,14 +783,13 @@ class ContextHandler(SettingsHandler):
         else:
             instance.context_settings = []
 
-    def read_defaults_file(self, settings_file):
-        """Call the inherited method, then read global context from the
-           pickle."""
+    def read_defaults_file(self, settings_file: BinaryIO) -> None:
+        """Call the inherited method, then unpickle and migrate contexts"""
         super().read_defaults_file(settings_file)
         self.global_contexts = pickle.load(settings_file)
         self._migrate_contexts(self.global_contexts)
 
-    def _migrate_contexts(self, contexts):
+    def _migrate_contexts(self, contexts: List[Context]) -> None:
         i = 0
         while i < len(contexts):
             context = contexts[i]
@@ -849,20 +804,20 @@ class ContextHandler(SettingsHandler):
             else:
                 i += 1
 
-    def write_defaults_file(self, settings_file):
+    def write_defaults_file(self, settings_file: BinaryIO) -> None:
         """Call the inherited method, then add global context to the pickle."""
         super().write_defaults_file(settings_file)
 
-        def add_version(context):
+        def with_version(context: Context):
             context = copy.copy(context)
             context.values = dict(context.values)
             context.values[VERSION_KEY] = self.widget_class.settings_version
             return context
 
-        pickle.dump([add_version(context) for context in self.global_contexts],
+        pickle.dump([with_version(context) for context in self.global_contexts],
                     settings_file, protocol=PICKLE_PROTOCOL)
 
-    def pack_data(self, widget):
+    def pack_data(self, widget: "OWBaseWidget") -> dict:
         """Call the inherited method, then add local contexts to the dict."""
         data = super().pack_data(widget)
         self.settings_from_widget(widget)
@@ -873,7 +828,7 @@ class ContextHandler(SettingsHandler):
         data["context_settings"] = context_settings
         return data
 
-    def update_defaults(self, widget):
+    def update_defaults(self, widget: "OWBaseWidget"):
         """
         Reimplemented from SettingsHandler
 
@@ -900,11 +855,11 @@ class ContextHandler(SettingsHandler):
         self._prepare_defaults(widget)
         self.write_defaults()
 
-    def new_context(self, *args):
+    def new_context(self, *args) -> Context:
         """Create a new context."""
         return Context()
 
-    def open_context(self, widget, *args):
+    def open_context(self, widget: "OWBaseWidget", *args) -> None:
         """Open a context by finding one and setting the widget data or
         creating one and fill with the data from the widget."""
         widget.current_context, is_new = \
@@ -914,7 +869,7 @@ class ContextHandler(SettingsHandler):
         else:
             self.settings_to_widget(widget, *args)
 
-    def match(self, context, *args):
+    def match(self, context: Context, *args):
         """Return the degree to which the stored `context` matches the data
         passed in additional arguments).
         When match returns 0 (ContextHandler.NO_MATCH), the context will not
@@ -928,20 +883,22 @@ class ContextHandler(SettingsHandler):
         """
         raise NotImplementedError
 
-    def find_or_create_context(self, widget, *args):
+    def find_or_create_context(self, widget: "OWBaseWidget", *args) \
+            -> Tuple[Context, bool]:
         """Find the best matching context or create a new one if nothing
         useful is found. The returned context is moved to or added to the top
         of the context list."""
 
         # First search the contexts that were already used in this widget instance
-        best_context, best_score = self.find_context(widget.context_settings, args, move_up=True)
+        best_context, best_score = self.find_context(
+            widget.context_settings, args, move_up=True)
         # If the exact data was used, reuse the context
         if best_score == self.PERFECT_MATCH:
             return best_context, False
 
         # Otherwise check if a better match is available in global_contexts
-        best_context, best_score = self.find_context(self.global_contexts, args,
-                                                     best_score, best_context)
+        best_context, best_score = self.find_context(
+            self.global_contexts, args, best_score, best_context)
         if best_context:
             context = self.clone_context(best_context, *args)
         else:
@@ -951,9 +908,12 @@ class ContextHandler(SettingsHandler):
         self.add_context(widget.context_settings, context)
         return context, best_context is None
 
-    def find_context(self, known_contexts, args, best_score=0, best_context=None, move_up=False):
-        """Search the given list of contexts and return the context
-         which best matches the given args.
+    def find_context(self, known_contexts: List[Context], args,
+                     best_score=0, best_context: Optional[Context] = None,
+                     move_up=False) -> Tuple[Optional[Context], int]:
+        """
+        Search the given list of contexts and return the context that
+        best matches the given args.
 
         best_score and best_context can be used to provide base_values.
         """
@@ -970,16 +930,16 @@ class ContextHandler(SettingsHandler):
         return best_context, best_score
 
     @staticmethod
-    def move_context_up(contexts, index):
+    def move_context_up(contexts: List[Context], index: int) -> None:
         """Move the context to the top of the list"""
         contexts.insert(0, contexts.pop(index))
 
-    def add_context(self, contexts, setting):
+    def add_context(self, contexts: List[Context], setting: Context):
         """Add the context to the top of the list."""
         contexts.insert(0, setting)
         del contexts[self.MAX_SAVED_CONTEXTS:]
 
-    def clone_context(self, old_context, *args):
+    def clone_context(self, old_context: Context, *args) -> Context:
         """Construct a copy of the context settings suitable for the context
         described by additional arguments. The method is called by
         find_or_create_context with the same arguments. A class that overloads
@@ -997,10 +957,10 @@ class ContextHandler(SettingsHandler):
         return context
 
     @staticmethod
-    def filter_value(setting, data, *args):
+    def filter_value(setting: Context, data: dict, *args) -> None:
         """Remove values related to setting that are invalid given args."""
 
-    def close_context(self, widget):
+    def close_context(self, widget: "OWBaseWidget") -> None:
         """Close the context by calling :obj:`settings_from_widget` to write
         any relevant widget settings to the context."""
         if widget.current_context is None:
@@ -1009,10 +969,8 @@ class ContextHandler(SettingsHandler):
         self.settings_from_widget(widget)
         widget.current_context = None
 
-    def settings_to_widget(self, widget, *args):
-        """Apply context settings stored in currently opened context
-        to the widget.
-        """
+    def settings_to_widget(self, widget: "OWBaseWidget", *args) -> None:
+        """Apply context settings from currently opened context to the widget"""
         context = widget.current_context
         if context is None:
             return
@@ -1026,7 +984,7 @@ class ContextHandler(SettingsHandler):
             value = self.decode_setting(setting, data[setting.name], *args)
             _apply_setting(setting, instance, value)
 
-    def settings_from_widget(self, widget, *args):
+    def settings_from_widget(self, widget: "OWBaseWidget", *args) -> None:
         """Update the current context with the setting values from the widget.
         """
 
@@ -1058,19 +1016,19 @@ class ContextHandler(SettingsHandler):
             super().fast_save(widget, name, value)
 
     @staticmethod
-    def update_packed_data(data, name, value):
+    def update_packed_data(data: dict, name: str, value) -> None:
         """Updates setting value stored in data dict"""
-
         *prefixes, name = name.split('.')
         for prefix in prefixes:
             data = data.setdefault(prefix, {})
         data[name] = value
 
-    def encode_setting(self, context, setting, value):
+    def encode_setting(self,
+                       context: Context, setting: Setting, value: _T) -> _T:
         """Encode value to be stored in settings dict"""
         return copy.copy(value)
 
-    def decode_setting(self, setting, value, *args):
+    def decode_setting(self, setting: Setting, value, *args):
         """Decode settings value from the setting dict format"""
         return value
 
@@ -1103,7 +1061,8 @@ class SettingsPrinter(pprint.PrettyPrinter):
         stream.write(")")
 
 
-def rename_setting(settings, old_name, new_name):
+def rename_setting(settings: Union[Context, dict],
+                   old_name: str, new_name: str) -> None:
     """
     Rename setting from `old_name` to `new_name`. Used in migrations.
 

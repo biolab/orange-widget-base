@@ -349,63 +349,58 @@ class SettingProvider:
         """
         self.initialization_data = initialization_data
 
-    @staticmethod
-    def _default_packer(setting, instance):
-        """A simple packet that yields setting name and value.
-
-        Parameters
-        ----------
-        setting : Setting
-        instance : OWBaseWidget
-        """
+    @classmethod
+    def default_packer(cls,
+                       setting: Setting,
+                       component: OWComponent,
+                       handler: "SettingsHandler") -> Iterator[Tuple[str, Any]]:
+        """Yield setting name and value for packable (= non-context) setting."""
         if setting.packable:
-            if hasattr(instance, setting.name):
-                yield setting.name, getattr(instance, setting.name)
-            else:
-                warnings.warn("{0} is declared as setting on {1} "
-                              "but not present on instance."
-                              .format(setting.name, instance))
+            value = getattr(component, setting.name)
+            handler.check_warn_type(value, setting, component)
+            yield setting.name, value
 
-    def pack(self, instance, packer=None):
-        """Pack instance settings in a name:value dict.
+    PackerType = Callable[[Setting, OWComponent, "SettingsHandler"],
+                          Iterator[Tuple[str, Any]]]
 
-        Parameters
-        ----------
-        instance : OWBaseWidget
-            widget instance
-        packer: callable (Setting, OWBaseWidget) -> Generator[(str, object)]
-            optional packing function
-            it will be called with setting and instance parameters and
-            should yield (name, value) pairs that will be added to the
-            packed_settings.
+    def pack(self, widget: "OWBaseWidget",
+             packer: Optional[PackerType] = None) -> dict:
+        """
+        Pack instance settings in a name:value dict.
+
+        Args:
+            widget (OWBaseWidget): widget instance
         """
         if packer is None:
-            packer = self._default_packer
+            packer = self.default_packer
+        handler = widget.settingsHandler
+        return self._pack_component(widget, handler, packer)
 
-        packed_settings = dict(itertools.chain(
-            *(packer(setting, instance) for setting in self.settings.values())
-        ))
+    def _pack_component(
+            self, component: OWComponent, handler: "SettingsHandler",
+            packer: PackerType) -> dict:
 
-        packed_settings.update({
-            name: provider.pack(getattr(instance, name), packer)
-            for name, provider in self.providers.items()
-            if hasattr(instance, name)
-        })
+        packed_settings = {}
+        comp_name = _cname(component)
+        for setting in self.settings.values():
+            for name, value in packer(setting, component, handler):
+                packed_settings[setting.name] = value
+
+        for name, provider in self.providers.items():
+            if not hasattr(component, name):
+                warnings.warn(f"{name} is declared as setting provider "
+                              f"on {comp_name}, but not present on instance.")
+                continue
+            instance = getattr(component, name)
+            packed_settings[name] = \
+                provider._pack_component(instance, handler, packer)
         return packed_settings
 
-    def unpack(self, instance, data):
-        """Restore settings from data to the instance.
-
-        Parameters
-        ----------
-        instance : OWBaseWidget
-            instance to restore settings to
-        data : dict
-            packed data
-        """
-        for setting, _data, inst in self.traverse_settings(data, instance):
-            if setting.name in _data and inst is not None:
-                _apply_setting(setting, inst, _data[setting.name])
+    def unpack(self, widget: "OWBaseWidget", packed_data: dict) -> None:
+        """Restore settings from packed_data to widget instance."""
+        for setting, data_, inst in self.traverse_settings(packed_data, widget):
+            if setting.name in data_ and inst is not None:
+                _apply_setting(setting, inst, data_[setting.name])
 
     def get_provider(self, provider_class: Type[OWComponent]) \
             -> Union["SettingProvider", None]:
@@ -671,12 +666,15 @@ class SettingsHandler:
 
     @classmethod
     def is_allowed_type(cls, tp) -> bool:
-        if tp in (str, bool, bytes, IntEnum, float, int):
+        if tp in (str, bool, bytes, float, int):
             return True
-        if isinstance(tp, tuple):
-            # If it's tuple, it must be a NamedTuple
-            args = getattr(tp, "__annotations__", None)
-            return args is not None and all(map(cls.is_allowed_type, args))
+        if isinstance(tp, type):
+            if issubclass(tp, IntEnum):
+                return True
+            if isinstance(tp, tuple):
+                # If it's tuple, it must be a NamedTuple of allowed types
+                args = getattr(tp, "__annotations__", None)
+                return args is not None and all(map(cls.is_allowed_type, args))
 
         if not hasattr(tp, "__origin__"):
             return False
@@ -689,6 +687,89 @@ class SettingsHandler:
         if orig is dict:
             return args[0] in (str, bool, int, float) \
                    and cls.is_allowed_type(args[1])
+
+    @classmethod
+    def check_type(cls, value, tp) -> bool:
+        # To do: This would be much more elegant if singledispatchmethod
+        # (backported from Python 3.8) worked with classmethods.
+        # It should, but the example from Python documentation crashes
+        # (https://bugs.python.org/issue39679)
+        if value is None:
+            return tp is type(None) \
+                   or isinstance(tp, Setting) and tp.nullable \
+                   or get_origin(tp) is Union and type(None) in tp.__args__
+
+        if isinstance(tp, Setting):
+            tp = tp.type
+
+        if not cls.is_allowed_type(tp):
+            # We take no responsibility for invalid types
+            return True
+
+        # Simple types
+        if tp in (str, bytes, IntEnum):
+            return isinstance(value, tp)
+
+        # Numeric types that can be safely converted
+        if tp is int:
+            return isinstance(value, Integral)
+        if tp is float:
+            return isinstance(value, Number)
+        if tp is bool:
+            # (0, 1) also covers False and True
+            return value in (0, 1) and not isinstance(value, float)
+
+        # Named tuple: a tuple with annotations
+        if isinstance(tp, type):
+            if issubclass(tp, tuple):
+                assert hasattr(tp, "__annotations__")
+                return isinstance(value, tp) \
+                    and all(isinstance(x, tp_)
+                            for x, tp_ in zip(value, tp.__annotations__.values())
+                            )
+            return isinstance(value, tp)
+
+        # Common type check for generic classes
+        if not isinstance(value, tp.__origin__):
+            return False
+
+        orig, args = tp.__origin__, tp.__args__
+        # set, list and tuple of homogenous type with variable length
+        if orig in (set, list) \
+                or orig is tuple and len(args) == 2 and args[1] is ...:
+            tp1 = args[0]
+            return all(cls.check_type(x, tp1) for x in value)
+        # tuple with fixed length and types
+        if orig is tuple:
+            return len(value) == len(args) \
+                   and all(cls.check_type(x, tp1)
+                           for x, tp1 in zip(value, args))
+        # dicts
+        if orig is dict:
+            keytype, valuetype = args
+            return all(isinstance(k, keytype) and cls.check_type(v, valuetype)
+                       for k, v in value.items())
+
+    @classmethod
+    def check_warn_type(cls, value,
+                        setting: Setting,
+                        component: OWComponent) -> None:
+        if value is None:
+            if not setting.nullable:
+                warnings.warn(
+                    f"a non-nullable {_cname(component)}.{setting.name} is None"
+                )
+        elif not cls.check_type(value, setting.type):
+            sname = f"{_cname(component)}.{setting.name}"
+            if isinstance(setting.type, type):
+                decl = _cname(setting.type)
+            else:
+                decl = str(setting.type).replace("typing.", "")
+            act = repr(value)
+            if len(act) > 30:
+                act = act[:30] + " (...)"
+            warnings.warn(
+                f"setting {sname} is declared as {decl} but contains {act}")
 
 
 class ContextSetting(Setting):
@@ -963,9 +1044,11 @@ class ContextHandler(SettingsHandler):
 
         widget.storeSpecificSettings()
 
-        def packer(setting, instance):
-            if isinstance(setting, ContextSetting) and hasattr(instance, setting.name):
-                value = getattr(instance, setting.name)
+        def packer(setting, component, handler):
+            if isinstance(setting, ContextSetting) \
+                    and hasattr(component, setting.name):
+                value = getattr(component, setting.name)
+                handler.check_warn_type(value, setting, component)
                 yield setting.name, self.encode_setting(context, setting, value)
 
         context.values = self.provider.pack(widget, packer=packer)

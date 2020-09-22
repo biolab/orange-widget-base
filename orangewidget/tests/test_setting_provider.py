@@ -1,5 +1,10 @@
 import unittest
-from orangewidget.settings import Setting, SettingProvider
+import warnings
+from collections import namedtuple
+from enum import IntEnum
+from unittest.mock import Mock
+
+from orangewidget.settings import Setting, SettingProvider, _apply_setting
 
 SHOW_ZOOM_TOOLBAR = "show_zoom_toolbar"
 SHOW_GRAPH = "show_graph"

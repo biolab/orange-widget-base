@@ -23,6 +23,7 @@ class SimpleWidget(QObject):
 
     setting = Setting(42)
     schema_only_setting = Setting(None, schema_only=True)
+    settingsHandler = ContextHandler()
 
     context_setting = ContextSetting(42)
     schema_only_context_setting = ContextSetting(None, schema_only=True)

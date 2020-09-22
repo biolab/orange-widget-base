@@ -14,6 +14,13 @@ A_SET = "a_set"
 A_DICT = "a_dict"
 
 
+class SortBy(IntEnum):
+    NO_SORTING, INCREASING, DECREASING = range(3)
+
+
+coords = namedtuple("coords", ("x", "y"))
+
+
 class SettingProviderTestCase(unittest.TestCase):
     def setUp(self):
         global default_provider
@@ -265,6 +272,34 @@ class SettingProviderTestCase(unittest.TestCase):
             }
         )
 
+    def test_settings_detect_types(self):
+        class Widget:
+            a_bool = Setting(True)
+            a_list = Setting([])
+            a_dict: dict = Setting(None)
+            sorting = Setting(SortBy.INCREASING)
+            sorting2: SortBy = Setting(None)
+            xy = Setting(coords(0, 0))
+            xy2: coords = Setting(None)
+
+        provider = SettingProvider(Widget)
+        self.assertIs(provider.settings["a_bool"].type, bool)
+        self.assertIs(provider.settings["a_list"].type, list)
+        self.assertIs(provider.settings["a_dict"].type, dict)
+        self.assertIs(provider.settings["sorting"].type, SortBy)
+        self.assertIs(provider.settings["sorting2"].type, SortBy)
+        self.assertIs(provider.settings["xy"].type, coords)
+        self.assertIs(provider.settings["xy2"].type, coords)
+
+
+        with self.assertWarns(UserWarning):
+            class Widget2(OWBaseWidget):
+                name = "foo"
+                an_unknown = Setting(None)
+
+        self.assertIsNone(
+            Widget2.settingsHandler.provider.settings["an_unknown"].type)
+
     def assertDefaultSettingsEqual(self, provider, defaults):
         for name, value in defaults.items():
             if isinstance(value, dict):
@@ -272,6 +307,107 @@ class SettingProviderTestCase(unittest.TestCase):
                 self.assertDefaultSettingsEqual(provider.providers[name], value)
             else:
                 self.assertEqual(provider.settings[name].default, value)
+
+
+class TestUtils(unittest.TestCase):
+    def test_apply_settings_typed(self):
+        inst = Mock()
+
+        _apply_setting(Setting(2, name="a"), inst, 5)
+        self.assertEqual(inst.a, 5)
+
+        _apply_setting(Setting(None, name="c"), inst, [1, 2, 3])
+        self.assertEqual(inst.c, [1, 2, 3])
+
+        _apply_setting(Setting(SortBy.NO_SORTING, name="d"), inst, 1)
+        self.assertEqual(inst.d, SortBy.INCREASING)
+        self.assertIsInstance(inst.d, SortBy)
+
+        _apply_setting(Setting(SortBy.NO_SORTING, name="d"),
+                       inst, SortBy.DECREASING)
+        self.assertEqual(inst.d, SortBy.DECREASING)
+        self.assertIsInstance(inst.d, SortBy)
+
+        _apply_setting(Setting(coords(0, 0), name="e"), inst, (1, 1))
+        self.assertEqual(inst.e, coords(1, 1))
+        self.assertIsInstance(inst.e, coords)
+
+        _apply_setting(Setting(coords(0, 0), name="e"), inst, (3, 3))
+        self.assertEqual(inst.e, coords(3, 3))
+        self.assertIsInstance(inst.e, coords)
+
+    def test_apply_settings_type_warnings(self):
+        inst = Mock()
+
+        # Warn about wrong type, but set it, don't interfere
+        with self.assertWarns(UserWarning):
+            _apply_setting(Setting(2, name="a"), inst, 5.4)
+        self.assertEqual(inst.a, 5.4)
+
+        with warnings.catch_warnings() as w:
+            warnings.simplefilter("always")
+
+            _apply_setting(Setting(2, name="b"), inst, None)
+            self.assertIsNone(inst.b)
+            self.assertFalse(w)  # currently None, but could be []?
+
+            _apply_setting(Setting(SortBy.NO_SORTING, name="c"), inst, None)
+            self.assertIsNone(inst.c)
+            self.assertFalse(w)
+
+            _apply_setting(Setting(coords(0, 0), name="d"), inst, None)
+            self.assertIsNone(inst.d)
+            self.assertFalse(w)
+
+            _apply_setting(Setting([], name="f"), inst, None)
+            self.assertIsNone(inst.f)
+            self.assertFalse(w)
+
+    def test_packer_with_types(self):
+        class Widget:
+            an_int = Setting(42)
+            a_float = Setting(3.14)
+            a_list = Setting([])
+            a_dict = Setting(None)
+            sorting = Setting(SortBy.INCREASING)
+            xy = Setting(coords(0, 0))
+
+        class MyFloat(float):
+            pass
+
+        class MyInt(int):
+            pass
+
+        # Provider will complain about unknown setting type. We need such
+        # a setting for testing.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            provider = SettingProvider(Widget)
+
+        w = Widget()
+        w.an_int = MyInt(13)
+        w.a_float = MyFloat(2.5)
+        w.a_list = [1, 2, 3]
+        w.a_dict = {1: 2}
+        w.sorting = SortBy.DECREASING
+        w.xy = coords(1, 2)
+
+        packed = provider.pack(w)
+        self.assertEqual(packed["an_int"], 13)
+        self.assertIs(type(packed["an_int"]), int)
+        self.assertEqual(packed["a_float"], 2.5)
+        self.assertIs(type(packed["a_float"]), float)
+        self.assertEqual(packed["a_list"], [1, 2, 3])
+        self.assertEqual(packed["a_dict"], {1: 2})
+        self.assertEqual(packed["sorting"], int(SortBy.DECREASING))
+        self.assertIs(type(packed["sorting"]), int)
+        self.assertEqual(packed["xy"], (1, 2))
+        self.assertIs(type(packed["xy"]), tuple)
+
+        w.sorting = "joe"
+        with self.assertWarns(UserWarning):
+            packed = provider.pack(w)
+        self.assertEqual(packed["sorting"], "joe")
 
 
 def initialize_settings(instance):

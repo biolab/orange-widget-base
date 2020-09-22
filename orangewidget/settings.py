@@ -6,6 +6,26 @@ serialized and stored. When a new widget is created, values of attributes
 marked as settings are read from disk. When schema is loaded, attribute values
 are set to one stored in schema.
 
+Allowed setting types are
+- str
+- bool
+- int (Integral values are converted to int when saving and kept int at load)
+- float (Number values are converted to float when saving and kept int at load)
+- bytes (implicitly b64encoded/decoded),
+- IntEnum (implicitly encoded/decoded as int),
+
+and the following generics, whose elements must be one of allowed types
+- List
+- Dict (keys must not be generics; values can be any allowed type)
+- Set (converted to list and back)
+- NamedTuple (implicitly converted to tuple and back)
+- Tuple (converted to list and back)
+
+Derived setting handlers may add additional types if the provide proper
+conversion.
+
+Unsupported types result in non-JSON-able settings and raise warnings - at best.
+
 Each widget has its own SettingsHandler that takes care of serializing and
 storing of settings and SettingProvider that is incharge of reading and
 writing the setting values.
@@ -29,16 +49,22 @@ so they can be used alter. It should be called before widget starts modifying
 (initializing) the value of the setting attributes.
 """
 
+# TODO: When we only support Python >= 3.8, replace __origin__ and __args__
+#       with get_origin and get_args
+import base64
 import sys
 import copy
-import itertools
 import os
 import logging
 import pickle
 import pprint
 import warnings
+from enum import IntEnum
+from numbers import Number, Integral
 from operator import itemgetter
-from typing import Any, Optional, Tuple
+from typing import get_type_hints,\
+    Any, List, Tuple, Dict, Union, BinaryIO,\
+    Type, TypeVar, Callable, Generator, Optional
 
 from orangewidget.gui import OWComponent
 
@@ -59,6 +85,14 @@ PICKLE_PROTOCOL = 4
 
 
 __WIDGET_SETTINGS_DIR = None  # type: Optional[Tuple[str, str]]
+
+_T = TypeVar("_T")
+
+
+def _cname(obj: Any) -> str:
+    if not isinstance(obj, type):
+        obj = type(obj)
+    return obj.__name__
 
 
 def set_widget_settings_dir_components(basedir: str, versionstr: str) -> None:
@@ -139,6 +173,9 @@ class Setting:
     # Setting is only persisted to schema (default value does not change)
     schema_only = False
 
+    # Setting can be None
+    nullable = False
+
     def __new__(cls, default, *args, **kwargs):
         """A misleading docstring for providing type hints for Settings
 
@@ -150,10 +187,17 @@ class Setting:
     def __init__(self, default, **data):
         self.name = None  # Name gets set in widget's meta class
         self.default = default
+        if default is None:
+            self.nullable = True  # if default is None, assume this is OK
+            self.type = None
+        else:
+            self.type = type(default)
         self.__dict__.update(data)
 
     def __str__(self):
-        return '{0} "{1}"'.format(self.__class__.__name__, self.name)
+        if self.name is None:
+            return "Unbound {_cname(self)}"
+        return f'{_cname(self)} "{self.name}"'
 
     __repr__ = __str__
 
@@ -162,6 +206,7 @@ class Setting:
 
 
 # Pylint ignores type annotations in assignments. For
+# TODO: Check whether this is still the case; if not, remove this hack
 #
 #    x: int = Setting(0)
 #
@@ -222,17 +267,35 @@ class SettingProvider:
         """
         self.name = ""
         self.provider_class = provider_class
-        self.providers = {}
-        """:type: dict[str, SettingProvider]"""
-        self.settings = {}
-        """:type: dict[str, Setting]"""
-        self.initialization_data = None
+        self.providers: Dict[str, SettingProvider] = {}
+        self.settings: Dict[str, Setting] = {}
+        self.initialization_data: Optional[dict] = None
+
+        try:
+            type_hints = get_type_hints(provider_class)
+        except Exception as exc:
+            type_hints = None
+            warnings.warn(
+                f"{_cname(provider_class)} has invalid annotations: {exc}")
+
+        def set_type():
+            if type_hints is None:
+                return
+            # type hint has precedence over type deduced from default value
+            # (but if they mismatch, we will complain later, at packing)
+            value.type = type_hints.get(name, value.type)
+            if getattr(value.type, "__origin__", None) is Union:
+                args = value.type.__args__
+                if len(args) == 2 and args[1] is type(None):
+                    value.type = args[0]
+                    value.nullable = True
 
         for name in dir(provider_class):
             value = getattr(provider_class, name, None)
             if isinstance(value, Setting):
                 value = copy.deepcopy(value)
                 value.name = name
+                set_type()
                 self.settings[name] = value
             if isinstance(value, SettingProvider):
                 value = copy.deepcopy(value)
@@ -471,14 +534,22 @@ class SettingsHandler:
             new_prefix = '{0}{1}.'.format(prefix or '', name)
             self.analyze_settings(sub_provider, new_prefix)
 
-    def analyze_setting(self, prefix, setting):
-        """Perform any initialization task related to setting.
+    def analyze_setting(self, prefix: str, setting: Setting) -> None:
+        """Perform any initialization tasks related to setting."""
+        sname = prefix + setting.name
+        tname = _cname(setting.type)
+        if setting.type is None:
+            warnings.warn(f"type for setting '{sname}' is unknown; "
+                          f"annotate it.")
+        elif setting.type in (list, tuple, dict, set):
+            warnings.warn(f"type for items of {tname} '{sname}' is unknown; "
+                          f"annotated it with {tname.title()}[<type>]")
+            setting.type = None
+        elif not self.is_allowed_type(setting.type):
+            warnings.warn(f"type of setting '{sname}' ({tname}) is unsupported "
+                          f"by {_cname(self)}")
+            setting.type = None
 
-        Parameters
-        ----------
-        prefix : str
-        setting : Setting
-        """
         self.known_settings[prefix + setting.name] = setting
 
     def read_defaults(self):
@@ -671,6 +742,27 @@ class SettingsHandler:
         for setting, _, inst in self.provider.traverse_settings(instance=instance):
             if setting.packable:
                 _apply_setting(setting, inst, setting.default)
+
+    @classmethod
+    def is_allowed_type(cls, tp) -> bool:
+        if tp in (str, bool, bytes, IntEnum, float, int):
+            return True
+        if isinstance(tp, tuple):
+            # If it's tuple, it must be a NamedTuple
+            args = getattr(tp, "__annotations__", None)
+            return args is not None and all(map(cls.is_allowed_type, args))
+
+        if not hasattr(tp, "__origin__"):
+            return False
+        orig, args = tp.__origin__, tp.__args__
+        if orig in (list, set) \
+                or orig is tuple and len(args) == 2 and args[1] is ...:
+            return cls.is_allowed_type(args[0])
+        if orig is tuple:
+            return all(map(cls.is_allowed_type, args))
+        if orig is dict:
+            return args[0] in (str, bool, int, float) \
+                   and cls.is_allowed_type(args[1])
 
 
 class ContextSetting(Setting):

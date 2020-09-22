@@ -1,6 +1,8 @@
 # pylint: disable=protected-access
+from collections import namedtuple
 import os
 import pickle
+from enum import IntEnum
 from tempfile import mkstemp, NamedTemporaryFile
 
 import unittest
@@ -336,6 +338,28 @@ class SettingHandlerTestCase(unittest.TestCase):
         handler.update_defaults(widget)
         self.assertEqual(2, fn.call_count)
 
+    def test_warns_against_unsupported_types(self):
+        class Widget:
+            func = Setting(abs)
+        handler = SettingsHandler()
+        with self.assertWarns(UserWarning):
+            bound = handler.create(Widget)
+        self.assertEqual(bound.known_settings["func"].default, abs)
+
+        class SortBy(IntEnum):
+            NO_SORTING, INCREASING, DECREASING = range(3)
+
+        coords = namedtuple("coords", ("x", "y"))
+
+        class Widget2:
+            sorting = Setting(SortBy.DECREASING)
+            xy = coords(0, 0)
+
+        with warnings.catch_warnings() as w:
+            warnings.simplefilter("always")
+            handler.create(Widget2)
+            self.assertFalse(w)
+
 
 class Component:
     int_setting = Setting(42)
@@ -345,6 +369,7 @@ class Component:
 class SimpleWidget(QObject):
     settings_version = 1
 
+    settingsHandler = SettingsHandler()
     setting = Setting(42)
     schema_only_setting = Setting(None, schema_only=True)
     list_setting = Setting([])

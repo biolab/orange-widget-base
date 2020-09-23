@@ -158,25 +158,6 @@ class SettingHandlerTestCase(WidgetTest):
         handler.initialize(widget, pickle.dumps({'setting': 5}))
         provider.initialize.assert_called_once_with(widget, {'setting': 5})
 
-    @patch('orangewidget.settings.SettingProvider', create=True)
-    def test_initialize_with_no_provider(self, SettingProvider):
-        """:type SettingProvider: unittest.mock.Mock"""
-        handler = SettingsHandler()
-        handler.provider = Mock(get_provider=Mock(return_value=None))
-        handler.widget_class = SimpleWidget
-        provider = Mock()
-        SettingProvider.return_value = provider
-        widget = SimpleWidget()
-
-        # initializing an undeclared provider should display a warning
-        with warnings.catch_warnings(record=True) as w:
-            handler.initialize(widget)
-
-            self.assertEqual(1, len(w))
-
-        SettingProvider.assert_called_once_with(SimpleWidget)
-        provider.initialize.assert_called_once_with(widget, None)
-
     def test_schema_only_settings(self):
         handler = SettingsHandler()
         with override_default_settings(SimpleWidget):

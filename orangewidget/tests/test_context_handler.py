@@ -242,18 +242,18 @@ class TestContextHandler(TestCase):
         widget.context_settings.append(context)
 
         # update_defaults should not update defaults
-        widget.schema_only_context_setting = 5
+        widget.schema_only_context_setting = "foo"
         handler.update_defaults(widget)
         self.assertEqual(
             handler.known_settings['schema_only_context_setting'].default, None)
-        widget.component.schema_only_setting = 5
+        widget.component.schema_only_setting = "foo"
         self.assertEqual(
             handler.known_settings['component.schema_only_context_setting'].default, "only")
 
         # close_context should pack setting
-        widget.schema_only_context_setting = 5
-        widget.component.context_setting = 5
-        widget.component.schema_only_context_setting = 5
+        widget.schema_only_context_setting = "foo"
+        widget.component.context_setting = "foo"
+        widget.component.schema_only_context_setting = "foo"
         handler.close_context(widget)
         global_values = handler.global_contexts[0].values
         self.assertTrue('context_setting' in global_values)

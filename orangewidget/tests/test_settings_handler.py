@@ -6,17 +6,20 @@ from enum import IntEnum
 from tempfile import mkstemp, NamedTemporaryFile
 
 import unittest
+from typing import List
 from unittest.mock import patch, Mock
 import warnings
 
-from AnyQt.QtCore import pyqtSignal as Signal, QObject
+from AnyQt.QtCore import pyqtSignal as Signal
 
-from orangewidget.tests.base import named_file, override_default_settings
+from orangewidget.tests.base import named_file, override_default_settings, \
+    WidgetTest
 from orangewidget.settings import SettingsHandler, Setting, SettingProvider,\
     VERSION_KEY, rename_setting, Context
+from orangewidget.widget import OWBaseWidget
 
 
-class SettingHandlerTestCase(unittest.TestCase):
+class SettingHandlerTestCase(WidgetTest):
     @patch('orangewidget.settings.SettingProvider', create=True)
     def test_create(self, SettingProvider):
         """:type SettingProvider: unittest.mock.Mock"""
@@ -186,16 +189,16 @@ class SettingHandlerTestCase(unittest.TestCase):
         handler.update_defaults(widget)
         self.assertEqual(
             handler.known_settings['schema_only_setting'].default, None)
-        widget.component.schema_only_setting = 5
+        widget.component.schema_only_setting = "foo"
         self.assertEqual(
             handler.known_settings['component.schema_only_setting'].default, "only")
 
         # pack_data should pack setting
         widget.schema_only_setting = 5
-        widget.component.schema_only_setting = 5
+        widget.component.schema_only_setting = "foo"
         data = handler.pack_data(widget)
         self.assertEqual(data['schema_only_setting'], 5)
-        self.assertEqual(data['component']['schema_only_setting'], 5)
+        self.assertEqual(data['component']['schema_only_setting'], "foo")
 
     def test_read_defaults_migrates_settings(self):
         handler = SettingsHandler()
@@ -263,10 +266,8 @@ class SettingHandlerTestCase(unittest.TestCase):
         self.assertNotEqual(id(widget.list_setting), id(widget2.list_setting))
 
     def test_about_pack_settings_signal(self):
-        handler = SettingsHandler()
-        handler.bind(SimpleWidget)
         widget = SimpleWidget()
-        handler.initialize(widget)
+        handler = widget.settingsHandler
         fn = Mock()
         widget.settingsAboutToBePacked.connect(fn)
         handler.pack_data(widget)
@@ -302,13 +303,13 @@ class Component:
     schema_only_setting = Setting("only", schema_only=True)
 
 
-class SimpleWidget(QObject):
+class SimpleWidget(OWBaseWidget, openclass=True):
+    name = "Simple widget"
     settings_version = 1
 
-    settingsHandler = SettingsHandler()
     setting = Setting(42)
-    schema_only_setting = Setting(None, schema_only=True)
-    list_setting = Setting([])
+    schema_only_setting: int = Setting(None, schema_only=True)
+    list_setting: List[int] = Setting([])
     non_setting = 5
 
     component = SettingProvider(Component)

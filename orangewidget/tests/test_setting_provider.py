@@ -2,6 +2,7 @@ import unittest
 import warnings
 from collections import namedtuple
 from enum import IntEnum
+from typing import Dict, List, Set
 from unittest.mock import Mock
 
 from orangewidget.settings import Setting, SettingProvider, _apply_setting
@@ -281,7 +282,7 @@ class SettingProviderTestCase(unittest.TestCase):
         class Widget:
             a_bool = Setting(True)
             a_list = Setting([])
-            a_dict: dict = Setting(None)
+            a_dict: Dict[str, int] = Setting(None)
             sorting = Setting(SortBy.INCREASING)
             sorting2: SortBy = Setting(None)
             xy = Setting(coords(0, 0))
@@ -290,7 +291,7 @@ class SettingProviderTestCase(unittest.TestCase):
         provider = SettingProvider(Widget)
         self.assertIs(provider.settings["a_bool"].type, bool)
         self.assertIs(provider.settings["a_list"].type, list)
-        self.assertIs(provider.settings["a_dict"].type, dict)
+        self.assertIs(provider.settings["a_dict"].type.__origin__, dict)
         self.assertIs(provider.settings["sorting"].type, SortBy)
         self.assertIs(provider.settings["sorting2"].type, SortBy)
         self.assertIs(provider.settings["xy"].type, coords)
@@ -349,23 +350,16 @@ class TestUtils(unittest.TestCase):
             _apply_setting(Setting(2, name="a"), inst, 5.4)
         self.assertEqual(inst.a, 5.4)
 
+        # Warn about non-nullable set to None, but don't interfere
+        with self.assertWarns(UserWarning):
+            _apply_setting(Setting(2, name="b"), inst, None)
+            self.assertIsNone(inst.b)
+
         with warnings.catch_warnings() as w:
             warnings.simplefilter("always")
 
-            _apply_setting(Setting(2, name="b"), inst, None)
+            _apply_setting(Setting(2, name="b", nullable=True), inst, None)
             self.assertIsNone(inst.b)
-            self.assertFalse(w)  # currently None, but could be []?
-
-            _apply_setting(Setting(SortBy.NO_SORTING, name="c"), inst, None)
-            self.assertIsNone(inst.c)
-            self.assertFalse(w)
-
-            _apply_setting(Setting(coords(0, 0), name="d"), inst, None)
-            self.assertIsNone(inst.d)
-            self.assertFalse(w)
-
-            _apply_setting(Setting([], name="f"), inst, None)
-            self.assertIsNone(inst.f)
             self.assertFalse(w)
 
     def test_packer_with_types(self):
@@ -435,13 +429,9 @@ class BaseGraph:
 class Graph(BaseGraph):
     show_x_axis = Setting(True)
     show_y_axis = Setting(True)
-    a_list = Setting([])
-    a_set = Setting({1, 2, 3})
-    a_dict = Setting({1: 2, 3: 4})
-
-    def __init__(self):
-        super().__init__()
-        initialize_settings(self)
+    a_list: List[int] = Setting([])
+    a_set: Set[int] = Setting({1, 2, 3})
+    a_dict: Dict[int, int] = Setting({1: 2, 3: 4})
 
 
 class ExtendedGraph(Graph):

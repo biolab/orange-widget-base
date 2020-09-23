@@ -224,27 +224,6 @@ if 1 == 0:
         pass
 
 
-def _apply_setting(setting: Setting, instance: OWComponent, value: Any):
-    """
-    Set `setting` of widget `instance` to the given `value`, in place if
-    possible.
-
-    If old and new values are of the same type, and the type is either a list
-    or has methods `clear` and `update`, setting is updated in place. Otherwise
-    the function calls `setattr`.
-    """
-    target = getattr(instance, setting.name, None)
-    if type(target) is type(value):
-        if isinstance(value, list):
-            target[:] = value
-            return
-        elif hasattr(value, "clear") and hasattr(value, "update"):
-            target.clear()
-            target.update(value)
-            return
-    setattr(instance, setting.name, value)
-
-
 class SettingProvider:
     """A hierarchical structure keeping track of settings belonging to
     a class and child setting providers.
@@ -398,9 +377,10 @@ class SettingProvider:
 
     def unpack(self, widget: "OWBaseWidget", packed_data: dict) -> None:
         """Restore settings from packed_data to widget instance."""
+        handler = widget.settingsHandler
         for setting, data_, inst in self.traverse_settings(packed_data, widget):
             if setting.name in data_ and inst is not None:
-                _apply_setting(setting, inst, data_[setting.name])
+                handler._apply_setting(setting, inst, data_[setting.name])
 
     def get_provider(self, provider_class: Type[OWComponent]) \
             -> Union["SettingProvider", None]:
@@ -662,7 +642,31 @@ class SettingsHandler:
         for setting, _, inst \
                 in self.provider.traverse_settings(instance=widget):
             if setting.packable:
-                _apply_setting(setting, inst, setting.default)
+                self._apply_setting(setting, inst, setting.default)
+
+    @classmethod
+    def _apply_setting(cls,
+                       setting: Setting, instance: OWComponent, value: Any
+                       ) -> None:
+        """
+        Set `setting` of widget `instance` to the given `value`, in place if
+        possible.
+
+        If old and new values are of the same type, and the type is either a list
+        or has methods `clear` and `update`, setting is updated in place. Otherwise
+        the function calls `setattr`.
+        """
+        cls.check_warn_type(value, setting, instance)
+        target = getattr(instance, setting.name, None)
+        if type(target) is type(value):
+            if isinstance(value, list):
+                target[:] = value
+                return
+            elif hasattr(value, "clear") and hasattr(value, "update"):
+                target.clear()
+                target.update(value)
+                return
+        setattr(instance, setting.name, value)
 
     @classmethod
     def is_allowed_type(cls, tp) -> bool:
@@ -1032,7 +1036,7 @@ class ContextHandler(SettingsHandler):
             if not isinstance(setting, ContextSetting) or setting.name not in data:
                 continue
             value = self.decode_setting(setting, data[setting.name], *args)
-            _apply_setting(setting, instance, value)
+            self._apply_setting(setting, instance, value)
 
     def settings_from_widget(self, widget: "OWBaseWidget", *args) -> None:
         """Update the current context with the setting values from the widget.
@@ -1110,3 +1114,6 @@ def rename_setting(settings: Union[Context, dict],
         rename_setting(settings.values, old_name, new_name)
     else:
         settings[new_name] = settings.pop(old_name)
+
+
+_apply_setting = SettingsHandler._apply_setting  # backward compatibility

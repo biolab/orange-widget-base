@@ -16,7 +16,7 @@ from orangewidget.tests.base import named_file, override_default_settings, \
     WidgetTest
 from orangewidget.settings import SettingsHandler, Setting, SettingProvider,\
     VERSION_KEY, rename_setting, Context
-from orangewidget.widget import OWBaseWidget
+from orangewidget.widget import OWBaseWidget, OWComponent
 
 
 class SettingHandlerTestCase(WidgetTest):
@@ -279,7 +279,7 @@ class SettingHandlerTestCase(WidgetTest):
             self.assertFalse(w)
 
 
-class Component:
+class Component(OWComponent):
     int_setting = Setting(42)
     schema_only_setting = Setting("only", schema_only=True)
 
@@ -298,7 +298,7 @@ class SimpleWidget(OWBaseWidget, openclass=True):
 
     def __init__(self):
         super().__init__()
-        self.component = Component()
+        self.component = Component(self)
 
     migrate_settings = Mock()
     migrate_context = Mock()

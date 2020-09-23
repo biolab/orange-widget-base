@@ -2,31 +2,36 @@ import pickle
 from copy import copy, deepcopy
 from io import BytesIO
 from unittest import TestCase
+from typing import Optional
 from unittest.mock import Mock, patch, call
-from AnyQt.QtCore import pyqtSignal as Signal, QObject
+from AnyQt.QtCore import pyqtSignal as Signal
+
 from orangewidget.settings import (
     ContextHandler, ContextSetting, Context, Setting, SettingsPrinter,
-    VERSION_KEY, IncompatibleContext, SettingProvider)
-from orangewidget.tests.base import override_default_settings
+    OWComponent, VERSION_KEY, IncompatibleContext, SettingProvider)
+from orangewidget.tests.base import override_default_settings, WidgetTest
+from orangewidget.widget import OWBaseWidget
 
 __author__ = 'anze'
 
 
-class Component:
+class Component(OWComponent):
     int_setting = Setting(42)
     context_setting = ContextSetting("global")
     schema_only_context_setting = ContextSetting("only", schema_only=True)
 
 
-class SimpleWidget(QObject):
+class SimpleWidget(OWBaseWidget):
+    name = "foo"
+
     settings_version = 1
 
     setting = Setting(42)
-    schema_only_setting = Setting(None, schema_only=True)
+    schema_only_setting: Optional[int] = Setting(None, schema_only=True)
     settingsHandler = ContextHandler()
 
     context_setting = ContextSetting(42)
-    schema_only_context_setting = ContextSetting(None, schema_only=True)
+    schema_only_context_setting: Optional[str] = ContextSetting(None, schema_only=True)
     settingsAboutToBePacked = Signal()
 
     component = SettingProvider(Component)
@@ -38,7 +43,7 @@ class SimpleWidget(QObject):
 
     def __init__(self):
         super().__init__()
-        self.component = Component()
+        self.component = Component(self)
 
 
 class DummyContext(Context):
@@ -69,7 +74,7 @@ def create_defaults_file(contexts):
     return b
 
 
-class TestContextHandler(TestCase):
+class TestContextHandler(WidgetTest):
     def test_read_defaults(self):
         contexts = [DummyContext() for _ in range(3)]
 
@@ -219,15 +224,12 @@ class TestContextHandler(TestCase):
         self.assertEqual(widget.schema_only_setting, 0xD06F00D)
 
     def test_about_pack_settings_signal(self):
-        handler = ContextHandler()
-        handler.bind(SimpleWidget)
         widget = SimpleWidget()
-        handler.initialize(widget)
         fn = Mock()
         widget.settingsAboutToBePacked.connect(fn)
-        handler.pack_data(widget)
+        widget.settingsHandler.pack_data(widget)
         self.assertEqual(1, fn.call_count)
-        handler.update_defaults(widget)
+        widget.settingsHandler.update_defaults(widget)
         self.assertEqual(2, fn.call_count)
 
     def test_schema_only_settings(self):

@@ -131,6 +131,16 @@ class OWComponent:
         self.controls = ControlGetter(self)
         if widget is not None and widget.settingsHandler:
             widget.settingsHandler.initialize(self)
+        else:
+            from orangewidget.settings import Setting
+            from orangewidget.widget import OWBaseWidget
+            if not isinstance(self, OWBaseWidget) \
+                    and any(isinstance(x, Setting)
+                            for x in type(self).__dict__.values()):
+                warnings.warn(
+                    f"{type(self).__name__} is initialized without a widget, "
+                    "so its settings will remain class attributes",
+                    stacklevel=2)
 
     def _reset_settings(self):
         """

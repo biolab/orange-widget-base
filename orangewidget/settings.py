@@ -513,12 +513,19 @@ class SettingsHandler:
 
     def read_defaults_file(self, settings_file: BinaryIO) -> None:
         """Read (global) defaults for this widget class from a file."""
+        def no_settings(impure):
+            pure = {}
+            for key, value in impure.items():
+                if isinstance(value, dict):
+                    pure[key] = no_settings(value)
+                elif isinstance(value, Setting):
+                    pure[key] = value.default
+                else:
+                    pure[key] = value
+            return pure
+
         defaults = pickle.load(settings_file)
-        self.defaults = {
-            key: value
-            for key, value in defaults.items()
-            if not isinstance(value, Setting)
-        }
+        self.defaults = no_settings(defaults)
         self._migrate_settings(self.defaults)
 
     def write_defaults(self) -> None:

@@ -7,7 +7,7 @@ from unittest.mock import Mock
 
 from orangewidget.settings import Setting, SettingProvider, _apply_setting
 from orangewidget.tests.base import WidgetTest
-from orangewidget.widget import OWBaseWidget
+from orangewidget.widget import OWBaseWidget, OWComponent
 
 SHOW_ZOOM_TOOLBAR = "show_zoom_toolbar"
 SHOW_GRAPH = "show_graph"
@@ -40,7 +40,7 @@ def remove_base_settings(settings):
 class SettingProviderTestCase(WidgetTest):
     def setUp(self):
         global default_provider
-        default_provider = SettingProvider(Widget)
+        default_provider = Widget.settingsHandler.provider
 
     def tearDown(self):
         default_provider.settings[SHOW_GRAPH].default = True
@@ -104,7 +104,7 @@ class SettingProviderTestCase(WidgetTest):
         })
 
         self.assertFalse(hasattr(widget.graph, SHOW_Y_AXIS))
-        widget.graph = Graph()
+        widget.graph = Graph(widget)
         self.assertEqual(widget.graph.show_y_axis, False)
 
     def test_get_provider(self):
@@ -360,15 +360,13 @@ def initialize_settings(instance):
     provider = default_provider.get_provider(instance.__class__)
     if provider:
         provider.initialize(instance)
+
 default_provider = None
 """:type: SettingProvider"""
 
 
-class BaseGraph:
+class BaseGraph(OWComponent):
     show_labels = Setting(True)
-
-    def __init__(self):
-        initialize_settings(self)
 
 
 class Graph(BaseGraph):
@@ -396,8 +394,8 @@ class BaseWidget(OWBaseWidget, openclass=True):
     graph = SettingProvider(Graph)
 
     def __init__(self):
-        initialize_settings(self)
-        self.graph = Graph()
+        super().__init__()
+        self.graph = Graph(self)
 
 
 class Widget(BaseWidget):

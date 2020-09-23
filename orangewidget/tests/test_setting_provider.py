@@ -6,6 +6,8 @@ from typing import Dict, List, Set
 from unittest.mock import Mock
 
 from orangewidget.settings import Setting, SettingProvider, _apply_setting
+from orangewidget.tests.base import WidgetTest
+from orangewidget.widget import OWBaseWidget
 
 SHOW_ZOOM_TOOLBAR = "show_zoom_toolbar"
 SHOW_GRAPH = "show_graph"
@@ -27,7 +29,15 @@ class SortBy(IntEnum):
 coords = namedtuple("coords", ("x", "y"))
 
 
-class SettingProviderTestCase(unittest.TestCase):
+def remove_base_settings(settings):
+    class HoneyPot(OWBaseWidget):
+        name = "honeypot"
+
+    for name in HoneyPot.settingsHandler.provider.settings:
+        settings.pop(name)
+
+
+class SettingProviderTestCase(WidgetTest):
     def setUp(self):
         global default_provider
         default_provider = SettingProvider(Widget)
@@ -116,6 +126,7 @@ class SettingProviderTestCase(unittest.TestCase):
         widget.graph.show_y_axis = False
 
         packed_settings = default_provider.pack(widget)
+        remove_base_settings(packed_settings)
 
         self.assertEqual(packed_settings, {
             SHOW_GRAPH: False,
@@ -170,12 +181,13 @@ class SettingProviderTestCase(unittest.TestCase):
         self.assertEqual(a_dict, {6: 7})
 
     def test_traverse_settings_works_without_instance_or_data(self):
-        settings = set()
+        settings = {}
 
         for setting, data, _ in default_provider.traverse_settings():
-            settings.add(setting.name)
+            settings[setting.name] = None
+        remove_base_settings(settings)
 
-        self.assertEqual(settings, {
+        self.assertEqual(set(settings), {
             SHOW_ZOOM_TOOLBAR, SHOW_GRAPH,
             SHOW_LABELS, SHOW_X_AXIS, SHOW_Y_AXIS, A_LIST, A_SET, A_DICT,
             ALLOW_ZOOMING})
@@ -192,6 +204,8 @@ class SettingProviderTestCase(unittest.TestCase):
 
         for setting, data, _ in default_provider.traverse_settings(all_data):
             settings[setting.name] = data
+        settings.pop("savedWidgetGeometry")
+        settings.pop("controlAreaVisible")
 
         self.assertEqual(
             settings,
@@ -215,6 +229,7 @@ class SettingProviderTestCase(unittest.TestCase):
 
         for setting, data, _ in default_provider.traverse_settings(all_data):
             settings[setting.name] = data
+        remove_base_settings(settings)
 
         self.assertEqual(
             settings,
@@ -238,6 +253,7 @@ class SettingProviderTestCase(unittest.TestCase):
         for setting, _, instance in \
                 default_provider.traverse_settings(instance=widget):
             settings[setting.name] = instance
+        remove_base_settings(settings)
 
         self.assertEqual(
             {
@@ -262,6 +278,7 @@ class SettingProviderTestCase(unittest.TestCase):
         for setting, _, instance in \
                 default_provider.traverse_settings(instance=widget):
             settings[setting.name] = instance
+        remove_base_settings(settings)
 
         self.assertEqual(
             settings,
@@ -316,32 +333,6 @@ class SettingProviderTestCase(unittest.TestCase):
 
 
 class TestUtils(unittest.TestCase):
-    def test_apply_settings_typed(self):
-        inst = Mock()
-
-        _apply_setting(Setting(2, name="a"), inst, 5)
-        self.assertEqual(inst.a, 5)
-
-        _apply_setting(Setting(None, name="c"), inst, [1, 2, 3])
-        self.assertEqual(inst.c, [1, 2, 3])
-
-        _apply_setting(Setting(SortBy.NO_SORTING, name="d"), inst, 1)
-        self.assertEqual(inst.d, SortBy.INCREASING)
-        self.assertIsInstance(inst.d, SortBy)
-
-        _apply_setting(Setting(SortBy.NO_SORTING, name="d"),
-                       inst, SortBy.DECREASING)
-        self.assertEqual(inst.d, SortBy.DECREASING)
-        self.assertIsInstance(inst.d, SortBy)
-
-        _apply_setting(Setting(coords(0, 0), name="e"), inst, (1, 1))
-        self.assertEqual(inst.e, coords(1, 1))
-        self.assertIsInstance(inst.e, coords)
-
-        _apply_setting(Setting(coords(0, 0), name="e"), inst, (3, 3))
-        self.assertEqual(inst.e, coords(3, 3))
-        self.assertIsInstance(inst.e, coords)
-
     def test_apply_settings_type_warnings(self):
         inst = Mock()
 
@@ -361,52 +352,6 @@ class TestUtils(unittest.TestCase):
             _apply_setting(Setting(2, name="b", nullable=True), inst, None)
             self.assertIsNone(inst.b)
             self.assertFalse(w)
-
-    def test_packer_with_types(self):
-        class Widget:
-            an_int = Setting(42)
-            a_float = Setting(3.14)
-            a_list = Setting([])
-            a_dict = Setting(None)
-            sorting = Setting(SortBy.INCREASING)
-            xy = Setting(coords(0, 0))
-
-        class MyFloat(float):
-            pass
-
-        class MyInt(int):
-            pass
-
-        # Provider will complain about unknown setting type. We need such
-        # a setting for testing.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            provider = SettingProvider(Widget)
-
-        w = Widget()
-        w.an_int = MyInt(13)
-        w.a_float = MyFloat(2.5)
-        w.a_list = [1, 2, 3]
-        w.a_dict = {1: 2}
-        w.sorting = SortBy.DECREASING
-        w.xy = coords(1, 2)
-
-        packed = provider.pack(w)
-        self.assertEqual(packed["an_int"], 13)
-        self.assertIs(type(packed["an_int"]), int)
-        self.assertEqual(packed["a_float"], 2.5)
-        self.assertIs(type(packed["a_float"]), float)
-        self.assertEqual(packed["a_list"], [1, 2, 3])
-        self.assertEqual(packed["a_dict"], {1: 2})
-        self.assertEqual(packed["sorting"], int(SortBy.DECREASING))
-        self.assertIs(type(packed["sorting"]), int)
-        self.assertEqual(packed["xy"], (1, 2))
-        self.assertIs(type(packed["xy"]), tuple)
-
-        w.sorting = "joe"
-        with self.assertWarns(UserWarning):
-            packed = provider.pack(w)
-        self.assertEqual(packed["sorting"], "joe")
 
 
 def initialize_settings(instance):
@@ -445,9 +390,7 @@ class ZoomToolbar:
         initialize_settings(self)
 
 
-class BaseWidget:
-    settingsHandler = None
-
+class BaseWidget(OWBaseWidget, openclass=True):
     show_graph = Setting(True)
 
     graph = SettingProvider(Graph)
@@ -458,6 +401,8 @@ class BaseWidget:
 
 
 class Widget(BaseWidget):
+    name = "foo"
+
     show_zoom_toolbar = Setting(True)
 
     zoom_toolbar = SettingProvider(ZoomToolbar)

@@ -696,6 +696,10 @@ class SettingsHandler:
                 return
         setattr(instance, setting.name, value)
 
+    @staticmethod
+    def _non_none(args):
+        return [tp_ for tp_ in args if tp_ is not type(None)][0]
+
     @classmethod
     def is_allowed_type(cls, tp) -> bool:
         if tp in (str, bool, bytes, float, int):
@@ -703,14 +707,18 @@ class SettingsHandler:
         if isinstance(tp, type):
             if issubclass(tp, IntEnum):
                 return True
-            if isinstance(tp, tuple):
+            if issubclass(tp, tuple):
                 # If it's tuple, it must be a NamedTuple of allowed types
                 args = getattr(tp, "__annotations__", None)
-                return args is not None and all(map(cls.is_allowed_type, args))
+                return args is not None \
+                       and all(map(cls.is_allowed_type, args.values()))
 
         orig, args = get_origin(tp), get_args(tp)
         if orig is None:
             return False
+        if orig is Union:
+            return len(args) == 2 and type(None) in args \
+                   and cls.is_allowed_type(cls._non_none(args))
         if orig in (list, set) \
                 or orig is tuple and len(args) == 2 and args[1] is ...:
             return cls.is_allowed_type(args[0])
@@ -767,6 +775,11 @@ class SettingsHandler:
 
         # Common type check for generic classes
         orig, args = get_origin(tp), get_args(tp)
+
+        if orig is Union:
+            assert len(args) == 2 and type(None) in args
+            return value is None or cls.check_type(value, cls._non_none(args))
+
         if not isinstance(value, orig):
             return False
 

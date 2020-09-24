@@ -181,7 +181,7 @@ class OWComponent:
 
 def miscellanea(control, box, parent,
                 addToLayout=True, stretch=0, sizePolicy=None, addSpace=False,
-                disabled=False, tooltip=None, **kwargs):
+                disabled=False, tooltip=None, disabledBy=None, **kwargs):
     """
     Helper function that sets various properties of the widget using a common
     set of arguments.
@@ -225,6 +225,8 @@ def miscellanea(control, box, parent,
     :type stretch: int
     :param tooltip: tooltip that is attached to the widget
     :type tooltip: str or None
+    :param disabledBy: checkbox created with checkBox() function
+    :type disabledBy: QCheckBox or None
     :param sizePolicy: the size policy for the box or the control
     :type sizePolicy: QSizePolicy
     """
@@ -246,6 +248,9 @@ def miscellanea(control, box, parent,
             isinstance(control, QtWidgets.QWidget) and \
             box.layout().indexOf(control) == -1:
         box.layout().addWidget(control)
+    if disabledBy is not None:
+        disabledBy.disables.append(control)
+        disabledBy.makeConsistent()
     if sizePolicy is not None:
         if isinstance(sizePolicy, tuple):
             sizePolicy = QSizePolicy(*sizePolicy)

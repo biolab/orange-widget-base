@@ -49,8 +49,6 @@ so they can be used alter. It should be called before widget starts modifying
 (initializing) the value of the setting attributes.
 """
 
-# TODO: When we only support Python >= 3.8, replace __origin__ and __args__
-#       with get_origin and get_args
 import base64
 import sys
 import copy
@@ -93,6 +91,29 @@ def _cname(obj: Any) -> str:
     if not isinstance(obj, type):
         obj = type(obj)
     return obj.__name__
+
+# TODO: Remove parts of the below when we drop support for earlier versions
+if sys.version_info >= (3, 8):
+    from typing import get_origin, get_args
+
+elif sys.version_info >= (3, 7):
+    def get_args(tp):
+        return getattr(tp, "__args__", None)
+
+    def get_origin(tp):
+        return getattr(tp, "__origin__", None)
+
+else:
+    assert sys.version_info[:2] == (3, 6)
+
+    def get_args(tp):
+        return getattr(tp, "__args__", None)
+
+    def get_origin(tp):
+        for base in getattr(tp, "__orig_bases__", ()):
+            if type(base) is type:
+                return base
+        return None
 
 
 def set_widget_settings_dir_components(basedir: str, versionstr: str) -> None:
@@ -262,8 +283,8 @@ class SettingProvider:
             # type hint has precedence over type deduced from default value
             # (but if they mismatch, we will complain later, at packing)
             value.type = type_hints.get(name, value.type)
-            if getattr(value.type, "__origin__", None) is Union:
-                args = value.type.__args__
+            if get_origin(value.type) is Union:
+                args = get_args(value.type)
                 if len(args) == 2 and args[1] is type(None):
                     value.type = args[0]
                     value.nullable = True
@@ -687,9 +708,9 @@ class SettingsHandler:
                 args = getattr(tp, "__annotations__", None)
                 return args is not None and all(map(cls.is_allowed_type, args))
 
-        if not hasattr(tp, "__origin__"):
+        orig, args = get_origin(tp), get_args(tp)
+        if orig is None:
             return False
-        orig, args = tp.__origin__, tp.__args__
         if orig in (list, set) \
                 or orig is tuple and len(args) == 2 and args[1] is ...:
             return cls.is_allowed_type(args[0])
@@ -731,7 +752,11 @@ class SettingsHandler:
             return value in (0, 1) and not isinstance(value, float)
 
         # Named tuple: a tuple with annotations
-        if isinstance(tp, type):
+        # TODO: Simplify when we drop support for Python 3.6
+        if sys.version_info[:2] == (3, 6) and (tp in (str, bytes, tuple)
+                                               or (isinstance(tp, type)
+                                                   and issubclass(tp, tuple))) \
+                or sys.version_info[:2] > (3, 6) and isinstance(tp, type):
             if issubclass(tp, tuple):
                 assert hasattr(tp, "__annotations__")
                 return isinstance(value, tp) \
@@ -741,10 +766,10 @@ class SettingsHandler:
             return isinstance(value, tp)
 
         # Common type check for generic classes
-        if not isinstance(value, tp.__origin__):
+        orig, args = get_origin(tp), get_args(tp)
+        if not isinstance(value, orig):
             return False
 
-        orig, args = tp.__origin__, tp.__args__
         # set, list and tuple of homogenous type with variable length
         if orig in (set, list) \
                 or orig is tuple and len(args) == 2 and args[1] is ...:

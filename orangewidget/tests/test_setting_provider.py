@@ -5,7 +5,9 @@ from enum import IntEnum
 from typing import Dict, List, Set
 from unittest.mock import Mock
 
-from orangewidget.settings import Setting, SettingProvider, _apply_setting
+import orangewidget.settings
+from orangewidget.settings import Setting, SettingProvider, _apply_setting, \
+    get_origin
 from orangewidget.tests.base import WidgetTest
 from orangewidget.widget import OWBaseWidget, OWComponent
 
@@ -308,7 +310,7 @@ class SettingProviderTestCase(WidgetTest):
         provider = SettingProvider(Widget)
         self.assertIs(provider.settings["a_bool"].type, bool)
         self.assertIs(provider.settings["a_list"].type, list)
-        self.assertIs(provider.settings["a_dict"].type.__origin__, dict)
+        self.assertIs(get_origin(provider.settings["a_dict"].type), dict)
         self.assertIs(provider.settings["sorting"].type, SortBy)
         self.assertIs(provider.settings["sorting2"].type, SortBy)
         self.assertIs(provider.settings["xy"].type, coords)

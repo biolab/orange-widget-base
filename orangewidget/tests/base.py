@@ -90,6 +90,9 @@ class DummySignalManager:
     def __init__(self):
         self.outputs = {}
 
+    def clear(self):
+        self.outputs.clear()
+
     def send(self, widget, signal_name, value, id):
         if not isinstance(signal_name, str):
             signal_name = signal_name.name
@@ -163,7 +166,10 @@ class GuiTest(unittest.TestCase):
         """
         global app
         if app is None:
-            app = QApplication([])
+            app = QApplication.instance()
+        if app is None:
+            app = QApplication(["-", "-widgetcount"])
+
         # Disable App Nap on macOS (see
         # https://codereview.qt-project.org/c/qt/qtbase/+/202515 for more)
         if sys.platform == "darwin":
@@ -175,7 +181,6 @@ class GuiTest(unittest.TestCase):
                 appnope.nope()
         cls.tear_down_stack = ExitStack()
         super().setUpClass()
-
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -230,23 +235,39 @@ class WidgetTest(GuiTest):
 
         cls.signal_manager = DummySignalManager()
 
-        report = OWReport()
-        cls.widgets.append(report)
+        report = None
+
+        def get_instance():
+            nonlocal report
+            if report is None:
+                report = OWReport()
+                if not (os.environ.get("TRAVIS") or os.environ.get("APPVEYOR")):
+                    report.show = Mock()
+                cls.widgets.append(report)
+            return report
 
         cls.tear_down_stack.enter_context(
-            patch.object(OWReport, "get_instance", lambda: report)
+            patch.object(OWReport, "get_instance", get_instance)
         )
-
-        if not (os.environ.get("TRAVIS") or os.environ.get("APPVEYOR")):
-            report.show = Mock()
 
     @classmethod
     def tearDownClass(cls) -> None:
+        cls.signal_manager.clear()
+        del cls.signal_manager
+        widgets = cls.widgets[:]
         cls.widgets.clear()
+        while widgets:
+            w = widgets.pop(-1)
+            if not w.__dict__.get("_Cls__didCallOnDeleteWidget", False):
+                w.onDeleteWidget()
+            if not sip.isdeleted(w):
+                w.deleteLater()
+            w.signalManager = None
         super().tearDownClass()
 
     def tearDown(self):
         """Process any pending events before the next test is executed."""
+        self.signal_manager.clear()
         QTest.qWait(0)
         super().tearDown()
 
@@ -274,9 +295,23 @@ class WidgetTest(GuiTest):
         -------
         Widget instance : cls
         """
+        # Use a substitute subclass to mark calls to onDeleteWidget; Some tests
+        # call this on their own (this used to be done in tearDownClass, then
+        # it was not, so tests did it themself, now it is done again).
+        with open_widget_classes():
+            class Cls(cls):
+                def onDeleteWidget(self):
+                    self.__didCallOnDeleteWidget = True
+                    super(Cls, self).onDeleteWidget()
+                __didCallOnDeleteWidget = False
+
+            Cls.__name__ = cls.__name__
+            Cls.__qualname__ = cls.__qualname__
+            Cls.__module__ = cls.__module__
+
         if reset_default_settings:
-            self.reset_default_settings(cls)
-        widget = cls.__new__(cls, signal_manager=self.signal_manager,
+            self.reset_default_settings(Cls)
+        widget = Cls.__new__(Cls, signal_manager=self.signal_manager,
                              stored_settings=stored_settings)
         widget.__init__()
         self.process_events()

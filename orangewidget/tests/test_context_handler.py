@@ -263,6 +263,18 @@ class TestContextHandler(WidgetTest):
         self.assertTrue('context_setting' in global_values["component"])
         self.assertFalse('schema_only_context_setting' in global_values["component"])
 
+    def test_check_type_from_packer(self):
+        widget = SimpleWidget()
+        handler = widget.settingsHandler
+
+        widget.current_context = handler.new_context()
+        widget.context_setting = 13
+        handler.close_context(widget)
+
+        widget.current_context = handler.new_context()
+        widget.context_setting = "foo"
+        self.assertWarns(UserWarning, handler.close_context, widget)
+
 
 class TestSettingsPrinter(TestCase):
     def test_formats_contexts(self):

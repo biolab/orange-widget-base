@@ -1,13 +1,10 @@
 import unittest
 import warnings
-from collections import namedtuple
 from enum import IntEnum
 from typing import Dict, List, Set
 from unittest.mock import Mock
 
-import orangewidget.settings
-from orangewidget.settings import Setting, SettingProvider, _apply_setting, \
-    get_origin
+from orangewidget.settings import Setting, SettingProvider, _apply_setting
 from orangewidget.tests.base import WidgetTest
 from orangewidget.widget import OWBaseWidget, OWComponent
 
@@ -22,13 +19,6 @@ ALLOW_ZOOMING = "allow_zooming"
 A_LIST = "a_list"
 A_SET = "a_set"
 A_DICT = "a_dict"
-
-
-class SortBy(IntEnum):
-    NO_SORTING, INCREASING, DECREASING = range(3)
-
-
-coords = namedtuple("coords", ("x", "y"))
 
 
 def remove_base_settings(settings):
@@ -296,34 +286,6 @@ class SettingProviderTestCase(WidgetTest):
                 ALLOW_ZOOMING: widget.zoom_toolbar,
             }
         )
-
-    def test_settings_detect_types(self):
-        class Widget:
-            a_bool = Setting(True)
-            a_list = Setting([])
-            a_dict: Dict[str, int] = Setting(None)
-            sorting = Setting(SortBy.INCREASING)
-            sorting2: SortBy = Setting(None)
-            xy = Setting(coords(0, 0))
-            xy2: coords = Setting(None)
-
-        provider = SettingProvider(Widget)
-        self.assertIs(provider.settings["a_bool"].type, bool)
-        self.assertIs(provider.settings["a_list"].type, list)
-        self.assertIs(get_origin(provider.settings["a_dict"].type), dict)
-        self.assertIs(provider.settings["sorting"].type, SortBy)
-        self.assertIs(provider.settings["sorting2"].type, SortBy)
-        self.assertIs(provider.settings["xy"].type, coords)
-        self.assertIs(provider.settings["xy2"].type, coords)
-
-
-        with self.assertWarns(UserWarning):
-            class Widget2(OWBaseWidget):
-                name = "foo"
-                an_unknown = Setting(None)
-
-        self.assertIsNone(
-            Widget2.settingsHandler.provider.settings["an_unknown"].type)
 
     def assertDefaultSettingsEqual(self, provider, defaults):
         for name, value in defaults.items():

@@ -1222,7 +1222,7 @@ def hSlider(widget, master, value, box=None, minValue=0, maxValue=10, step=1,
         widgetLabel(sliderBox, label)
     sliderOrient = Qt.Vertical if vertical else Qt.Horizontal
     if intOnly:
-        slider = QSlider(sliderOrient, sliderBox)
+        slider = Slider(sliderOrient, sliderBox)
         slider.setRange(minValue, maxValue)
         if step:
             slider.setSingleStep(step)
@@ -1299,7 +1299,7 @@ def labeledSlider(widget, master, value, box=None,
     if label:
         widgetLabel(sliderBox, label)
     sliderOrient = Qt.Vertical if vertical else Qt.Horizontal
-    slider = QSlider(sliderOrient, sliderBox)
+    slider = Slider(sliderOrient, sliderBox)
     slider.ogValue = value
     slider.setRange(0, len(labels) - 1)
     slider.setSingleStep(1)
@@ -1375,7 +1375,7 @@ def valueSlider(widget, master, value, box=None, label=None,
     if label:
         widgetLabel(sliderBox, label)
     slider_orient = Qt.Vertical if vertical else Qt.Horizontal
-    slider = QSlider(slider_orient, sliderBox)
+    slider = Slider(slider_orient, sliderBox)
     slider.ogValue = value
     slider.setRange(0, len(values) - 1)
     slider.setSingleStep(1)
@@ -2600,7 +2600,19 @@ def toolButtonSizeHint(button=None, style=None):
     return button_size
 
 
-class FloatSlider(QSlider):
+class Slider(QSlider):
+    """
+    Slider that disables wheel events.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setFocusPolicy(Qt.StrongFocus)
+
+    def wheelEvent(self, event):
+        event.ignore()
+
+
+class FloatSlider(Slider):
     """
     Slider for continuous values.
 

@@ -484,10 +484,12 @@ class SettingsHandler:
         self.widget_class = widget_class
         self.provider = SettingProvider(widget_class)
         self.known_settings = {}
-        self.analyze_settings(self.provider, "")
+        self.analyze_settings(self.provider, "", _cname(widget_class))
         self.read_defaults()
 
-    def analyze_settings(self, provider: SettingProvider, prefix: str) -> None:
+    def analyze_settings(self,
+                         provider: SettingProvider,
+                         prefix: str, class_name: str) -> None:
         """
         Analyze settings at and below the provider
 
@@ -496,26 +498,28 @@ class SettingsHandler:
             prefix (str): prefix (relative to widget) that matches the provider
         """
         for setting in provider.settings.values():
-            self.analyze_setting(prefix, setting)
+            self.analyze_setting(prefix, setting, class_name)
 
         for name, sub_provider in provider.providers.items():
             new_prefix = f"{prefix}{name}."
-            self.analyze_settings(sub_provider, new_prefix)
+            self.analyze_settings(sub_provider, new_prefix, class_name)
 
-    def analyze_setting(self, prefix: str, setting: Setting) -> None:
+    def analyze_setting(self, prefix: str, setting: Setting, class_name:str) \
+            -> None:
         """Perform any initialization tasks related to setting."""
         sname = prefix + setting.name
         tname = _cname(setting.type)
         if setting.type is None:
-            warnings.warn(f"type for setting '{sname}' is unknown; "
-                          f"annotate it.")
+            warnings.warn(f"type for setting '{class_name}.{sname}' "
+                          "is unknown; annotate it.")
         elif setting.type in (list, tuple, dict, set):
-            warnings.warn(f"type for items of {tname} '{sname}' is unknown; "
-                          f"annotated it with {tname.title()}[<type>]")
+            warnings.warn(f"type for items in the {tname} "
+                          f"in '{class_name}.{sname}' is unknown; "
+                          f"annotate it with {tname.title()}[<type>]")
             setting.type = None
         elif not self.is_allowed_type(setting.type):
-            warnings.warn(f"type of setting '{sname}' ({tname}) is unsupported "
-                          f"by {_cname(self)}")
+            warnings.warn(f"{_cname(self)} does not support {tname} used "
+                          f"in {class_name}.{sname}) ")
             setting.type = None
 
         self.known_settings[prefix + setting.name] = setting
@@ -832,15 +836,15 @@ class SettingsHandler:
             else:
                 decl = str(setting.type).replace("typing.", "")
             act = repr(value)
-            if len(act) > 30:
-                act = act[:30] + " (...)"
+            if len(act) > 300:
+                act = act[:300] + " (...)"
             warnings.warn(
                 f"setting {sname} is declared as {decl} but contains {act}")
             return True
         return False
 
     @classmethod
-    def check_warn_pure_type(cls, value, type_: type):
+    def check_warn_pure_type(cls, value, type_: type, name: str):
         if cls.check_type(value, type_):
             return False
         if isinstance(type_, type):
@@ -850,7 +854,7 @@ class SettingsHandler:
         act = repr(value)
         if len(act) > 30:
             act = act[:30] + " (...)"
-        warnings.warn(f"value is declared as {decl} but contains {act}")
+        warnings.warn(f"'{name}' is declared as {decl} but contains {act}")
         return True
 
     @classmethod

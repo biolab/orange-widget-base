@@ -110,9 +110,12 @@ else:
         return getattr(tp, "__args__", None)
 
     def get_origin(tp):
+        # Python 3.6's typing is an embarassing mess
         for base in getattr(tp, "__orig_bases__", ()):
             if type(base) is type:
                 return base
+        if hasattr(tp, "__origin__"):
+            return tp.__origin__
         return None
 
 
@@ -357,7 +360,9 @@ class SettingProvider:
         """Yield setting name and value for packable (= non-context) setting."""
         if setting.packable:
             value = getattr(component, setting.name)
-            handler.check_warn_type(value, setting, component)
+            if handler.is_allowed_type(setting.type) \
+                    and not handler.check_warn_type(value, setting, component):
+                value = handler.pack_value(value, setting.type)
             yield setting.name, value
 
     PackerType = Callable[[Setting, OWComponent, "SettingsHandler"],
@@ -583,16 +588,20 @@ class SettingsHandler:
                    component: OWComponent,
                    data: Union[bytes, dict, None] = None) -> None:
         """
-        Set widget's or compoennt's settings to default
+        Set widget's or component's settings to default
 
         Args:
             widget (OWBaseWidget): widget to initialize
             data (dict or bytes): data or bytes that unpickle to data
         """
-        provider = self._select_provider(component)
+        provider: SettingProvider = self._select_provider(component)
 
         if isinstance(data, bytes):
             data = pickle.loads(data)
+        for setting, data_, _ in provider.traverse_settings(data):
+            name = setting.name
+            if setting.name in data_ and self.is_allowed_type(setting.type):
+                data_[name] = self.unpack_value(data_[name], setting.type)
         self._migrate_settings(data)
 
         if provider is self.provider:
@@ -707,7 +716,8 @@ class SettingsHandler:
         if isinstance(tp, type):
             if issubclass(tp, IntEnum):
                 return True
-            if issubclass(tp, tuple):
+            # When we drop support for Python 3.6, remove the second test
+            if issubclass(tp, tuple) and not hasattr(tp, "__origin__"):
                 # If it's tuple, it must be a NamedTuple of allowed types
                 args = getattr(tp, "__annotations__", None)
                 return args is not None \
@@ -747,7 +757,7 @@ class SettingsHandler:
             return True
 
         # Simple types
-        if tp in (str, bytes, IntEnum):
+        if tp in (str, bytes):
             return isinstance(value, tp)
 
         # Numeric types that can be safely converted
@@ -761,10 +771,17 @@ class SettingsHandler:
 
         # Named tuple: a tuple with annotations
         # TODO: Simplify when we drop support for Python 3.6
-        if sys.version_info[:2] == (3, 6) and (tp in (str, bytes, tuple)
-                                               or (isinstance(tp, type)
-                                                   and issubclass(tp, tuple))) \
-                or sys.version_info[:2] > (3, 6) and isinstance(tp, type):
+        if sys.version_info[:2] > (3, 6) and isinstance(tp, type) or \
+                sys.version_info[:2] == (3, 6) \
+                and (tp in (str, bytes)
+                     or (isinstance(tp, type)
+                         and (issubclass(tp, IntEnum)
+                              or (issubclass(tp, tuple)
+                                  and hasattr(tp, "__annotations__")
+                                  )
+                              )
+                         )
+                ):
             if issubclass(tp, tuple):
                 assert hasattr(tp, "__annotations__")
                 return isinstance(value, tp) \
@@ -819,6 +836,99 @@ class SettingsHandler:
                 act = act[:30] + " (...)"
             warnings.warn(
                 f"setting {sname} is declared as {decl} but contains {act}")
+            return True
+        return False
+
+    @classmethod
+    def check_warn_pure_type(cls, value, type_: type):
+        if cls.check_type(value, type_):
+            return False
+        if isinstance(type_, type):
+            decl = _cname(type_)
+        else:
+            decl = str(type_).replace("typing.", "")
+        act = repr(value)
+        if len(act) > 30:
+            act = act[:30] + " (...)"
+        warnings.warn(f"value is declared as {decl} but contains {act}")
+        return True
+
+    @classmethod
+    def pack_value(cls, value, tp=None):
+        if tp is None:
+            if isinstance(value, (tuple, set)):
+                return list(value)
+            else:
+                return value
+
+        if value is None:
+            return None
+        if tp is float and isinstance(value, int):
+            return value
+        if tp is bool:
+            return bool(value) if value in (False, True, 0, 1) else value
+        if tp is str:
+            return value  # if value is not our string, it's not our problem
+        if tp in (int, float):
+            try:
+                return tp(value)
+            except ValueError:
+                return value
+        if tp is bytes:
+            return base64.b64encode(value).decode("ascii")
+        if isinstance(tp, type):
+            if issubclass(tp, IntEnum):
+                return int(value)
+            if issubclass(tp, tuple) and hasattr(tp, "__annotations__"):
+                return [cls.pack_value(x, tp_)
+                        for x, tp_ in zip(value, tp.__annotations__)]
+
+        orig, args = get_origin(tp), get_args(tp)
+        if orig is Union:
+            return cls.pack_value(value, cls._non_none(args))
+        if orig in (set, list) \
+                or orig is tuple and len(args) == 2 and args[1] is ...:
+            tp_ = args[0]
+            return [cls.pack_value(x, tp_) for x in value]
+        if orig is tuple:
+            return [cls.pack_value(x, tp_) for x, tp_ in zip(value, args)]
+        if orig is dict:
+            kt, vt = args
+            return {cls.pack_value(k, kt): cls.pack_value(v, vt)
+                    for k, v in value.items()}
+
+        # Shouldn't come to this, but ... what the heck.
+        return value
+
+    @classmethod
+    def unpack_value(cls, value, tp):
+        if value is None or tp in (int, bool, float, str):
+            return value
+        if tp is bytes:
+            return base64.b64decode(value.encode("ascii"))
+        if isinstance(tp, type):
+            if issubclass(tp, IntEnum):
+                return tp(value)
+            if issubclass(tp, tuple) and hasattr(tp, "__annotations__"):
+                return tuple(cls.unpack_value(x, tp_)
+                             for x, tp_ in zip(value, tp.__annotations__))
+
+        orig, args = get_origin(tp), get_args(tp)
+        if orig is Union:
+            return cls.unpack_value(value, cls._non_none(args))
+        if orig in (set, list) \
+                or orig is tuple and len(args) == 2 and args[1] is ...:
+            tp_ = args[0]
+            return orig(cls.unpack_value(x, tp_) for x in value)
+        if orig is tuple:
+            return tuple(cls.unpack_value(x, tp_) for x, tp_ in zip(value, args))
+        if orig is dict:
+            kt, vt = args
+            return {cls.unpack_value(k, kt): cls.unpack_value(v, vt)
+                    for k, v in value.items()}
+
+        # Shouldn't come to this, but ... what the heck.
+        return value
 
 
 class ContextSetting(Setting):
@@ -854,6 +964,11 @@ class Context:
         return self.__dict__ == other.__dict__
 
 
+if not hasattr(Context, "__annotations__"):
+    Context.__annotations__ = {}
+Context.__annotations__[VERSION_KEY] = Optional[int]
+
+
 class ContextHandler(SettingsHandler):
     """Base class for setting handlers that can handle contexts.
 
@@ -866,6 +981,8 @@ class ContextHandler(SettingsHandler):
 
     MAX_SAVED_CONTEXTS = 50
 
+    ContextType = Context
+
     def __init__(self):
         super().__init__()
         self.global_contexts = []
@@ -877,7 +994,11 @@ class ContextHandler(SettingsHandler):
         instance.current_context = None
         super().initialize(instance, data)
         if data and "context_settings" in data:
-            instance.context_settings = data["context_settings"]
+            instance.context_settings = [
+                self.unpack_context(context)
+                for context in data["context_settings"]]
+            for context in instance.context_settings:
+                self.unpack_context_values(context)
             self._migrate_contexts(instance.context_settings)
         else:
             instance.context_settings = []
@@ -920,10 +1041,9 @@ class ContextHandler(SettingsHandler):
         """Call the inherited method, then add local contexts to the dict."""
         data = super().pack_data(widget)
         self.settings_from_widget(widget)
-        context_settings = [copy.copy(context) for context in
-                            widget.context_settings]
+        context_settings = list(map(self.pack_context, widget.context_settings))
         for context in context_settings:
-            context.values[VERSION_KEY] = self.widget_class.settings_version
+            context["values"][VERSION_KEY] = self.widget_class.settings_version
         data["context_settings"] = context_settings
         return data
 
@@ -956,7 +1076,7 @@ class ContextHandler(SettingsHandler):
 
     def new_context(self, *args) -> Context:
         """Create a new context."""
-        return Context()
+        return self.ContextType()
 
     def open_context(self, widget: "OWBaseWidget", *args) -> None:
         """Open a context by finding one and setting the widget data or
@@ -1093,11 +1213,16 @@ class ContextHandler(SettingsHandler):
 
         widget.storeSpecificSettings()
 
-        def packer(setting, component, handler):
+        def packer(setting: Setting, component: OWComponent, handler: ContextHandler):
             if isinstance(setting, ContextSetting) \
                     and hasattr(component, setting.name):
-                value = getattr(component, setting.name)
+                value = orig_value = getattr(component, setting.name)
                 handler.check_warn_type(value, setting, component)
+                value = self.encode_setting(context, setting, value)
+                # if encode_setting encoded a value, we assume the type is
+                # supported - just convert sets and tuples to lists
+                value = self.pack_value(
+                    value, setting.type if value is orig_value else None)
                 yield setting.name, self.encode_setting(context, setting, value)
 
         context.values = self.provider.pack(widget, packer=packer)
@@ -1118,6 +1243,41 @@ class ContextHandler(SettingsHandler):
     def decode_setting(self, setting: Setting, value, *args):
         """Decode settings value from the setting dict format"""
         return value
+
+    @classmethod
+    def pack_context(cls, context: Context):
+        ctx_dict = context.__dict__.copy()
+        annotations = getattr(cls.ContextType, "__annotations__", {})
+        for name, type_ in annotations.items():
+            if name in ctx_dict \
+                    and not cls.check_warn_pure_type(
+                        ctx_dict[name], type_, f"{_cname(context)}.{name}"):
+                ctx_dict[name] = cls.pack_value(ctx_dict[name], type_)
+            else:
+                warnings.warn(f"{_cname(cls.ContextType)}.{name} is not set.")
+        for name in ctx_dict:
+            if name not in "values" and name not in annotations:
+                warnings.warn(
+                    f"{_cname(cls.ContextType)}.{name} must be annotated")
+        return ctx_dict
+
+    @classmethod
+    def unpack_context(cls, context: Union[dict, Context]):
+        if isinstance(context, Context):
+            return context
+
+        annotations = getattr(cls.ContextType, "__annotations__", {})
+        for name, type_ in annotations.items():
+            if name in context and cls.is_allowed_type(type_):
+                context[name] = cls.unpack_value(context[name], type_)
+        return Context(**context)
+
+    def unpack_context_values(self, context: Context):
+        provider = self.provider
+        for setting, data, _ in provider.traverse_settings(context.values):
+            if setting.name in data and self.is_allowed_type(setting.type):
+                data[setting.name] = \
+                    self.unpack_value(data[setting.name], setting.type)
 
 
 class IncompatibleContext(Exception):

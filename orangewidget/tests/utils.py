@@ -8,6 +8,9 @@ from AnyQt.QtTest import QTest
 from AnyQt.QtGui import QMouseEvent
 from AnyQt.QtWidgets import QApplication
 
+from orangewidget.settings import VERSION_KEY
+from orangewidget.widget import OWBaseWidget
+
 
 class EventSpy(QObject):
     """
@@ -313,3 +316,15 @@ def mouseMove(widget, pos=QPoint(), delay=-1):  # pragma: no-cover
         QTest.qWait(delay)
 
     QApplication.sendEvent(widget, me)
+
+
+def remove_base_settings(settings):
+    class HoneyPot(OWBaseWidget):
+        name = "honeypot"
+
+    for name in HoneyPot.settingsHandler.provider.settings:
+        settings.pop(name)
+
+    settings.pop(VERSION_KEY, None)
+    for context in settings.get("context_settings", []):
+        context["values"].pop(VERSION_KEY, None)

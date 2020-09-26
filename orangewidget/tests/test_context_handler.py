@@ -2,7 +2,7 @@ import pickle
 from copy import copy, deepcopy
 from io import BytesIO
 from unittest import TestCase
-from typing import Optional
+from typing import Optional, Tuple, Dict
 from unittest.mock import Mock, patch, call
 from AnyQt.QtCore import pyqtSignal as Signal
 
@@ -10,6 +10,7 @@ from orangewidget.settings import (
     ContextHandler, ContextSetting, Context, Setting, SettingsPrinter,
     OWComponent, VERSION_KEY, IncompatibleContext, SettingProvider)
 from orangewidget.tests.base import override_default_settings, WidgetTest
+from orangewidget.tests.utils import remove_base_settings
 from orangewidget.widget import OWBaseWidget
 
 __author__ = 'anze'
@@ -99,6 +100,8 @@ class TestContextHandler(WidgetTest):
     def test_initialize(self):
         handler = ContextHandler()
         handler.provider = Mock()
+        handler.provider.traverse_settings = Mock(return_value=())
+        handler.provider.get_provider = Mock(return_value=handler.provider)
         handler.widget_class = SimpleWidget
 
         # Context settings from data
@@ -274,6 +277,74 @@ class TestContextHandler(WidgetTest):
         widget.current_context = handler.new_context()
         widget.context_setting = "foo"
         self.assertWarns(UserWarning, handler.close_context, widget)
+
+
+class ContextPackingTest(WidgetTest):
+    class Widget(OWBaseWidget):
+        class MyContextHandler(ContextHandler):
+            class MyContext(Context):
+                cont: Tuple[int, int]
+
+            ContextType = MyContext
+
+        name = "foo"
+        settingsHandler = MyContextHandler()
+
+        a_tuple: Tuple[int, ...] = ContextSetting(None)
+        a_dict: Dict[str, int] = Setting(None)
+
+    def test_pack_from_widget(self):
+        widget = self.Widget()
+        widget.openContext()
+        widget.a_tuple = (1, 2, 3)
+        widget.a_dict = {"foo": 42, "bar": 13}
+        widget.closeContext()
+        self.assertEqual(widget.context_settings[0].values,
+                         {"a_tuple": [1, 2, 3]})
+
+        packed = widget.settingsHandler.pack_data(widget)
+        remove_base_settings(packed)
+        self.assertEqual(
+            packed,
+            {'a_dict': {'foo': 42, 'bar': 13},
+             'context_settings': [
+                {'values': {'a_tuple': [1, 2, 3]}}
+             ]}
+        )
+
+    def test_unpack_to_widget(self):
+        widget = self.Widget(stored_settings={
+            'a_dict': {'foo': 42, 'bar': 13},
+            'context_settings': [
+                {'values': {'a_tuple': [1, 2, 3]}}
+            ]})
+        self.assertIsInstance(widget.context_settings[0], Context)
+        self.assertEqual(widget.context_settings[0].values,
+                         {"a_tuple": (1, 2, 3)})
+
+    def test_pack_context(self):
+        widget = self.Widget()
+        widget.openContext()
+        widget.current_context.cont = (1, 2)
+        widget.closeContext()
+        packed = widget.settingsHandler.pack_data(widget)
+        self.assertIsInstance(packed["context_settings"][0]["cont"], list)
+        self.assertEqual(packed["context_settings"][0]["cont"], [1, 2])
+
+    def test_pack_context_warnings(self):
+        widget = self.Widget()
+        widget.openContext()
+        widget.current_context.cont = (1, 2)
+        widget.current_context.no_annotation = True
+        widget.closeContext()
+        # warn that no_annotation is not annotated
+        self.assertWarns(UserWarning, widget.settingsHandler.pack_data, widget)
+
+        widget = self.Widget()
+        widget.openContext()
+        widget.closeContext()
+        # warn that `cont` is not set
+        self.assertWarns(UserWarning, widget.settingsHandler.pack_data, widget)
 
 
 class TestSettingsPrinter(TestCase):

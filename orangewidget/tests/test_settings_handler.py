@@ -18,6 +18,7 @@ from orangewidget.tests.base import named_file, override_default_settings, \
     WidgetTest
 from orangewidget.settings import SettingsHandler, Setting, SettingProvider, \
     VERSION_KEY, rename_setting, Context, get_origin
+from orangewidget.tests.utils import remove_base_settings
 from orangewidget.widget import OWBaseWidget, OWComponent
 
 
@@ -119,6 +120,7 @@ class SettingHandlerTestCase(WidgetTest):
         handler = SettingsHandler()
         handler.defaults = {'default': 42, 'setting': 1}
         handler.provider = provider = Mock()
+        provider.traverse_settings = Mock(return_value=())
         handler.widget_class = SimpleWidget
         provider.get_provider.return_value = provider
         widget = SimpleWidget()
@@ -149,6 +151,7 @@ class SettingHandlerTestCase(WidgetTest):
         handler = SettingsHandler()
         handler.defaults = {'default': 42}
         provider = Mock()
+        provider.traverse_settings = Mock(return_value=())
         handler.widget_class = SimpleWidget
         handler.provider = Mock(get_provider=Mock(return_value=provider))
         widget = SimpleWidget()
@@ -498,10 +501,10 @@ class SettingHandlerTestCase(WidgetTest):
 
     def test_check_type_complex(self):
         ct = SettingsHandler.check_type
-        composed = Tuple[str, Dict[int, Optional[List[set]]], Set[bool]]
+        composed = Tuple[str, Dict[int, Optional[List[Set[int]]]], Set[bool]]
 
-        self.assertTrue(ct(("foo", {4: [{1, 2}, {3, 1}], 4: []}, {False, True}), composed))
-        self.assertTrue(ct(("foo", {4: [{1, 2}, {3, 1}], 4: []}, set()), composed))
+        self.assertTrue(ct(("foo", {4: [{1, 2}, {3, 1}], 5: []}, {False, True}), composed))
+        self.assertTrue(ct(("foo", {4: [{1, 2}, {3, 1}], 5: []}, set()), composed))
         self.assertTrue(ct(("foo", {}, set()), composed))
 
     def test_check_type_from_packer(self):
@@ -520,6 +523,99 @@ class SettingHandlerTestCase(WidgetTest):
         self.assertWarns(UserWarning, widget.settingsHandler.pack_data, widget)
         widget.an_int = [0] * 100
         self.assertWarns(UserWarning, widget.settingsHandler.pack_data, widget)
+
+    def test_pack_value(self):
+        pv = SettingsHandler.pack_value
+        self.assertEqual(pv(5, int), 5)
+        self.assertEqual(pv(5, float), 5)
+        self.assertAlmostEqual(pv(3.14, float), 3.14)
+        self.assertEqual(pv("foo", str), "foo")
+        self.assertEqual(pv("foo", str), "foo")
+        self.assertEqual(pv(True, bool), True)
+        self.assertEqual(pv(1, bool), True)
+        self.assertEqual(pv(1, bool), True)
+        self.assertEqual(pv(SortBy.INCREASING, SortBy), int(SortBy.INCREASING))
+        self.assertIsInstance(pv(SortBy.INCREASING, SortBy), int)
+        self.assertEqual(pv(bytes([1, 2, 3]), bytes), "AQID")
+        self.assertEqual(pv(coords(42, "foo"), coords), [42, "foo"])
+
+        self.assertEqual(pv((1, "foo", True), Tuple[int, str, bool]), [1, "foo", True])
+        self.assertEqual(pv([1, 2, 3], List[int]), [1, 2, 3])
+        self.assertEqual(pv({1, 2, 3}, Set[int]), [1, 2, 3])
+        self.assertEqual(pv((1, 2, 3), Tuple[int, ...]), [1, 2, 3])
+
+        self.assertEqual(pv(None, Optional[Tuple[int, ...]]), None)
+
+        composed = Tuple[str, Dict[int, Optional[List[Tuple[int, ...]]]], Set[bool]]
+        self.assertEqual(pv(("foo", {4: [(1, 2), (3, )], 5: []}, {False}), composed),
+                        ["foo", {4: [[1, 2], [3]], 5: []}, [False]])
+        self.assertEqual(pv(("foo", {4: None, 5: []}, {False}), composed),
+                        ["foo", {4: None, 5: []}, [False]])
+
+    def test_unpack_value(self):
+        uv = SettingsHandler.unpack_value
+        self.assertEqual(uv(5, int), 5)
+        self.assertEqual(uv(5, float), 5)
+        self.assertAlmostEqual(uv(3.14, float), 3.14)
+        self.assertEqual(uv("foo", str), "foo")
+        self.assertEqual(uv("foo", str), "foo")
+        self.assertEqual(uv(True, bool), True)
+        self.assertEqual(uv(int(SortBy.INCREASING), SortBy), SortBy.INCREASING)
+        self.assertEqual(uv("AQID", bytes), bytes([1, 2, 3]))
+        self.assertEqual(uv([42, "foo"], coords), coords(42, "foo"))
+
+        self.assertEqual(uv([1, "foo", True], Tuple[int, str, bool]), (1, "foo", True))
+        self.assertEqual(uv([1, 2, 3], List[int]), [1, 2, 3])
+        self.assertEqual(uv([1, 2, 3], Set[int]), {1, 2, 3})
+        self.assertEqual(uv([1, 2, 3], Tuple[int, ...]), (1, 2, 3))
+
+        self.assertEqual(uv(None, Optional[Tuple[int, ...]]), None)
+
+        composed = Tuple[str, Dict[int, Optional[List[Tuple[int, ...]]]], Set[bool]]
+        self.assertEqual(uv(["foo", {4: [[1, 2], [3]], 5: []}, [False]], composed),
+                         ("foo", {4: [(1, 2), (3, )], 5: []}, {False}))
+        self.assertEqual(uv(["foo", {4: None, 5: []}, [False]], composed),
+                         ("foo", {4: None, 5: []}, {False}))
+
+    def test_pack_from_widget(self):
+        composed = Optional[Tuple[str, Dict[int, Optional[List[Tuple[int, ...]]]], Set[bool]]]
+
+        class Widget(OWBaseWidget):
+            name = "foo"
+            an_int = Setting(42)
+            a_comp: composed = Setting(None)
+            a_context: Optional[Tuple[int, ...]] = Setting(None)
+
+        widget = Widget()
+        widget.a_comp = ("foo", {4: [(1, 2), (3, )], 5: []}, {False})
+        widget.a_context = (4, 2, 1)
+        packed = widget.settingsHandler.pack_data(widget)
+        remove_base_settings(packed)
+        self.assertEqual(
+            packed,
+            {"an_int": 42,
+             "a_comp": ["foo", {4: [[1, 2], [3]], 5: []}, [False]],
+             "a_context": [4, 2, 1]
+             })
+
+    def test_unpack_to_widget(self):
+        composed = Optional[Tuple[str, Dict[int, Optional[List[Tuple[int, ...]]]], Set[bool]]]
+
+        class Widget(OWBaseWidget):
+            name = "foo"
+            an_int = Setting(42)
+            a_comp: composed = Setting(None)
+            a_context: Optional[Tuple[int, ...]] = Setting(None)
+
+        widget = Widget(
+            stored_settings={
+                "an_int": 42,
+                "a_comp": ["foo", {4: [[1, 2], [3]], 5: []}, [False]],
+                "a_context": [4, 2, 1]})
+        self.assertEqual(widget.a_comp,
+                         ("foo", {4: [(1, 2), (3, )], 5: []}, {False}))
+        self.assertEqual(widget.a_context, (4, 2, 1))
+        self.assertEqual(widget.an_int, 42)
 
 
 class Component(OWComponent):
@@ -571,3 +667,7 @@ class MigrationsTestCase(unittest.TestCase):
         context = Context(values=dict(foo=42, bar=13))
         rename_setting(context, "foo", "baz")
         self.assertDictEqual(context.values, dict(baz=42, bar=13))
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,11 +1,11 @@
 import unittest
 import warnings
-from enum import IntEnum
 from typing import Dict, List, Set
 from unittest.mock import Mock
 
 from orangewidget.settings import Setting, SettingProvider, _apply_setting
 from orangewidget.tests.base import WidgetTest
+from orangewidget.tests.utils import remove_base_settings
 from orangewidget.widget import OWBaseWidget, OWComponent
 
 SHOW_ZOOM_TOOLBAR = "show_zoom_toolbar"
@@ -19,14 +19,6 @@ ALLOW_ZOOMING = "allow_zooming"
 A_LIST = "a_list"
 A_SET = "a_set"
 A_DICT = "a_dict"
-
-
-def remove_base_settings(settings):
-    class HoneyPot(OWBaseWidget):
-        name = "honeypot"
-
-    for name in HoneyPot.settingsHandler.provider.settings:
-        settings.pop(name)
 
 
 class SettingProviderTestCase(WidgetTest):
@@ -128,7 +120,7 @@ class SettingProviderTestCase(WidgetTest):
                 SHOW_X_AXIS: True,
                 SHOW_Y_AXIS: False,
                 A_LIST: [],
-                A_SET: {1, 2, 3},
+                A_SET: [1, 2, 3],
                 A_DICT: {1: 2, 3: 4}
             },
             ZOOM_TOOLBAR: {

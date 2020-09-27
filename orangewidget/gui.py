@@ -18,7 +18,9 @@ from AnyQt.QtGui import QCursor, QColor
 from AnyQt.QtWidgets import (
     QApplication, QStyle, QSizePolicy, QWidget, QLabel, QGroupBox, QSlider,
     QTableWidgetItem, QStyledItemDelegate, QTableView, QHeaderView,
-    QScrollArea, QLineEdit, QCalendarWidget, QDateTimeEdit)
+    QScrollArea, QFrame, QScrollBar, QLineEdit,
+    QCalendarWidget, QDateTimeEdit,
+)
 
 from orangewidget.utils import getdeepattr
 from orangewidget.utils.buttons import VariableTextPushButton
@@ -2831,25 +2833,43 @@ class VerticalScrollArea(QScrollArea):
     needs to scroll horizontally: it adapts its width to the contents.
     """
 
+    class ScrollBar(QScrollBar):
+        #: Emitted when the scroll bar receives a StyleChange event
+        styleChange = Signal()
+
+        def changeEvent(self, event: QEvent) -> None:
+            if event.type() == QEvent.StyleChange:
+                self.styleChange.emit()
+            super().changeEvent(event)
+
     def __init__(self, parent):
         super().__init__(parent)
         self.setWidgetResizable(True)
+        self.setFrameShape(QFrame.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.horizontalScrollBar().setEnabled(False)
-        self.installEventFilter(self)  # to get LayoutRequest on this object
+        sb = VerticalScrollArea.ScrollBar()
+        self.setVerticalScrollBar(sb)
+        sb.styleChange.connect(self.updateGeometry)
 
-    def _set_width(self):
-        scroll_bar_width = 0
-        if self.verticalScrollBar().isVisible():
-            scroll_bar_width = self.verticalScrollBar().width()
-        self.setMinimumWidth(self.widget().minimumSizeHint().width() + scroll_bar_width)
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.updateGeometry()
+        self.parent().updateGeometry()
 
-    def eventFilter(self, receiver, event):
-        if (receiver in (self, self.widget()) and event.type() == QEvent.Resize) \
-                or (receiver is self and event.type() == QEvent.LayoutRequest):
-            self._set_width()
-        return super().eventFilter(receiver, event)
+    def sizeHint(self):
+        if not self.widget():
+            return super().sizeHint()
+
+        width = self.widget().width()
+        sb = self.verticalScrollBar()
+        isTransient = sb.style().styleHint(QStyle.SH_ScrollBar_Transient, widget=sb)
+        if not isTransient and sb.maximum() != sb.minimum():
+            width += sb.style().pixelMetric(QStyle.PM_ScrollBarExtent, widget=sb)
+
+        sh = self.widget().sizeHint()
+        sh.setWidth(width)
+        return sh
 
 
 class CalendarWidgetWithTime(QCalendarWidget):

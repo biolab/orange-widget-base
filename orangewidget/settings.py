@@ -739,7 +739,10 @@ class SettingsHandler:
         if orig is tuple:
             return all(map(cls.is_allowed_type, args))
         if orig is dict:
-            return args[0] in (str, bool, int, float) \
+            # json.dumps will convert int and float into str, but we decode
+            # them back. We could allow bool, but it would complicate decoding
+            # and is not of much use anyway
+            return args[0] in (str, int, float) \
                    and cls.is_allowed_type(args[1])
 
     @classmethod
@@ -928,8 +931,9 @@ class SettingsHandler:
             return tuple(cls.unpack_value(x, tp_) for x, tp_ in zip(value, args))
         if orig is dict:
             kt, vt = args
-            return {cls.unpack_value(k, kt): cls.unpack_value(v, vt)
-                    for k, v in value.items()}
+            # Python's json encoder will convert ints, float, bools into strings
+            # we here just convert them back; we can't use unpack_value for this
+            return {kt(k): cls.unpack_value(v, vt) for k, v in value.items()}
 
         # Shouldn't come to this, but ... what the heck.
         return value

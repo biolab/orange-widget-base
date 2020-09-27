@@ -192,10 +192,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     #: Should the widget remember its window position/size?
     save_position = True
 
-    #: Is vertical scrolling on the widget's left side, which usually
-    #: contains  the `controlArea`, allowed?
-    left_side_scrolling = False
-
     #: Orientation of the buttonsArea box; valid only if
     #: `want_control_area` is `True`. Possible values are Qt.Horizontal,
     #: Qt.Vertical and None for no buttons area
@@ -289,6 +285,13 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         OWComponent.__init__(self)
         WidgetMessagesMixin.__init__(self)
         WidgetSignalsMixin.__init__(self)
+
+        # handle deprecated left_side_scrolling
+        if hasattr(self, 'left_side_scrolling'):
+            warnings.warn(
+                "'OWBaseWidget.left_side_scrolling' is deprecated.",
+                DeprecationWarning
+            )
 
         stored_settings = kwargs.get('stored_settings', None)
         if self.settingsHandler:
@@ -468,27 +471,27 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
     def _insert_control_area(self):
         self.left_side = gui.vBox(self.__splitter, addSpace=0)
-        if self.left_side_scrolling:
+        if self.want_main_area:
+            self.left_side.setSizePolicy(
+                QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+
             scroll_area = VerticalScrollArea(self.left_side)
             scroll_area.setSizePolicy(QSizePolicy.MinimumExpanding,
                                       QSizePolicy.Preferred)
-            self.controlArea = gui.vBox(scroll_area, spacing=0)
+            self.controlArea = gui.vBox(scroll_area, spacing=0,
+                                        sizePolicy=(QSizePolicy.Fixed,
+                                                    QSizePolicy.MinimumExpanding))
             scroll_area.setWidget(self.controlArea)
             self.left_side.layout().addWidget(scroll_area)
+
+            m = 0
         else:
             self.controlArea = gui.vBox(self.left_side, spacing=0)
+            m = 4
 
         if self.buttons_area_orientation is not None:
             self._insert_buttons_area()
 
-        if self.want_main_area:
-            self.left_side.setSizePolicy(
-                QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
-            self.controlArea.setSizePolicy(
-                QSizePolicy.Fixed, QSizePolicy.MinimumExpanding)
-            m = 0
-        else:
-            m = 4
         self.controlArea.layout().setContentsMargins(m, m, m, m)
 
     def _insert_buttons_area(self):

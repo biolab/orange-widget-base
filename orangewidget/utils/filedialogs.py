@@ -9,8 +9,7 @@ from AnyQt.QtWidgets import \
     QMessageBox, QFileDialog, QFileIconProvider, QComboBox
 
 from orangewidget.io import Compression
-from orangewidget.settings import Setting
-
+from orangewidget.settings import Setting, SettingsHandler
 
 if typing.TYPE_CHECKING:
     from typing_extensions import Protocol
@@ -192,7 +191,8 @@ class RecentPath:
         self.file_format = file_format
 
     def __eq__(self, other):
-        return (self.abspath == other.abspath or
+        return isinstance(other, RecentPath) and (
+                self.abspath == other.abspath or
                 (self.prefix is not None and self.relpath is not None and
                  self.prefix == other.prefix and
                  self.relpath == other.relpath))
@@ -297,6 +297,33 @@ class RecentPath:
     __str__ = __repr__
 
 
+def recent_paths_context_handler(base_handler: typing.Type[SettingsHandler]):
+    class ContextHandlerWRecentPaths(base_handler):
+        @classmethod
+        def is_allowed_type(cls, tp):
+            return tp is RecentPath or super().is_allowed_type(tp)
+
+        @classmethod
+        def pack_value(cls, value, tp):
+            if tp is RecentPath:
+                return {attr: getattr(value, attr)
+                        for attr in ("abspath", "prefix", "relpath",
+                                     "title", "sheet", "file_format")}
+            else:
+                return super().pack_value(value, tp)
+
+        @classmethod
+        def unpack_value(cls, value, tp):
+            if tp is RecentPath:
+                if isinstance(value, RecentPath):  # backward compatibility
+                    return value
+                return RecentPath(**value)
+            else:
+                return super().unpack_value(value, tp)
+
+    return ContextHandlerWRecentPaths
+
+
 class RecentPathsWidgetMixin:
     """
     Provide a setting with recent paths and relocation capabilities
@@ -330,8 +357,7 @@ class RecentPathsWidgetMixin:
     #: list with search paths; overload to add, say, documentation datasets dir
     SEARCH_PATHS = []
 
-    #: List[RecentPath]
-    recent_paths = Setting([])
+    recent_paths: typing.List[RecentPath] = Setting([])
 
     _init_called = False
 

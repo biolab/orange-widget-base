@@ -6,7 +6,7 @@ import textwrap
 from operator import attrgetter
 from math import log10
 
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 from AnyQt.QtWidgets import (
     QWidget, QDialog, QVBoxLayout, QSizePolicy, QApplication, QStyle,
@@ -45,6 +45,36 @@ __all__ = [
     "OWBaseWidget", "Input", "Output", "AttributeList", "Message", "Msg",
     "StateInfo",
 ]
+
+
+class Message:
+    """
+    A user message.
+
+    :param str text: Message text
+    :param str persistent_id:
+        A persistent message id.
+    :param icon: Message icon
+    :type icon: QIcon or QStyle.StandardPixmap
+    :param str moreurl:
+        An url to open when a user clicks a 'Learn more' button.
+
+    .. seealso:: :const:`OWBaseWidget.UserAdviceMessages`
+    """
+    #: QStyle.SP_MessageBox* pixmap enums repeated for easier access
+    Question = QStyle.SP_MessageBoxQuestion
+    Information = QStyle.SP_MessageBoxInformation
+    Warning = QStyle.SP_MessageBoxWarning
+    Critical = QStyle.SP_MessageBoxCritical
+
+    def __init__(self, text, persistent_id, icon=None, moreurl=None):
+        assert isinstance(text, str)
+        assert isinstance(icon, (type(None), QIcon, QStyle.StandardPixmap))
+        assert persistent_id is not None
+        self.text = text
+        self.icon = icon
+        self.moreurl = moreurl
+        self.persistent_id = persistent_id
 
 
 def _asmappingproxy(mapping):
@@ -91,13 +121,13 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     """
 
     #: Widget name, as presented in the Canvas.
-    name = None
+    name: str = None
 
     #: Short widget description, displayed in canvas help tooltips.
-    description = ""
+    description: str = ""
 
     #: Widget icon path, relative to the defining module.
-    icon = "icons/Unknown.png"
+    icon: str = "icons/Unknown.png"
 
     class Inputs:
         """
@@ -177,7 +207,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     #: recorded and the message is never shown again (closing the message
     #: will not mark it as seen). Messages can be displayed again by pressing
     #: Shift + F1)
-    UserAdviceMessages = []
+    UserAdviceMessages: List[Message] = []
 
     # -------------------------------------------------------------------------
     # Miscellaneous Options
@@ -188,7 +218,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     #: changes to settings representation (a settings that used to store
     #: int now stores string) and handle migrations in migrate and
     #: migrate_context settings)
-    settings_version = 1
+    settings_version: int = 1
 
     #: Signal emitted before settings are packed and saved.
     #: (gives you a chance to sync state to Setting values)
@@ -198,27 +228,28 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     settingsHandler: SettingsHandler = None
 
     #: Widget keywords, used for finding it in the quick menu.
-    keywords = []
+    keywords: List[str] = []
 
     #: Widget priority, used for sorting within a category.
-    priority = sys.maxsize
+    priority: int = sys.maxsize
 
     #: Short name for widget, displayed in toolbox.
     #: (set this if the widget's conventional name is long)
-    short_name = None
+    short_name: str = None
 
     #: A list of widget IDs that this widget replaces in older workflows.
-    replaces = None
+    replaces: List[str] = None
 
     #: Widget painted by `Save graph` button
-    graph_name = None
-    graph_writers = [f for f in ImgFormat.formats
-                     if getattr(f, 'write_image', None)
-                     and getattr(f, "EXTENSIONS", None)]
+    graph_name: str = None
+    graph_writers: List[ImgFormat] = [f for f in ImgFormat.formats
+                                  if getattr(f, 'write_image', None)
+                                  and getattr(f, "EXTENSIONS", None)]
 
     #: Explicitly set widget category,
     #: should it not already be part of a package.
-    category = None
+    category: str = None
+
     version = None
     help = None
     help_ref = None
@@ -1454,36 +1485,6 @@ class _StatusBar(QStatusBar):
         style.drawPrimitive(QStyle.PE_PanelStatusBar, opt, painter, None)
         # Do not draw any PE_FrameStatusBarItem frames.
         painter.end()
-
-
-class Message:
-    """
-    A user message.
-
-    :param str text: Message text
-    :param str persistent_id:
-        A persistent message id.
-    :param icon: Message icon
-    :type icon: QIcon or QStyle.StandardPixmap
-    :param str moreurl:
-        An url to open when a user clicks a 'Learn more' button.
-
-    .. seealso:: :const:`OWBaseWidget.UserAdviceMessages`
-    """
-    #: QStyle.SP_MessageBox* pixmap enums repeated for easier access
-    Question = QStyle.SP_MessageBoxQuestion
-    Information = QStyle.SP_MessageBoxInformation
-    Warning = QStyle.SP_MessageBoxWarning
-    Critical = QStyle.SP_MessageBoxCritical
-
-    def __init__(self, text, persistent_id, icon=None, moreurl=None):
-        assert isinstance(text, str)
-        assert isinstance(icon, (type(None), QIcon, QStyle.StandardPixmap))
-        assert persistent_id is not None
-        self.text = text
-        self.icon = icon
-        self.moreurl = moreurl
-        self.persistent_id = persistent_id
 
 
 #: Input/Output flags (deprecated).

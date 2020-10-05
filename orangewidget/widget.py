@@ -87,81 +87,166 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                    WidgetMessagesMixin, WidgetSignalsMixin,
                    metaclass=WidgetMetaClass, openclass=True):
     """
-    Base widget class in an orange widget workflow.
+    Base widget class in an Orange widget workflow.
     """
 
-    # Global widget count
-    widget_id = 0
-
-    # Widget Meta Description
-    # -----------------------
-
-    #: Widget name (:class:`str`) as presented in the Canvas
+    #: Widget name, as presented in the Canvas.
     name = None
-    short_name = None
-    id = None
-    category = None
-    version = None
-    #: Short widget description (:class:`str` optional), displayed in
-    #: canvas help tooltips.
+
+    #: Short widget description, displayed in canvas help tooltips.
     description = ""
-    #: Widget icon path relative to the defining module
+
+    #: Widget icon path, relative to the defining module.
     icon = "icons/Unknown.png"
-    #: Widget priority used for sorting within a category
-    #: (default ``sys.maxsize``).
-    priority = sys.maxsize
 
-    help = None
-    help_ref = None
-    url = None
-    keywords = []
-    background = None
-    replaces = None
+    class Inputs:
+        """
+        Define inputs in this nested class as class variables.
+        (type `orangewidget.widget.Input`)
 
-    #: A list of published input definitions
-    inputs = []
-    #: A list of published output definitions
-    outputs = []
+        Example::
 
-    # Default widget GUI layout settings
-    # ----------------------------------
+            class Inputs:
+                data = Input("Data", Table)
 
-    #: Should the widget have basic layout
-    #: (If this flag is false then the `want_main_area` and
-    #: `want_control_area` are ignored).
+        Then, register input handler methods with decorators.
+
+        Example::
+
+            @Inputs.data
+            def handle_data(self, data):
+                self.my_data = data
+        """
+
+    class Outputs:
+        """
+        Define outputs in this nested class as class variables.
+        (type `orangewidget.widget.Output`)
+
+        Example::
+
+            class Outputs:
+                data = Output("Data", Table)
+
+        Then, send results to the output with its `send` method.
+
+        Example::
+
+            def commit(self):
+                self.Outputs.data.send(self.my_data)
+        """
+
+    # -------------------------------------------------------------------------
+    # Widget GUI Layout Settings
+    # -------------------------------------------------------------------------
+
+    #: Should the widget have basic layout?
+    #: (if not, the rest of the GUI layout settings are ignored)
     want_basic_layout = True
-    #: Should the widget construct a `mainArea` (this is a resizable
-    #: area to the right of the `controlArea`).
-    want_main_area = True
-    #: Should the widget construct a `controlArea`.
+
+    #: Should the widget construct a `controlArea`?
     want_control_area = True
+
+    #: Should the widget construct a `mainArea`?
+    #: (a resizable area to the right of the `controlArea`)
+    want_main_area = True
+
+    #: Should the widget construct a `message_bar`?
+    #: (if not, make sure you show warnings/errors in some other way)
+    want_message_bar = True
+
+    #: Should the widget's window be resizeable?
+    #: (if not, the widget will derive a fixed size constraint from its layout)
+    resizing_enabled = True
+
+    #: Should the widget remember its window position/size?
+    save_position = True
+
     #: Is vertical scrolling on the widget's left side, which usually
     #: contains  the `controlArea`, allowed?
     left_side_scrolling = False
+
     #: Orientation of the buttonsArea box; valid only if
     #: `want_control_area` is `True`. Possible values are Qt.Horizontal,
     #: Qt.Vertical and None for no buttons area
     buttons_area_orientation = Qt.Horizontal
-    #: Specify whether the default message bar widget should be created
-    #: and placed into the default layout. If False then clients are
-    #: responsible for displaying messages within the widget in an
-    #: appropriate manner.
-    want_message_bar = True
+
+    #: A list of advice messages to display to the user.
+    #: (when a widget is first shown a message from this list is selected
+    #: for display. If a user accepts (clicks 'Ok. Got it') the choice is
+    #: recorded and the message is never shown again (closing the message
+    #: will not mark it as seen). Messages can be displayed again by pressing
+    #: Shift + F1)
+    UserAdviceMessages = []
+
+    # -------------------------------------------------------------------------
+    # Miscellaneous Options
+    # -------------------------------------------------------------------------
+
+    #: Version of the settings representation
+    #: (subclasses should increase this number when they make breaking
+    #: changes to settings representation (a settings that used to store
+    #: int now stores string) and handle migrations in migrate and
+    #: migrate_context settings)
+    settings_version = 1
+
+    #: Signal emitted before settings are packed and saved.
+    #: (gives you a chance to sync state to Setting values)
+    settingsAboutToBePacked = Signal()
+
+    #: Settings handler, can be overridden for context handling.
+    settingsHandler: SettingsHandler = None
+
+    #: Widget keywords, used for finding it in the quick menu.
+    keywords = []
+
+    #: Widget priority, used for sorting within a category.
+    priority = sys.maxsize
+
+    #: Short name for widget, displayed in toolbox.
+    #: (set this if the widget's conventional name is long)
+    short_name = None
+
+    #: A list of widget IDs that this widget replaces in older workflows.
+    replaces = None
+
     #: Widget painted by `Save graph` button
     graph_name = None
     graph_writers = [f for f in ImgFormat.formats
                      if getattr(f, 'write_image', None)
                      and getattr(f, "EXTENSIONS", None)]
 
-    save_position = True
+    #: Explicitly set widget category,
+    #: should it not already be part of a package.
+    category = None
+    version = None
+    help = None
+    help_ref = None
+    url = None
+    background = None
 
-    #: If false the widget will receive fixed size constraint
-    #: (derived from it's layout). Use for widgets which have simple
-    #: static size contents.
-    resizing_enabled = True
+    # -------------------------------------------------------------------------
+    # Private Interface
+    # -------------------------------------------------------------------------
 
-    blockingStateChanged = Signal(bool)
-    processingStateChanged = Signal(int)
+    # Global widget count
+    widget_id = 0
+
+    # Custom widget id, kept for backward compatibility
+    id = None
+
+    # A list of published input definitions.
+    # (conventionally generated from Inputs nested class)
+    inputs = []
+
+    # A list of published output definitions.
+    # (conventionally generated from Outputs nested class)
+    outputs = []
+
+    contextAboutToBeOpened = Signal(object)
+    contextOpened = Signal()
+    contextClosed = Signal()
+    openVisualSettingsClicked = Signal()
 
     # Signals have to be class attributes and cannot be inherited,
     # say from a mixin. This has something to do with the way PyQt binds them
@@ -169,34 +254,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     messageActivated = Signal(Msg)
     messageDeactivated = Signal(Msg)
 
-    settingsHandler = None
-    """:type: SettingsHandler"""
-
-    #: Version of the settings representation
-    #: Subclasses should increase this number when they make breaking
-    #: changes to settings representation (a settings that used to store
-    #: int now stores string) and handle migrations in migrate and
-    #: migrate_context settings.
-    settings_version = 1
-
     savedWidgetGeometry = settings.Setting(None)
     controlAreaVisible = settings.Setting(True, schema_only=True)
-
-    #: A list of advice messages (:class:`Message`) to display to the user.
-    #: When a widget is first shown a message from this list is selected
-    #: for display. If a user accepts (clicks 'Ok. Got it') the choice is
-    #: recorded and the message is never shown again (closing the message
-    #: will not mark it as seen). Messages can be displayed again by pressing
-    #: Shift + F1
-    #:
-    #: :type: list of :class:`Message`
-    UserAdviceMessages = []
-
-    settingsAboutToBePacked = Signal()
-    contextAboutToBeOpened = Signal(object)
-    contextOpened = Signal()
-    contextClosed = Signal()
-    openVisualSettingsClicked = Signal()
 
     # pylint: disable=protected-access, access-member-before-definition
     def __new__(cls, *args, captionTitle=None, **kwargs):
@@ -1113,6 +1172,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
     widgetStateChanged = Signal()
     blockingStateChanged = Signal(bool)
+    processingStateChanged = Signal(int)
     invalidatedStateChanged = Signal(bool)
     readyStateChanged = Signal(bool)
 

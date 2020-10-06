@@ -2,14 +2,13 @@ import sys
 from typing import List, Iterable, Tuple, Callable, Union, Dict
 from functools import singledispatch
 
-from AnyQt.QtCore import Qt, pyqtSignal as Signal, QStringListModel
+from AnyQt.QtCore import Qt, pyqtSignal as Signal, QStringListModel, \
+    QAbstractItemModel
 from AnyQt.QtWidgets import QDialog, QVBoxLayout, QComboBox, QCheckBox, \
-    QDialogButtonBox, QSpinBox, QWidget, QGroupBox, QApplication, \
-    QFormLayout, QLineEdit
+    QDialogButtonBox, QSpinBox, QWidget, QApplication, QFormLayout, QLineEdit
 
 from orangewidget import gui
 from orangewidget.utils.combobox import _ComboBoxListDelegate
-from orangewidget.utils.itemmodels import PyListModel
 from orangewidget.widget import OWBaseWidget
 
 KeyType = Tuple[str, str, str]
@@ -173,7 +172,7 @@ def _(values: FontList, value: str, key: KeyType, signal: Callable) \
                 return "separator"
 
             value = super().data(index, role)
-            if role in (Qt.DisplayRole, Qt.EditRole) and value.startswith("."):
+            if role == Qt.DisplayRole and value.startswith("."):
                 value = value[1:]
             return value
 
@@ -222,7 +221,10 @@ def _set_control_value(*_):
 
 @_set_control_value.register(QComboBox)
 def _(combo: QComboBox, value: str):
-    combo.setCurrentText(value)
+    model: QAbstractItemModel = combo.model()
+    values = [model.data(model.index(i, 0), role=Qt.EditRole)
+              for i in range(model.rowCount())]
+    combo.setCurrentIndex(values.index(value))
 
 
 @_set_control_value.register(QSpinBox)

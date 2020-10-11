@@ -193,17 +193,19 @@ class OWCanvasMainWindow(CanvasMainWindow):
         if not report.is_changed():
             return QDialog.Accepted
 
-        answ = QMessageBox(
+        mBox = QMessageBox(
             self,
             windowTitle="Report window",
             icon=QMessageBox.Question,
-            text="Report window contains unsaved changes",
-            informativeText="Save the report?",
-            standardButtons=QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
-        ).exec()
+            text="The report contains unsaved changes.",
+            informativeText="Would you like to save the report?",
+            standardButtons=QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+        )
+        mBox.setDefaultButton(QMessageBox.Save)
+        answ = mBox.exec()
         if answ == QMessageBox.Cancel:
             return QDialog.Rejected
-        if answ == QMessageBox.Yes:
+        if answ == QMessageBox.Save:
             return report.save_report()
         return QDialog.Accepted
 

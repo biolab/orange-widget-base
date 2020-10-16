@@ -137,6 +137,7 @@ class OWReport(OWBaseWidget):
         super().__init__()
         self._setup_ui_()
         self.report_changed = False
+        self.have_report_warning_shown = False
 
         index_file = pkg_resources.resource_filename(__name__, "index.html")
         with open(index_file, "r") as f:
@@ -194,6 +195,8 @@ class OWReport(OWBaseWidget):
         if WebviewWidget is not None:
             self.report_view = WebviewWidget(self.mainArea, bridge=PyBridge(self))
             self.mainArea.layout().addWidget(self.report_view)
+        else:
+            self.report_view = None
 
     def _table_clicked(self, index):
         if index.column() == Column.remove:
@@ -240,6 +243,8 @@ class OWReport(OWBaseWidget):
         self.print_button.setEnabled(self.table_model.rowCount())
 
     def _build_html(self, selected_id=None):
+        if not self.report_view:
+            return
         html = self.report_html_template
         if selected_id is not None:
             onload = f"(function (id) {{" \
@@ -264,12 +269,16 @@ class OWReport(OWBaseWidget):
         self.report_view.setHtml(html)
 
     def _scroll_to_item(self, item):
+        if not self.report_view:
+            return
         self.report_view.runJavaScript(
             f"scrollToId('{item.id}')",
             lambda res: log.debug("scrollToId returned %s", res)
         )
 
     def _change_selected_item(self, item):
+        if not self.report_view:
+            return
         self.report_view.runJavaScript(
             f"setSelectedId('{item.id}');",
             lambda res: log.debug("setSelectedId returned %s", res)
@@ -328,9 +337,10 @@ class OWReport(OWBaseWidget):
 
     def save_report(self):
         """Save report"""
-        formats = OrderedDict((('HTML (*.html)', '.html'),
-                               ('PDF (*.pdf)', '.pdf'),
-                               ('Report (*.report)', '.report')))
+        formats = (('HTML (*.html)', '.html'),
+                   ('PDF (*.pdf)', '.pdf')) if self.report_view else tuple()
+        formats = formats + (('Report (*.report)', '.report'),)
+        formats = OrderedDict(formats)
 
         filename, selected_format = QFileDialog.getSaveFileName(
             self, "Save Report", self.save_dir, ';;'.join(formats.keys()))
@@ -361,11 +371,14 @@ class OWReport(OWBaseWidget):
                 except PermissionError:
                     self.permission_error(filename)
 
-            save_html(self.report_view.html())
+            if self.report_view:
+                save_html(self.report_view.html())
         self.report_changed = False
         return QDialog.Accepted
 
     def _print_to_printer(self, printer):
+        if not self.report_view:
+            return
         filename = printer.outputFileName()
         if filename:
             try:
@@ -487,5 +500,6 @@ class OWReport(OWBaseWidget):
                 return window
 
     def copy_to_clipboard(self):
-        self.report_view.triggerPageAction(self.report_view.page().Copy)
+        if self.report_view:
+            self.report_view.triggerPageAction(self.report_view.page().Copy)
 

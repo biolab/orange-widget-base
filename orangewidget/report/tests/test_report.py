@@ -8,7 +8,7 @@ from AnyQt.QtCore import Qt, QRectF
 from AnyQt.QtGui import QFont, QBrush, QPixmap, QColor, QIcon
 from PyQt5.QtWidgets import QGraphicsScene
 
-from orangewidget.report.owreport import OWReport
+from orangewidget.report.owreport import OWReport, HAVE_REPORT
 from orangewidget import gui
 from orangewidget.utils.itemmodels import PyTableModel
 from orangewidget.widget import OWBaseWidget
@@ -84,7 +84,7 @@ class TestReport(GuiTest):
             with patch("orangewidget.report.owreport.open",
                        create=True, side_effect=PermissionError),\
                     patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
-                          return_value=(filename, 'HTML (*.html)')),\
+                          return_value=(filename, 'Report (*.report)')),\
                     patch("AnyQt.QtWidgets.QMessageBox.exec_",
                           return_value=True), \
                     patch("orangewidget.report.owreport.log.error") as log:
@@ -107,6 +107,31 @@ class TestReport(GuiTest):
         finally:
             os.remove(temp_name)
             os.rmdir(temp_dir)
+
+    @patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
+           return_value=(False, 'HTML (*.html)'))
+    def test_save_report_formats(self, mock):
+        rep = OWReport()
+        widget = TstWidget()
+        widget.create_report_html()
+        rep.make_report(widget)
+        rep.report_view = False
+        rep.save_report()
+        formats = mock.call_args_list[-1][0][-1].split(';;')
+        self.assertEqual(["Report (*.report)"], formats)
+        rep.report_view = True
+        rep.save_report()
+        formats = mock.call_args_list[-1][0][-1].split(';;')
+        self.assertEqual(['HTML (*.html)', 'PDF (*.pdf)', 'Report (*.report)'], formats)
+
+    def test_show_webengine_warning_only_once(self):
+        rep = OWReport()
+        widget = TstWidget()
+        with patch("AnyQt.QtWidgets.QMessageBox.critical", return_value=True) as p:
+            widget.show_report()
+            self.assertEqual(0 if HAVE_REPORT else 1, len(p.call_args_list))
+            widget.show_report()
+            self.assertEqual(0 if HAVE_REPORT else 1, len(p.call_args_list))
 
     def test_disable_saving_empty(self):
         """Test if save and print buttons are disabled on empty report"""

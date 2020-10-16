@@ -18,8 +18,7 @@ from AnyQt.QtGui import QCursor, QColor
 from AnyQt.QtWidgets import (
     QApplication, QStyle, QSizePolicy, QWidget, QLabel, QGroupBox, QSlider,
     QTableWidgetItem, QStyledItemDelegate, QTableView, QHeaderView,
-    QScrollArea
-)
+    QScrollArea, QLineEdit)
 
 from orangewidget.utils import getdeepattr
 from orangewidget.utils.buttons import VariableTextPushButton
@@ -481,17 +480,18 @@ def label(widget, master, label, labelWidth=None, box=None,
     return lbl
 
 
-class SpinBoxWFocusOut(QtWidgets.QSpinBox):
+class SpinBoxMixin:
     """
-    A class derived from QSpinBox, which postpones the synchronization
-    of the control's value with the master's attribute until the control looses
-    focus or user presses Tab when the value has changed.
-
     The class overloads :obj:`onChange` event handler to show the commit button,
     and :obj:`onEnter` to commit the change when enter is pressed.
+
+    Also, click and drag to increase/decrease the spinbox's value,
+    instead of scrolling.
     """
 
-    def __init__(self, minv, maxv, step, parent=None):
+    valueCommitted = Signal(object)
+
+    def __init__(self, minv, maxv, step, parent=None, verticalDrag=True):
         """
         Construct the object and set the range (`minv`, `maxv`) and the step.
         :param minv: Minimal value
@@ -502,52 +502,135 @@ class SpinBoxWFocusOut(QtWidgets.QSpinBox):
         :type step: int
         :param parent: Parent widget
         :type parent: QWidget
+        :param verticalDrag: Drag direction
+        :type verticalDrag: bool
         """
         super().__init__(parent)
         self.setRange(minv, maxv)
         self.setSingleStep(step)
-        self.changed = False
 
-    def onValueChanged(self):
-        """
-        Sets the flag to determine whether the value has been changed.
-        """
-        self.changed = True
+        self.equalityChecker = int.__eq__
 
-    def onEnter(self):
+        self.mouseHeld = False
+        self.verticalDirection = verticalDrag
+        self.mouseStartPos = 0
+        self.preDragValue = 0
+        self.stepSize = 0
+
+        self.textEditing = False
+        self.preEditvalue = 0
+
+        self.installEventFilter(self)
+        self.lineEdit().installEventFilter(self)
+        self.editingFinished.connect(self.onEditingFinished)
+
+        # don't focus on scroll
+        self.setFocusPolicy(Qt.StrongFocus)
+
+    def onEditingFinished(self):
         """
         Commits the change by calling the appropriate callbacks.
         """
-        if self.cback and self.changed:
-            self.cback(int(str(self.text())))
-        if self.cfunc and self.changed:
+        if not self.mouseHeld and not self.textEditing:
+            # value hasn't been altered
+            return
+        if self.mouseHeld:
+            self.mouseHeld = False
+            initialValue = self.preDragValue
+        if self.textEditing:
+            # mouse held can be triggered after editing, but not vice versa
+            self.textEditing = False
+            initialValue = self.preEditvalue
+        if not self.equalityChecker(initialValue, self.value()):
+            # if value has changed, commit it
+            self.commitValue()
+
+    def commitValue(self):
+        value = self.value()
+        self.valueCommitted.emit(value)
+        if self.cback:
+            self.cback(value)
+        if self.cfunc:
             self.cfunc()
-        self.changed = False
+
+    def eventFilter(self, obj, event):
+        if not (isinstance(obj, SpinBoxMixin) or isinstance(obj, QLineEdit)):
+            return super().eventFilter(obj, event)
+
+        cursor = Qt.SizeVerCursor if self.verticalDirection else Qt.SizeHorCursor
+
+        if event.type() == QEvent.MouseButtonPress:
+            # prepare click+drag
+            self.mouseStartPos = event.globalPos().y()
+            self.preDragValue = self.value()
+            self.mouseHeld = True
+        elif event.type() == QEvent.MouseMove and self.mouseHeld:
+            # do click+drag
+            # override default cursor on drag
+            if QApplication.overrideCursor() != cursor:
+                QApplication.setOverrideCursor(cursor)
+
+            # disable click and hold behavior
+            if self.stepSize == 0:
+                self.stepSize = self.singleStep()
+                self.setSingleStep(0)
+
+            pos = event.globalPos()
+            posVal = pos.y() if self.verticalDirection else -pos.x()
+            valueOffset = (self.mouseStartPos - posVal) * self.stepSize
+            self.setValue(self.preDragValue + valueOffset)
+
+            event.accept()
+            return True
+        elif event.type() == QEvent.MouseButtonRelease:
+            # end click+drag
+            # restore default cursor on release
+            if QApplication.overrideCursor() == cursor:
+                QApplication.restoreOverrideCursor()
+
+            # restore click and hold behavior
+            if self.stepSize != 0:
+                self.setSingleStep(self.stepSize)
+                self.stepSize = 0
+
+            self.onEditingFinished()
+        elif event.type() == QEvent.Wheel:
+            # disable wheelEvents (scrolling to change value)
+            event.ignore()
+            return True
+        elif event.type() in (QEvent.KeyPress, QEvent.KeyRelease):
+            # handle committing keyboard entry only on editingFinished
+            if self.mouseHeld:
+                # if performing click+drag, ignore key events
+                event.ignore()
+                return True
+            elif not self.textEditing:
+                self.preEditvalue = self.value()
+                self.textEditing = True
+        return super().eventFilter(obj, event)
 
 
-class DoubleSpinBoxWFocusOut(QtWidgets.QDoubleSpinBox):
+class SpinBox(SpinBoxMixin, QtWidgets.QSpinBox):
+    """
+    A class derived from QSpinBox, which postpones the synchronization
+    of the control's value with the master's attribute until the control loses
+    focus, and adds click-and-drag to change value functionality.
+    """
+
+
+class DoubleSpinBox(SpinBoxMixin, QtWidgets.QDoubleSpinBox):
     """
     Same as :obj:`SpinBoxWFocusOut`, except that it is derived from
     :obj:`~QDoubleSpinBox`"""
-    def __init__(self, minv, maxv, step, parent):
-        super().__init__(parent)
-        self.setDecimals(math.ceil(-math.log10(step)))
-        self.setRange(minv, maxv)
-        self.setSingleStep(step)
-        self.changed = False
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setDecimals(math.ceil(-math.log10(self.singleStep())))
+        self.equalityChecker = math.isclose
 
-    def onValueChanged(self):
-        """
-        Sets the flag to determine whether the value has been changed.
-        """
-        self.changed = True
 
-    def onEnter(self):
-        if self.cback and self.changed:
-            self.cback(float(str(self.text()).replace(",", ".")))
-        if self.cfunc and self.changed:
-            self.cfunc()
-        self.changed = False
+# deprecated
+SpinBoxWFocusOut = SpinBox
+DoubleSpinBoxWFocusOut = DoubleSpinBox
 
 
 def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
@@ -582,14 +665,12 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
     :param orientation: tells whether to put the label above or to the left
     :type orientation: `Qt.Horizontal` (default), `Qt.Vertical` or
         instance of `QLayout`
-    :param callback: a function that is called when the value is entered; if
-        :obj:`callbackOnReturn` is `True`, the function is called when the
-        user commits the value by pressing Enter or clicking the icon
+    :param callback: a function that is called when the value is entered;
+        the function is called when the user finishes editing the value
     :type callback: function
     :param controlWidth: the width of the spin box
     :type controlWidth: int
-    :param callbackOnReturn: if `True`, the spin box has an associated icon
-        that must be clicked to confirm the value (default: False)
+    :param callbackOnReturn: (deprecated)
     :type callbackOnReturn: bool
     :param checked: if not None, a check box is put in front of the spin box;
         when unchecked, the spin box is disabled. Argument `checked` gives the
@@ -616,6 +697,12 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
     :rtype: tuple or gui.SpinBoxWFocusOut
     """
 
+    if callbackOnReturn:
+        warnings.warn(
+            "'callbackOnReturn' is deprecated, all spinboxes callback "
+            "only when the user is finished editing the value.",
+            DeprecationWarning, stacklevel=2
+        )
     # b is the outermost box or the widget if there are no boxes;
     #    b is the widget that is inserted into the layout
     # bi is the box that contains the control or the checkbox and the control;
@@ -628,7 +715,7 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
     else:
         b = widget
         hasHBox = False
-    if not hasHBox and (checked or callback and callbackOnReturn or posttext):
+    if not hasHBox and (checked or callback or posttext):
         bi = hBox(b, addToLayout=False)
     else:
         bi = b
@@ -644,8 +731,8 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
 
     isDouble = spinType == float
     sbox = bi.control = b.control = \
-        (SpinBoxWFocusOut, DoubleSpinBoxWFocusOut)[isDouble](minv, maxv,
-                                                             step, bi)
+        (SpinBox, DoubleSpinBox)[isDouble](minv, maxv,
+                                           step, bi)
     if bi is not widget:
         bi.setDisabled(disabled)
     else:
@@ -662,16 +749,14 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
 
     cfront, sbox.cback, sbox.cfunc = connectControl(
         master, value, callback,
-        not (callback and callbackOnReturn) and
-        sbox.valueChanged[(int, float)[isDouble]],
+        not (callback) and
+        sbox.valueCommitted,
         (CallFrontSpin, CallFrontDoubleSpin)[isDouble](sbox))
     if checked:
         sbox.cbox = cbox
         cbox.disables = [sbox]
         cbox.makeConsistent()
-    if callback and callbackOnReturn:
-        sbox.valueChanged.connect(sbox.onValueChanged)
-        sbox.editingFinished.connect(sbox.onEnter)
+    if callback:
         if hasattr(sbox, "upButton"):
             sbox.upButton().clicked.connect(
                 lambda c=sbox.editor(): c.setFocus())

@@ -527,6 +527,9 @@ class SpinBoxMixin:
         # don't focus on scroll
         self.setFocusPolicy(Qt.StrongFocus)
 
+        self.cback = None
+        self.cfunc = None
+
     def onEditingFinished(self):
         """
         Commits the change by calling the appropriate callbacks.
@@ -578,7 +581,7 @@ class SpinBoxMixin:
             pos = event.globalPos()
             posVal = pos.y() if self.verticalDirection else -pos.x()
             valueOffset = (self.mouseStartPos - posVal) * self.stepSize
-            self.setValue(self.preDragValue + valueOffset)
+            super().setValue(self.preDragValue + valueOffset)
 
             event.accept()
             return True
@@ -608,6 +611,14 @@ class SpinBoxMixin:
                 self.preEditvalue = self.value()
                 self.textEditing = True
         return super().eventFilter(obj, event)
+
+    def setValue(self, value):
+        """
+        Manually calling setValue will commit the value.
+        Useful for testing.
+        """
+        super().setValue(value)
+        self.commitValue()
 
 
 class SpinBox(SpinBoxMixin, QtWidgets.QSpinBox):

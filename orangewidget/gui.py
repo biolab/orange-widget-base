@@ -20,7 +20,7 @@ from AnyQt.QtWidgets import (
     QTableWidgetItem, QStyledItemDelegate, QTableView, QHeaderView,
     QScrollArea, QLineEdit)
 
-from orangewidget.utils import getdeepattr
+from orangewidget.utils import getdeepattr, DeprecatedSignal
 from orangewidget.utils.buttons import VariableTextPushButton
 from orangewidget.utils.combobox import (
     ComboBox as OrangeComboBox, ComboBoxSearch as OrangeComboBoxSearch
@@ -619,6 +619,39 @@ class SpinBoxMixin:
         """
         super().setValue(value)
         self.commitValue()
+
+    """
+    Backwards Compatibility Test Interface
+    --------------------------------------
+
+    Spinboxes used to automatically commit on any change in value.
+    This meant it committed its value mid-typing/holding up or down, too.
+    In testing, spinbox settings were tested by either:
+      - calling setValue (most often)
+      - emitting its valueChanged signal (less often)
+      - calling setValue and then onEnter (least often)
+
+    I suggest keeping setValue calls as automatic value commits,
+    but deprecating the rest.
+    """
+
+    __original_init = __init__
+
+    def __init__(self, *args, **kwargs):
+        SpinBoxMixin.__original_init(self, *args, **kwargs)
+        self.valueChanged = DeprecatedSignal(
+            self.valueChanged,
+            warning_text="Testing by emitting a spinbox's 'valueChanged' signal is "
+                         "deprecated, use its 'setValue' method.",
+            emit_callback=self.setValue
+        )
+
+    def onEnter(self):
+        warnings.warn(
+            "Testing by by calling a spinbox's 'onEnter' method is deprecated, "
+            "use its 'setValue' method.",
+            DeprecationWarning
+        )
 
 
 class SpinBox(SpinBoxMixin, QtWidgets.QSpinBox):

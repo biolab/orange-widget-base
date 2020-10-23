@@ -15,16 +15,15 @@ Allowed setting types are
 - IntEnum (implicitly encoded/decoded as int),
 
 and the following generics, whose elements must be one of allowed types
+- Optional
 - List
 - Dict (keys must not be generics; values can be any allowed type)
 - Set (converted to list and back)
 - NamedTuple (implicitly converted to tuple and back)
-- Tuple (converted to list and back)
+- Tuple with fixed number of elements with annotated types
 
 Derived setting handlers may add additional types if the provide proper
 conversion.
-
-Unsupported types result in non-JSON-able settings and raise warnings - at best.
 
 Each widget has its own SettingsHandler that takes care of serializing and
 storing of settings and SettingProvider that is incharge of reading and
@@ -71,7 +70,7 @@ log = logging.getLogger(__name__)
 __all__ = [
     "Setting", "SettingsHandler", "SettingProvider",
     "ContextSetting", "Context", "ContextHandler", "IncompatibleContext",
-    "SettingsPrinter", "rename_setting", "widget_settings_dir"
+    "SettingsPrinter", "rename_setting", "widget_settings_dir", "TypeSupport"
 ]
 
 _IMMUTABLES = (str, int, bytes, bool, float, tuple)
@@ -445,8 +444,44 @@ class SettingProvider:
             yield from provider.traverse_settings(data_, instance_)
 
 
+class TypeSupportRegistry(type):
+    def __new__(mcs, name, bases, attrs):
+        cls = type.__new__(mcs, name, bases, attrs)  #: Type[TypeSupport]
+        if cls.supported_types:
+            SettingsHandler.type_support.append(cls)
+        return cls
+
+
+class TypeSupport(metaclass=TypeSupportRegistry):
+    supported_types: Tuple[type, ...] = ()
+    handle_derived_types = False
+
+    @classmethod
+    def supports_type(cls, tp: type) -> bool:
+        if cls.handle_derived_types:
+            return any(issubclass(tp, supp) for supp in cls.supported_types)
+        else:
+            return tp in cls.supported_types
+
+    @classmethod
+    def check_type(cls, value: Any, tp: type) -> bool:
+        if cls.handle_derived_types:
+            return isinstance(value, tp)
+        else:
+            return type(value) is tp
+
+    @classmethod
+    def pack_value(cls, value: Any, tp: type) -> Any:
+        raise NotImplementedError
+
+    @classmethod
+    def unpack_value(cls, value: Any, tp: type, *ctx_args: Any):
+        raise NotImplementedError
+
+
 class SettingsHandler:
     """Reads widget setting files and passes them to appropriate providers."""
+    type_support: List[Type[TypeSupport]] = []
 
     def __init__(self):
         """Create a setting handler template.
@@ -756,6 +791,7 @@ class SettingsHandler:
                    or isinstance(tp, Setting) and tp.nullable \
                    or get_origin(tp) is Union and type(None) in tp.__args__
 
+        orig_tp = tp
         if isinstance(tp, Setting):
             tp = tp.type
 
@@ -795,6 +831,9 @@ class SettingsHandler:
                     and all(isinstance(x, tp_)
                             for x, tp_ in zip(value, tp.__annotations__.values())
                             )
+            for type_handler in cls.type_support:
+                if type_handler.supports_type(tp):
+                    return type_handler.check_type(value, orig_tp)
             return isinstance(value, tp)
 
         # Common type check for generic classes
@@ -889,6 +928,9 @@ class SettingsHandler:
             if issubclass(tp, tuple) and hasattr(tp, "__annotations__"):
                 return [cls.pack_value(x, tp_)
                         for x, tp_ in zip(value, tp.__annotations__)]
+            for type_handler in cls.type_support:
+                if type_handler.supports_type(tp):
+                    return type_handler.pack_value(value, tp)
 
         orig, args = get_origin(tp), get_args(tp)
         if orig is Union:

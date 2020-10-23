@@ -591,6 +591,13 @@ class SettingsHandler:
 
         defaults = pickle.load(settings_file)
         self.defaults = no_settings(defaults)
+        for setting, data, _ in self.provider.traverse_settings(self.defaults):
+            name = setting.name
+            if name in data \
+                    and setting.packable \
+                    and setting.type is not None \
+                    and self.is_allowed_type(setting.type):
+                data[name] = self.unpack_value(data[name], setting.type)
         self._migrate_settings(self.defaults)
 
     def write_defaults(self) -> None:
@@ -1047,8 +1054,6 @@ class ContextHandler(SettingsHandler):
             instance.context_settings = [
                 self.unpack_context(context)
                 for context in data["context_settings"]]
-            for context in instance.context_settings:
-                self.unpack_context_values(context)
             self._migrate_contexts(instance.context_settings)
         else:
             instance.context_settings = []
@@ -1248,10 +1253,13 @@ class ContextHandler(SettingsHandler):
 
         for setting, data, instance in \
                 self.provider.traverse_settings(data=context.values, instance=widget):
-            if not isinstance(setting, ContextSetting) or setting.name not in data:
-                continue
-            value = self.decode_setting(setting, data[setting.name], *args)
-            self._apply_setting(setting, instance, value)
+            if isinstance(setting, ContextSetting) and setting.name in data:
+                value = data[setting.name]
+                if setting.type is None:
+                    value = self.decode_setting(setting, value, *args)
+                else:
+                    value = self.unpack_value(value, setting.type, *args)
+                self._apply_setting(setting, instance, value)
 
     def settings_from_widget(self, widget: "OWBaseWidget", *args) -> None:
         """Update the current context with the setting values from the widget.
@@ -1266,14 +1274,15 @@ class ContextHandler(SettingsHandler):
         def packer(setting: Setting, component: OWComponent, handler: ContextHandler):
             if isinstance(setting, ContextSetting) \
                     and hasattr(component, setting.name):
-                value = orig_value = getattr(component, setting.name)
-                handler.check_warn_type(value, setting, component)
-                value = self.encode_setting(context, setting, value)
-                # if encode_setting encoded a value, we assume the type is
-                # supported - just convert sets and tuples to lists
-                value = self.pack_value(
-                    value, setting.type if value is orig_value else None)
-                yield setting.name, self.encode_setting(context, setting, value)
+                value = getattr(component, setting.name)
+                if setting.type is None \
+                        or not handler.is_allowed_type(setting.type) \
+                        or handler.check_warn_type(value, setting, component):
+                    # old-style, untyped enconding
+                    value = self.encode_setting(context, setting, value)
+                else:
+                    value = self.pack_value(value, setting.type)
+                yield setting.name, value
 
         context.values = self.provider.pack(widget, packer=packer)
 
@@ -1321,13 +1330,6 @@ class ContextHandler(SettingsHandler):
             if name in context and cls.is_allowed_type(type_):
                 context[name] = cls.unpack_value(context[name], type_)
         return Context(**context)
-
-    def unpack_context_values(self, context: Context):
-        provider = self.provider
-        for setting, data, _ in provider.traverse_settings(context.values):
-            if setting.name in data and self.is_allowed_type(setting.type):
-                data[setting.name] = \
-                    self.unpack_value(data[setting.name], setting.type)
 
 
 class IncompatibleContext(Exception):

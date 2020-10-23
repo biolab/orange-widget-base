@@ -756,6 +756,18 @@ class SettingsHandler:
     def _non_none(args):
         return [tp_ for tp_ in args if tp_ is not type(None)][0]
 
+    @staticmethod
+    def _union_is_optional(args):
+        return len(args) == 2 and type(None) in args
+
+    @classmethod
+    def _can_be_literal(cls, tp):
+        # types None and Ellipsis are "allowed" for easier support of
+        # Optional and Tuple[type, ...]
+        return tp in (str, bool, bytes, float, int, type(None), Ellipsis) \
+            or (get_origin(tp) in (list, dict, tuple, Union)
+                and all(map(cls._can_be_literal, get_args(tp))))
+
     @classmethod
     def is_allowed_type(cls, tp) -> bool:
         if tp in (str, bool, bytes, float, int):
@@ -775,8 +787,9 @@ class SettingsHandler:
 
         orig, args = get_origin(tp), get_args(tp)
         if orig is Union:
-            return len(args) == 2 and type(None) in args \
-                   and cls.is_allowed_type(cls._non_none(args))
+            return (cls._union_is_optional(args)
+                    and cls.is_allowed_type(cls._non_none(args))
+                    ) or all(map(cls._can_be_literal, args))
         if orig in (list, set) \
                 or orig is tuple and len(args) == 2 and args[1] is ...:
             return cls.is_allowed_type(args[0])
@@ -844,8 +857,7 @@ class SettingsHandler:
         orig, args = get_origin(tp), get_args(tp)
 
         if orig is Union:
-            assert len(args) == 2 and type(None) in args
-            return value is None or cls.check_type(value, cls._non_none(args))
+            return any(cls.check_type(value, tp) for tp in args)
 
         if not isinstance(value, orig):
             return False
@@ -917,21 +929,28 @@ class SettingsHandler:
             if issubclass(tp, IntEnum):
                 return int(value)
             if issubclass(tp, tuple) and hasattr(tp, "__annotations__"):
-                return [cls.pack_value(x, tp_)
-                        for x, tp_ in zip(value, tp.__annotations__)]
+                return tuple(cls.pack_value(x, tp_)
+                             for x, tp_ in zip(value, tp.__annotations__))
             for type_handler in cls.type_support:
                 if type_handler.supports_type(tp):
                     return type_handler.pack_value(value, tp)
 
         orig, args = get_origin(tp), get_args(tp)
         if orig is Union:
-            return cls.pack_value(value, cls._non_none(args))
-        if orig in (set, list) \
-                or orig is tuple and len(args) == 2 and args[1] is ...:
+            if cls._union_is_optional(args):
+                return cls.pack_value(value, cls._non_none(args))
+            else:
+                # Allowed elements of non-optional unions don't require packing
+                return value
+        if orig in (set, list):
             tp_ = args[0]
             return [cls.pack_value(x, tp_) for x in value]
         if orig is tuple:
-            return [cls.pack_value(x, tp_) for x, tp_ in zip(value, args)]
+            if len(args) == 2 and args[1] is ...:
+                tp_ = args[0]
+                return tuple(cls.pack_value(x, tp_) for x in value)
+            else:
+                return tuple(cls.pack_value(x, tp_) for x, tp_ in zip(value, args))
         if orig is dict:
             kt, vt = args
             return {cls.pack_value(k, kt): cls.pack_value(v, vt)
@@ -956,7 +975,12 @@ class SettingsHandler:
 
         orig, args = get_origin(tp), get_args(tp)
         if orig is Union:
-            return cls.unpack_value(value, cls._non_none(args), *ctx_args)
+            if cls._union_is_optional(args):
+                return cls.unpack_value(value, cls._non_none(args), *ctx_args)
+            else:
+                # Such unions are allowed only if the consists of types
+                # that don't require unpacking,
+                return value
         if orig in (set, list) \
                 or orig is tuple and len(args) == 2 and args[1] is ...:
             tp_ = args[0]

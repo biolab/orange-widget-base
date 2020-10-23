@@ -8,7 +8,7 @@ from numbers import Integral
 from tempfile import mkstemp, NamedTemporaryFile
 
 import unittest
-from typing import List, Dict, NamedTuple, Optional, Tuple, Set
+from typing import List, Dict, NamedTuple, Optional, Tuple, Set, Union
 from unittest.mock import patch, Mock
 import warnings
 
@@ -372,6 +372,10 @@ class SettingHandlerTestCase(WidgetTest):
         composed = Tuple[Dict[int, Optional[List[int]]], Set[bool]]
         self.assertTrue(iat(composed))
 
+        self.assertTrue(iat(Union[Dict[str, Optional[int]],
+                                  List[str],
+                                  Tuple[bytes, ...]]))
+
         self.assertFalse(iat(unittest.TestCase))
         self.assertFalse(iat({}))
         self.assertFalse(iat(set()))
@@ -380,8 +384,7 @@ class SettingHandlerTestCase(WidgetTest):
         self.assertFalse(iat(()))
         self.assertFalse(iat((3, 5)))
 
-        # Should return false because json doesn't accept tuples as dict keys
-        self.assertFalse(iat(Dict[Tuple[int], int]))
+        self.assertFalse(iat(Union[Dict[str, Set[int]], List[str]]))
 
         # Should return false because of `set` without type
         composed = Tuple[Dict[int, Optional[List[set]]], Set[bool]]
@@ -552,7 +555,15 @@ class SettingHandlerTestCase(WidgetTest):
         self.assertEqual(pv(("foo", {4: [(1, 2), (3, )], 5: []}, {False}), composed),
                          ("foo", {4: [(1, 2), (3, )], 5: []}, [False]))
         self.assertEqual(pv(("foo", {4: None, 5: []}, {False}), composed),
-                        ["foo", {4: None, 5: []}, [False]])
+                         ("foo", {4: None, 5: []}, [False]))
+
+        union = Tuple[SortBy, Union[Dict[str, Optional[int]], Tuple[str, ...]]]
+        packed = pv((SortBy.INCREASING, {"a": 12, "b": None}), union)
+        self.assertEqual(packed, (int(SortBy.INCREASING), {"a": 12, "b": None}))
+        self.assertIsInstance(packed[0], int)
+        packed = pv((SortBy.INCREASING, ("a", "b")), union)
+        self.assertEqual(packed, (int(SortBy.INCREASING), ("a", "b")))
+
 
     def test_unpack_value(self):
         uv = SettingsHandler.unpack_value
@@ -578,6 +589,12 @@ class SettingHandlerTestCase(WidgetTest):
                          ("foo", {4: [(1, 2), (3, )], 5: []}, {False}))
         self.assertEqual(uv(["foo", {4: None, 5: []}, [False]], composed),
                          ("foo", {4: None, 5: []}, {False}))
+
+        union = Tuple[SortBy, Union[Dict[str, Optional[int]], Tuple[str, ...]]]
+        self.assertEqual(uv((int(SortBy.INCREASING), {"a": 12, "b": None}), union),
+                         (SortBy.INCREASING, {"a": 12, "b": None}), union)
+        self.assertEqual(uv((SortBy.INCREASING, ("a", "b")), union),
+                         (SortBy.INCREASING, ("a", "b")))
 
     def test_pack_from_widget(self):
         composed = Optional[Tuple[str, Dict[int, Optional[List[Tuple[int, ...]]]], Set[bool]]]

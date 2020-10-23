@@ -1,5 +1,6 @@
 import inspect
 import sys
+import warnings
 from operator import attrgetter
 
 from AnyQt.QtCore import QObject
@@ -64,3 +65,23 @@ def getmembers(obj, predicate=None):
     else:
         mypredicate = predicate
     return inspect.getmembers(obj, mypredicate)
+
+
+class DeprecatedSignal:
+    def __init__(self, actual_signal, *args,
+                 warning_text='Deprecated', emit_callback=None, **kwargs):
+        self.signal = actual_signal
+        self.warning_text = warning_text
+        self.emit_callback = emit_callback
+
+    def emit(self, *args, **kwargs):
+        warnings.warn(
+            self.warning_text,
+            DeprecationWarning, stacklevel=2
+        )
+        if self.emit_callback:
+            self.emit_callback(*args, **kwargs)
+        return self.signal.emit(*args, **kwargs)
+
+    def __getattr__(self, item):
+        return self.__signal.item

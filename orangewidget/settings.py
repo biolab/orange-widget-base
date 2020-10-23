@@ -7,20 +7,21 @@ marked as settings are read from disk. When schema is loaded, attribute values
 are set to one stored in schema.
 
 Allowed setting types are
-- str
-- bool
-- int (Integral values are converted to int when saving and kept int at load)
-- float (Number values are converted to float when saving and kept int at load)
-- bytes (implicitly b64encoded/decoded),
+- int, float, bool, str, bytes,
 - IntEnum (implicitly encoded/decoded as int),
 
 and the following generics, whose elements must be one of allowed types
-- Optional
-- List
-- Dict (keys must not be generics; values can be any allowed type)
-- Set (converted to list and back)
+- List, Dict, Tuple,
 - NamedTuple (implicitly converted to tuple and back)
-- Tuple with fixed number of elements with annotated types
+- Set (converted to list and back)
+- Optional
+- Union of types that can be saved as literals.
+
+Types that can be saved as literals are
+- int, float, bool, str, bytes
+- list, tuple of types that can be saved as literals
+- dicts whose keys and values can be saved as literals.
+
 
 Derived setting handlers may add additional types if the provide proper
 conversion.
@@ -768,24 +769,20 @@ class SettingsHandler:
                 args = getattr(tp, "__annotations__", None)
                 return args is not None \
                        and all(map(cls.is_allowed_type, args.values()))
+            for type_handler in cls.type_support:
+                if type_handler.supports_type(tp):
+                    return True
 
         orig, args = get_origin(tp), get_args(tp)
-        if orig is None:
-            return False
         if orig is Union:
             return len(args) == 2 and type(None) in args \
                    and cls.is_allowed_type(cls._non_none(args))
         if orig in (list, set) \
                 or orig is tuple and len(args) == 2 and args[1] is ...:
             return cls.is_allowed_type(args[0])
-        if orig is tuple:
+        if orig in (tuple, dict):
             return all(map(cls.is_allowed_type, args))
-        if orig is dict:
-            # json.dumps will convert int and float into str, but we decode
-            # them back. We could allow bool, but it would complicate decoding
-            # and is not of much use anyway
-            return args[0] in (str, int, float) \
-                   and cls.is_allowed_type(args[1])
+        return False
 
     @classmethod
     def check_type(cls, value, tp) -> bool:
@@ -866,7 +863,7 @@ class SettingsHandler:
         # dicts
         if orig is dict:
             keytype, valuetype = args
-            return all(isinstance(k, keytype) and cls.check_type(v, valuetype)
+            return all(cls.check_type(k, keytype) and cls.check_type(v, valuetype)
                        for k, v in value.items())
 
     @classmethod
@@ -908,27 +905,14 @@ class SettingsHandler:
 
     @classmethod
     def pack_value(cls, value, tp=None):
-        if tp is None:
-            if isinstance(value, (tuple, set)):
-                return list(value)
-            else:
-                return value
-
-        if value is None:
-            return None
-        if tp is float and isinstance(value, int):
+        if value is None or tp in (str, bytes, int, float, bool):
             return value
-        if tp is bool:
-            return bool(value) if value in (False, True, 0, 1) else value
-        if tp is str:
-            return value  # if value is not our string, it's not our problem
-        if tp in (int, float):
-            try:
-                return tp(value)
-            except ValueError:
-                return value
-        if tp is bytes:
-            return base64.b64encode(value).decode("ascii")
+
+        if tp is None:
+            if isinstance(value, set):
+                return list(value)
+            return value
+
         if isinstance(tp, type):
             if issubclass(tp, IntEnum):
                 return int(value)
@@ -958,10 +942,8 @@ class SettingsHandler:
 
     @classmethod
     def unpack_value(cls, value, tp):
-        if value is None or tp in (int, bool, float, str):
+        if value is None or tp in (int, bool, float, str, bytes):
             return value
-        if tp is bytes:
-            return base64.b64decode(value.encode("ascii"))
         if isinstance(tp, type):
             if issubclass(tp, IntEnum):
                 return tp(value)
@@ -1019,6 +1001,9 @@ class Context:
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
+
+    def __str__(self):
+        return f"{_cname(self)}(values={self.values})"
 
 
 if not hasattr(Context, "__annotations__"):

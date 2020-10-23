@@ -61,6 +61,7 @@ class SettingHandlerTestCase(WidgetTest):
     def test_read_defaults(self):
         handler = SettingsHandler()
         handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(SimpleWidget)
 
         defaults = {'a': 5, 'b': {1: 5}}
         with override_default_settings(SimpleWidget, defaults):
@@ -196,6 +197,7 @@ class SettingHandlerTestCase(WidgetTest):
     def test_read_defaults_migrates_settings(self):
         handler = SettingsHandler()
         handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(SimpleWidget)
 
         migrate_settings = Mock()
         with patch.object(SimpleWidget, "migrate_settings", migrate_settings):
@@ -536,19 +538,19 @@ class SettingHandlerTestCase(WidgetTest):
         self.assertEqual(pv(1, bool), True)
         self.assertEqual(pv(SortBy.INCREASING, SortBy), int(SortBy.INCREASING))
         self.assertIsInstance(pv(SortBy.INCREASING, SortBy), int)
-        self.assertEqual(pv(bytes([1, 2, 3]), bytes), "AQID")
-        self.assertEqual(pv(coords(42, "foo"), coords), [42, "foo"])
+        self.assertEqual(pv(bytes([1, 2, 3]), bytes), bytes([1, 2, 3]))
+        self.assertEqual(pv(coords(42, "foo"), coords), (42, "foo"))
 
-        self.assertEqual(pv((1, "foo", True), Tuple[int, str, bool]), [1, "foo", True])
+        self.assertEqual(pv((1, "foo", True), Tuple[int, str, bool]), (1, "foo", True))
         self.assertEqual(pv([1, 2, 3], List[int]), [1, 2, 3])
         self.assertEqual(pv({1, 2, 3}, Set[int]), [1, 2, 3])
-        self.assertEqual(pv((1, 2, 3), Tuple[int, ...]), [1, 2, 3])
+        self.assertEqual(pv((1, 2, 3), Tuple[int, ...]), (1, 2, 3))
 
         self.assertEqual(pv(None, Optional[Tuple[int, ...]]), None)
 
         composed = Tuple[str, Dict[int, Optional[List[Tuple[int, ...]]]], Set[bool]]
         self.assertEqual(pv(("foo", {4: [(1, 2), (3, )], 5: []}, {False}), composed),
-                        ["foo", {4: [[1, 2], [3]], 5: []}, [False]])
+                         ("foo", {4: [(1, 2), (3, )], 5: []}, [False]))
         self.assertEqual(pv(("foo", {4: None, 5: []}, {False}), composed),
                         ["foo", {4: None, 5: []}, [False]])
 
@@ -561,7 +563,7 @@ class SettingHandlerTestCase(WidgetTest):
         self.assertEqual(uv("foo", str), "foo")
         self.assertEqual(uv(True, bool), True)
         self.assertEqual(uv(int(SortBy.INCREASING), SortBy), SortBy.INCREASING)
-        self.assertEqual(uv("AQID", bytes), bytes([1, 2, 3]))
+        self.assertEqual(uv(bytes([1, 2, 3]), bytes), bytes([1, 2, 3]))
         self.assertEqual(uv([42, "foo"], coords), coords(42, "foo"))
 
         self.assertEqual(uv([1, "foo", True], Tuple[int, str, bool]), (1, "foo", True))
@@ -594,8 +596,8 @@ class SettingHandlerTestCase(WidgetTest):
         self.assertEqual(
             packed,
             {"an_int": 42,
-             "a_comp": ["foo", {4: [[1, 2], [3]], 5: []}, [False]],
-             "a_context": [4, 2, 1]
+             "a_comp": ("foo", {4: [(1, 2), (3, )], 5: []}, [False]),
+             "a_context": (4, 2, 1)
              })
 
     def test_unpack_to_widget(self):

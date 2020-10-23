@@ -279,7 +279,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     messageActivated = Signal(Msg)
     messageDeactivated = Signal(Msg)
 
-    savedWidgetGeometry = settings.Setting(None)
+    savedWidgetGeometry: bytes = settings.Setting(None)
     controlAreaVisible = settings.Setting(True, schema_only=True)
 
     # pylint: disable=protected-access, access-member-before-definition

@@ -22,6 +22,26 @@ class Component(OWComponent):
     schema_only_context_setting = ContextSetting("only", schema_only=True)
 
 
+class DummyContext(Context):
+    id = 0
+
+    def __init__(self, version=None):
+        super().__init__()
+        DummyContext.id += 1
+        self.id = DummyContext.id
+        if version:
+            self.values[VERSION_KEY] = version
+
+    def __repr__(self):
+        return "Context(id={})".format(self.id)
+    __str__ = __repr__
+
+    def __eq__(self, other):
+        if not isinstance(other, DummyContext):
+            return False
+        return self.id == other.id
+
+
 class SimpleWidget(OWBaseWidget):
     name = "foo"
 
@@ -47,26 +67,6 @@ class SimpleWidget(OWBaseWidget):
         self.component = Component(self)
 
 
-class DummyContext(Context):
-    id = 0
-
-    def __init__(self, version=None):
-        super().__init__()
-        DummyContext.id += 1
-        self.id = DummyContext.id
-        if version:
-            self.values[VERSION_KEY] = version
-
-    def __repr__(self):
-        return "Context(id={})".format(self.id)
-    __str__ = __repr__
-
-    def __eq__(self, other):
-        if not isinstance(other, DummyContext):
-            return False
-        return self.id == other.id
-
-
 def create_defaults_file(contexts):
     b = BytesIO()
     pickle.dump({"x": 5}, b)
@@ -81,6 +81,7 @@ class TestContextHandler(WidgetTest):
 
         handler = ContextHandler()
         handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(SimpleWidget)
 
         # Old settings without version
         migrate_context = Mock()
@@ -298,9 +299,10 @@ class ContextPackingTest(WidgetTest):
         widget.openContext()
         widget.a_tuple = (1, 2, 3)
         widget.a_dict = {"foo": 42, "bar": 13}
+        widget.current_context.cont = (1, 2)
         widget.closeContext()
         self.assertEqual(widget.context_settings[0].values,
-                         {"a_tuple": [1, 2, 3]})
+                         {"a_tuple": (1, 2, 3)})
 
         packed = widget.settingsHandler.pack_data(widget)
         remove_base_settings(packed)
@@ -308,7 +310,7 @@ class ContextPackingTest(WidgetTest):
             packed,
             {'a_dict': {'foo': 42, 'bar': 13},
              'context_settings': [
-                {'values': {'a_tuple': [1, 2, 3]}}
+                {'cont': (1, 2), 'values': {'a_tuple': (1, 2, 3)}}
              ]}
         )
 
@@ -316,7 +318,7 @@ class ContextPackingTest(WidgetTest):
         widget = self.Widget(stored_settings={
             'a_dict': {'foo': 42, 'bar': 13},
             'context_settings': [
-                {'values': {'a_tuple': [1, 2, 3]}}
+                {'values': {'a_tuple': (1, 2, 3)}}
             ]})
         self.assertIsInstance(widget.context_settings[0], Context)
         self.assertEqual(widget.context_settings[0].values,
@@ -328,8 +330,7 @@ class ContextPackingTest(WidgetTest):
         widget.current_context.cont = (1, 2)
         widget.closeContext()
         packed = widget.settingsHandler.pack_data(widget)
-        self.assertIsInstance(packed["context_settings"][0]["cont"], list)
-        self.assertEqual(packed["context_settings"][0]["cont"], [1, 2])
+        self.assertEqual(packed["context_settings"][0]["cont"], (1, 2))
 
     def test_pack_context_warnings(self):
         widget = self.Widget()

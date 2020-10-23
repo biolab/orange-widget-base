@@ -941,30 +941,34 @@ class SettingsHandler:
         return value
 
     @classmethod
-    def unpack_value(cls, value, tp):
+    def unpack_value(cls, value, tp, *ctx_args):
         if value is None or tp in (int, bool, float, str, bytes):
             return value
         if isinstance(tp, type):
             if issubclass(tp, IntEnum):
                 return tp(value)
             if issubclass(tp, tuple) and hasattr(tp, "__annotations__"):
-                return tuple(cls.unpack_value(x, tp_)
+                return tuple(cls.unpack_value(x, tp_, *ctx_args)
                              for x, tp_ in zip(value, tp.__annotations__))
+            for type_handler in cls.type_support:
+                if type_handler.supports_type(tp):
+                    return type_handler.unpack_value(value, tp, *ctx_args)
 
         orig, args = get_origin(tp), get_args(tp)
         if orig is Union:
-            return cls.unpack_value(value, cls._non_none(args))
+            return cls.unpack_value(value, cls._non_none(args), *ctx_args)
         if orig in (set, list) \
                 or orig is tuple and len(args) == 2 and args[1] is ...:
             tp_ = args[0]
-            return orig(cls.unpack_value(x, tp_) for x in value)
+            return orig(cls.unpack_value(x, tp_, *ctx_args) for x in value)
         if orig is tuple:
-            return tuple(cls.unpack_value(x, tp_) for x, tp_ in zip(value, args))
+            return tuple(cls.unpack_value(x, tp_, *ctx_args)
+                         for x, tp_ in zip(value, args))
         if orig is dict:
             kt, vt = args
-            # Python's json encoder will convert ints, float, bools into strings
-            # we here just convert them back; we can't use unpack_value for this
-            return {kt(k): cls.unpack_value(v, vt) for k, v in value.items()}
+            return {cls.unpack_value(k, kt, *ctx_args):
+                    cls.unpack_value(v, vt, *ctx_args)
+                    for k, v in value.items()}
 
         # Shouldn't come to this, but ... what the heck.
         return value

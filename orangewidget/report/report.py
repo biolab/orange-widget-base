@@ -56,25 +56,25 @@ class Report:
         """
         self.create_report_html()
         from orangewidget.report.owreport import HAVE_REPORT
-        if not HAVE_REPORT:
+
+        report = self._get_designated_report_view()
+        if not HAVE_REPORT and not report.have_report_warning_shown:
             QMessageBox.critical(
                 None, "Missing Component",
-                "Your installation of Orange contains neither WebEngine nor "
-                "WebKit.\n\n"
+                "Orange can not display reports, because your installation "
+                "contains neither WebEngine nor WebKit.\n\n"
                 "If you installed Orange with conda or pip, try using another "
-                "PyQt distribution.\n\n"
+                "PyQt distribution. "
                 "If you installed Orange with a standard installer, please "
                 "report this bug."
             )
-            return None
+            report.have_report_warning_shown = True
 
-        if HAVE_REPORT:
-            report = self._get_designated_report_view()
-            # Should really have a signal `report_ready` or similar to decouple
-            # the implementations.
-            report.make_report(self)
-            report.show()
-            report.raise_()
+        # Should really have a signal `report_ready` or similar to decouple
+        # the implementations.
+        report.make_report(self)
+        report.show()
+        report.raise_()
 
     def get_widget_name_extension(self):
         """

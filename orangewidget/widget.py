@@ -377,7 +377,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             return None
         properties = {name: getattr(cls, name) for name in
                       ("name", "icon", "description", "priority", "keywords",
-                       "replaces", "short_name")}
+                       "replaces", "short_name", "category")}
         properties["id"] = cls.id or cls.__module__
         properties["inputs"] = cls.get_signals("inputs")
         properties["outputs"] = cls.get_signals("outputs")

@@ -250,12 +250,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     #: should it not already be part of a package.
     category: str = None
 
-    version = None
-    help = None
-    help_ref = None
-    url = None
-    background = None
-
     # -------------------------------------------------------------------------
     # Private Interface
     # -------------------------------------------------------------------------
@@ -383,8 +377,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             return None
         properties = {name: getattr(cls, name) for name in
                       ("name", "icon", "description", "priority", "keywords",
-                       "help", "help_ref", "url",
-                       "version", "background", "replaces", "short_name")}
+                       "replaces", "short_name")}
         properties["id"] = cls.id or cls.__module__
         properties["inputs"] = cls.get_signals("inputs")
         properties["outputs"] = cls.get_signals("outputs")

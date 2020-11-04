@@ -1,10 +1,10 @@
 import os
 from typing import Optional
 
-from AnyQt.QtCore import Qt, QSettings
+from AnyQt.QtCore import Qt, QSettings, QTimer
 from AnyQt.QtWidgets import (
-    QAction, QFileDialog, QMenu, QMenuBar, QWidget, QMessageBox, QDialog
-)
+    QAction, QFileDialog, QMenu, QMenuBar, QWidget, QMessageBox, QDialog,
+    QApplication)
 from AnyQt.QtGui import QKeySequence
 
 from orangecanvas.application.canvasmain import CanvasMainWindow
@@ -150,12 +150,15 @@ class OWCanvasMainWindow(CanvasMainWindow):
         sc.show_report_view()
 
     def reset_widget_settings(self):
+        name = QApplication.applicationName() or 'Orange'
         mb = QMessageBox(
             self,
             windowTitle="Clear settings",
-            text="Orange needs to be restarted for the changes to take effect.",
+            text="{} needs to be restarted for the changes to take effect."
+                 .format(name),
             icon=QMessageBox.Information,
-            informativeText="Press OK to close Orange now.",
+            informativeText="Press OK to restart {} now."
+                            .format(name),
             standardButtons=QMessageBox.Ok | QMessageBox.Cancel,
         )
         res = mb.exec()
@@ -172,12 +175,23 @@ class OWCanvasMainWindow(CanvasMainWindow):
             with open(os.path.join(dirname, "DELETE_ON_START"), "a"):
                 pass
 
-            if not self.close():
-                QMessageBox(
-                    self,
-                    text="Settings will still be reset at next application start",
-                    icon=QMessageBox.Information
-                ).exec()
+            def restart():
+                quit_temp_val = QApplication.quitOnLastWindowClosed()
+                QApplication.setQuitOnLastWindowClosed(False)
+                QApplication.closeAllWindows()
+                windows = QApplication.topLevelWindows()
+                if any(w.isVisible() for w in windows):  # if a window close was cancelled
+                    QApplication.setQuitOnLastWindowClosed(quit_temp_val)
+                    QMessageBox(
+                        text="Restart Cancelled",
+                        informativeText="Settings will be reset on {}'s next restart"
+                                        .format(name),
+                        icon=QMessageBox.Information
+                    ).exec()
+                else:
+                    QApplication.exit(96)
+
+            QTimer.singleShot(0, restart)
 
     def ask_save_report(self):
         """

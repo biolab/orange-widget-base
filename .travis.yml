@@ -35,7 +35,7 @@ matrix:
       env:
         - TEST_DEP="PyQt5~=5.14.0 PyQtWebEngine~=5.14.0"
 
-    - python: '3.8'
+    - python: '3.9'
       env:
         - TEST_DEP="PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
 

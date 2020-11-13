@@ -529,6 +529,19 @@ class SettingHandlerTestCase(WidgetTest):
         widget.an_int = [0] * 100
         self.assertWarns(UserWarning, widget.settingsHandler.pack_data, widget)
 
+    def test_check_type_from_packer_tuple_suggestion(self):
+        class Widget(OWBaseWidget):
+            name = "foo"
+            a_tuple: Tuple[int] = Setting((42,))
+
+        widget = Widget()
+        widget.settingsHandler.pack_data(widget)
+        widget.a_tuple = (1, 2, 3)
+        with patch("warnings.warn") as warn:
+            widget.settingsHandler.pack_data(widget)
+        warn.assert_called_once()
+        self.assertIn("Tuple[T, ...]", warn.call_args[0][0])
+
     def test_pack_value(self):
         pv = SettingsHandler.pack_value
         self.assertEqual(pv(5, int), 5)

@@ -848,6 +848,13 @@ class SettingsHandler:
                     and all(isinstance(x, tp_)
                             for x, tp_ in zip(value, tp.__annotations__.values())
                             )
+
+            # allow an int instead of IntEnum
+            # if this is undesired, remove this block and use the check below
+            if issubclass(tp, IntEnum):
+                return isinstance(value, tp) \
+                       or isinstance(tp, int) and 0 <= value < len(tp)
+
             for type_handler in cls.type_support:
                 if type_handler.supports_type(tp):
                     return type_handler.check_type(value, orig_tp)
@@ -887,33 +894,41 @@ class SettingsHandler:
                 warnings.warn(
                     f"a non-nullable {_cname(component)}.{setting.name} is None"
                 )
+                return True
         elif not cls.check_type(value, setting.type):
-            sname = f"{_cname(component)}.{setting.name}"
-            if isinstance(setting.type, type):
-                decl = _cname(setting.type)
-            else:
-                decl = str(setting.type).replace("typing.", "")
-            act = repr(value)
-            if len(act) > 300:
-                act = act[:300] + " (...)"
-            warnings.warn(
-                f"setting {sname} is declared as {decl} but contains {act}")
+            name = f"{_cname(component)}.{setting.name}"
+            cls._warn_wrong_value_type(name, value, setting.type)
             return True
         return False
 
     @classmethod
     def check_warn_pure_type(cls, value, type_: type, name: str):
-        if cls.check_type(value, type_):
-            return False
-        if isinstance(type_, type):
-            decl = _cname(type_)
+        if not cls.check_type(value, type_):
+            cls._warn_wrong_value_type(name, value, type_)
+            return True
+        return False
+
+    @classmethod
+    def _warn_wrong_value_type(cls, name, value, tp):
+        if isinstance(tp, type):
+            decl = _cname(tp)
         else:
-            decl = str(type_).replace("typing.", "")
+            decl = str(tp).replace("typing.", "")
         act = repr(value)
-        if len(act) > 30:
-            act = act[:30] + " (...)"
-        warnings.warn(f"'{name}' is declared as {decl} but contains {act}")
-        return True
+        if len(act) > 300:
+            act = act[:300] + " (...)"
+        did_you = ""
+        if cls.check_expanded_tuple_type(value, tp):
+            did_you = "; did you use Tuple[T] instead of Tuple[T, ...]?"
+        warnings.warn(
+            f"setting {name} is declared as {decl} but contains {act}"
+            f"{did_you}")
+
+    @classmethod
+    def check_expanded_tuple_type(cls, value, tp):
+        orig, args = get_origin(tp), get_args(tp)
+        return orig is tuple and len(args) == 1 \
+               and cls.check_type(value, Tuple[args[0], ...])
 
     @classmethod
     def pack_value(cls, value, tp=None):
@@ -1320,13 +1335,14 @@ class ContextHandler(SettingsHandler):
     def pack_context(cls, context: Context):
         ctx_dict = context.__dict__.copy()
         annotations = getattr(cls.ContextType, "__annotations__", {})
-        for name, type_ in annotations.items():
-            if name in ctx_dict \
-                    and not cls.check_warn_pure_type(
-                        ctx_dict[name], type_, f"{_cname(context)}.{name}"):
-                ctx_dict[name] = cls.pack_value(ctx_dict[name], type_)
-            else:
+        for name, tp in annotations.items():
+            if name not in ctx_dict:
                 warnings.warn(f"{_cname(cls.ContextType)}.{name} is not set.")
+                continue
+            value = ctx_dict[name]
+            if cls.check_warn_pure_type(value, tp, f"{_cname(context)}.{name}"):
+                continue
+            ctx_dict[name] = cls.pack_value(value, tp)
         for name in ctx_dict:
             if name not in "values" and name not in annotations:
                 warnings.warn(

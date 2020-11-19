@@ -2861,7 +2861,7 @@ class VerticalScrollArea(QScrollArea):
         if not self.widget():
             return super().sizeHint()
 
-        width = self.widget().width()
+        width = self.widget().sizeHint().width()
         sb = self.verticalScrollBar()
         isTransient = sb.style().styleHint(QStyle.SH_ScrollBar_Transient, widget=sb)
         if not isTransient and sb.maximum() != sb.minimum():

@@ -2878,3 +2878,23 @@ class CalendarWidgetWithTime(QCalendarWidget):
             + self._time_layout.sizeHint().height()
             + self.layout().spacing())
         return size
+
+
+class DateTimeEditWCalendarTime(QDateTimeEdit):
+    def __init__(self, parent, format="yyyy-MM-dd hh:mm:ss"):
+        QDateTimeEdit.__init__(self, parent)
+        self.setDisplayFormat(format)
+        self.setCalendarPopup(True)
+        self.calendarWidget = CalendarWidgetWithTime(self)
+        self.calendarWidget.timeedit.timeChanged.connect(self.set_datetime)
+        self.setCalendarWidget(self.calendarWidget)
+
+    def set_datetime(self, date_time=None):
+        if date_time is None:
+            date_time = QtWidgets.QDateTime.currentDateTime()
+        if isinstance(date_time, QtCore.QTime):
+            self.setDateTime(
+                QtWidgets.QDateTime(
+                    self.date(), self.calendarWidget.timeedit.time()))
+        else:
+            self.setDateTime(date_time)

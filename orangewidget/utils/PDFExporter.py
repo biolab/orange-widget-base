@@ -28,6 +28,17 @@ class PDFExporter(Exporter):
             bg.setAlpha(0)
         self.background = bg
 
+        # The following code is a workaround for a bug in pyqtgraph 1.1. The suggested
+        # fix upstream was pyqtgraph/pyqtgraph#1458
+        try:
+            from pyqtgraph.graphicsItems.ViewBox.ViewBox import ChildGroup
+            for item in self.getPaintItems():
+                if isinstance(item, ChildGroup):
+                    if item.flags() & QGraphicsItem.ItemClipsChildrenToShape:
+                        item.setFlag(QGraphicsItem.ItemClipsChildrenToShape, False)
+        except:  # pylint: disable=bare-except
+            pass
+
     def export(self, filename=None):
         pw = QPdfWriter(filename)
         dpi = QApplication.desktop().logicalDpiX()

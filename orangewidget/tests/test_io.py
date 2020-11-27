@@ -83,6 +83,25 @@ class TestPdf(GuiTest):
             imgio.PdfFormat.write(fname, graph)
             with open(fname, "rb") as f:
                 self.assertTrue(f.read().startswith(b'%PDF'))
+            size_empty = os.path.getsize(fname)
+        finally:
+            os.unlink(fname)
+
+        # does a ScatterPlotItem increases file size == is it drawn
+        graph = pyqtgraph.PlotWidget()
+        graph.addItem(pyqtgraph.ScatterPlotItem(x=list(range(100)), y=list(range(100))))
+        try:
+            imgio.PdfFormat.write(fname, graph)
+            self.assertGreater(os.path.getsize(fname), size_empty + 10000)
+        finally:
+            os.unlink(fname)
+
+        # does a PlotCurveItem increases file size == is it drawn
+        graph = pyqtgraph.PlotWidget()
+        graph.addItem(pyqtgraph.PlotCurveItem(x=list(range(100)), y=list(range(100))))
+        try:
+            imgio.PdfFormat.write(fname, graph)
+            self.assertGreater(os.path.getsize(fname), size_empty + 2000)
         finally:
             os.unlink(fname)
 

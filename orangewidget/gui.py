@@ -18,7 +18,7 @@ from AnyQt.QtGui import QCursor, QColor
 from AnyQt.QtWidgets import (
     QApplication, QStyle, QSizePolicy, QWidget, QLabel, QGroupBox, QSlider,
     QTableWidgetItem, QStyledItemDelegate, QTableView, QHeaderView,
-    QScrollArea, QLineEdit)
+    QScrollArea, QLineEdit, QCalendarWidget, QDateTimeEdit)
 
 from orangewidget.utils import getdeepattr
 from orangewidget.utils.buttons import VariableTextPushButton
@@ -2850,3 +2850,51 @@ class VerticalScrollArea(QScrollArea):
                 or (receiver is self and event.type() == QEvent.LayoutRequest):
             self._set_width()
         return super().eventFilter(receiver, event)
+
+
+class CalendarWidgetWithTime(QCalendarWidget):
+    def __init__(self, parent=None, time=None, format="hh:mm:ss"):
+        super().__init__(parent)
+        if time is None:
+            time = QtCore.QTime.currentTime()
+        self.timeedit = QDateTimeEdit(displayFormat=format)
+        self.timeedit.setTime(time)
+
+        self._time_layout = sublay = QtWidgets.QHBoxLayout()
+        sublay.setContentsMargins(6, 6, 6, 6)
+        sublay.addStretch(1)
+        sublay.addWidget(QLabel("Time: "))
+        sublay.addWidget(self.timeedit)
+        sublay.addStretch(1)
+        self.layout().addLayout(sublay)
+
+    def minimumSize(self):
+        return self.sizeHint()
+
+    def sizeHint(self):
+        size = super().sizeHint()
+        size.setHeight(
+            size.height()
+            + self._time_layout.sizeHint().height()
+            + self.layout().spacing())
+        return size
+
+
+class DateTimeEditWCalendarTime(QDateTimeEdit):
+    def __init__(self, parent, format="yyyy-MM-dd hh:mm:ss"):
+        QDateTimeEdit.__init__(self, parent)
+        self.setDisplayFormat(format)
+        self.setCalendarPopup(True)
+        self.calendarWidget = CalendarWidgetWithTime(self)
+        self.calendarWidget.timeedit.timeChanged.connect(self.set_datetime)
+        self.setCalendarWidget(self.calendarWidget)
+
+    def set_datetime(self, date_time=None):
+        if date_time is None:
+            date_time = QtWidgets.QDateTime.currentDateTime()
+        if isinstance(date_time, QtCore.QTime):
+            self.setDateTime(
+                QtWidgets.QDateTime(
+                    self.date(), self.calendarWidget.timeedit.time()))
+        else:
+            self.setDateTime(date_time)

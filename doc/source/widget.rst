@@ -69,7 +69,7 @@ of its corresponding handler method, which accepts the inputs at runtime:
 
         def commit(self):
             """Commit/send the outputs"""
-            sef.Outputs.sum.send("self.A + self.B)
+            sef.Outputs.sum.send(self.A + self.B)
 
 
 .. seealso:: :doc:`Getting Started Tutorial <tutorial>`

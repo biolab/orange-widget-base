@@ -257,6 +257,20 @@ class MultiInput(Input):
         return super().bound_signal(widget)
 
 
+_not_set = object()
+
+
+def _parse_call_id_arg(id=_not_set):
+    if id is _not_set:
+        return None
+    else:
+        warnings.warn(
+            "`id` parameter is deprecated and will be removed in the "
+            "future", FutureWarning, stacklevel=3,
+        )
+        return id
+
+
 class Output(OutputSignal, _Signal):
     """
     Description of an output signal.
@@ -308,12 +322,17 @@ class Output(OutputSignal, _Signal):
         self.widget = None
         self._seq_id = next(_counter)
 
-    def send(self, value, id=None):
+    def send(self, value, *args, **kwargs):
         """Emit the signal through signal manager."""
         assert self.widget is not None
+        id = _parse_call_id_arg(*args, **kwargs)
         signal_manager = self.widget.signalManager
         if signal_manager is not None:
-            signal_manager.send(self.widget, self.name, value, id)
+            if id is not None:
+                extra_args = (id,)
+            else:
+                extra_args = ()
+            signal_manager.send(self.widget, self.name, value, *extra_args)
         if self.auto_summary:
             self.widget.set_partial_output_summary(
                 self.name, summarize(value), id=id)
@@ -350,18 +369,24 @@ class WidgetSignalsMixin:
                     summaries[signal.name] = {}
             setattr(self, direction, bound_signals)
 
-    def send(self, signalName, value, id=None):
+    def send(self, signalName, value, *args, **kwargs):
         """
         Send a `value` on the `signalName` widget output.
 
         An output with `signalName` must be defined in the class ``outputs``
         list.
         """
+        id = _parse_call_id_arg(*args, **kwargs)
         if not any(s.name == signalName for s in self.outputs):
             raise ValueError('{} is not a valid output signal for widget {}'.format(
                 signalName, self.name))
+
         if self.signalManager is not None:
-            self.signalManager.send(self, signalName, value, id)
+            if id is not None:
+                extra_args = (id,)
+            else:
+                extra_args = ()
+            self.signalManager.send(self, signalName, value, *extra_args)
 
     def handleNewSignals(self):
         """

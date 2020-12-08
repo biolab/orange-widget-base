@@ -710,8 +710,8 @@ class WidgetsSignalManager(SignalManager):
     def __init__(self, scheme, **kwargs):
         super().__init__(scheme, **kwargs)
 
-    def send(self, widget, channelname, value, signal_id):
-        # type: (OWBaseWidget, str, Any, Any) -> None
+    def send(self, widget, channelname, value, *args, **kwargs):
+        # type: (OWBaseWidget, str, Any, Any, Any, Any) -> None
         """
         send method compatible with OWBaseWidget.
         """
@@ -731,12 +731,22 @@ class WidgetsSignalManager(SignalManager):
                       channelname, node.description.name)
             return
 
-        # Expand the signal_id with the unique widget id and the
-        # channel name. This is needed for OWBaseWidget's input
-        # handlers with Multiple flag.
-        signal_id = (widget.widget_id, channelname, signal_id)
+        # parse deprecated id parameter from *args, **kwargs.
+        _not_set = object()
 
-        super().send(node, channel, value, signal_id)
+        def _parse_call_signal_id(signal_id=_not_set):
+            if signal_id is _not_set:
+                return None
+            else:
+                warnings.warn(
+                    "'signal_id' parameter is deprecated",
+                    DeprecationWarning, stacklevel=3)
+                return signal_id
+        signal_id = _parse_call_signal_id(*args, **kwargs)
+        if signal_id is not None:
+            super().send(node, channel, value, signal_id)  # type: ignore
+        else:
+            super().send(node, channel, value)
 
     @overload
     def invalidate(self, widget: OWBaseWidget, channel: str) -> None: ...
@@ -846,7 +856,8 @@ def process_signal_input_default(
     if input.single:
         args = (signal.value,)
     else:
-        args = (signal.value, signal.id)
+        source_id = id(link)
+        args = (signal.value, (source_id, link.source_channel.name, signal.id, ))
     log.debug("Process signals: calling %s.%s (from %s with id:%s)",
               type(widget).__name__, handler.__name__, link, signal.id)
     handler(*args)

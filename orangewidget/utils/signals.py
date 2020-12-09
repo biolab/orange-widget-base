@@ -3,7 +3,7 @@ import itertools
 import warnings
 from functools import singledispatch
 import inspect
-from typing import NamedTuple, Union, Optional
+from typing import NamedTuple, Union, Optional, Iterable
 
 from AnyQt.QtCore import Qt
 
@@ -527,6 +527,31 @@ class WidgetSignalsMixin:
             setter(summary, SUMMARY_STYLE + detail, format=Qt.RichText)
         else:
             setter(summary)
+
+
+def get_input_meta(widget: WidgetSignalsMixin, name: str) -> Optional[Input]:
+    """
+    Return the named input meta description from widget (if it exists).
+    """
+    def as_input(obj):
+        if isinstance(obj, Input):
+            return obj
+        elif isinstance(obj, InputSignal):
+            rval = Input(obj.name, obj.type, obj.id, obj.doc, obj.replaces,
+                         multiple=not obj.single, default=obj.default,
+                         explicit=obj.explicit)
+            rval.handler = obj.handler
+            return rval
+        elif isinstance(obj, tuple):
+            return as_input(InputSignal(*obj))
+        else:
+            raise TypeError
+
+    inputs: Iterable[Input] = map(as_input, widget.get_signals("inputs"))
+    for input_ in inputs:
+        if input_.name == name:
+            return input_
+    return None
 
 
 class AttributeList(list):

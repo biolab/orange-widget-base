@@ -144,7 +144,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         Example::
 
             @Inputs.data
-            def handle_data(self, data):
+            def set_data(self, data):
                 self.my_data = data
         """
 

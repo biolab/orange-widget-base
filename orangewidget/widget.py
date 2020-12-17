@@ -192,10 +192,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     #: Should the widget remember its window position/size?
     save_position = True
 
-    #: Is vertical scrolling on the widget's left side, which usually
-    #: contains  the `controlArea`, allowed?
-    left_side_scrolling = False
-
     #: Orientation of the buttonsArea box; valid only if
     #: `want_control_area` is `True`. Possible values are Qt.Horizontal,
     #: Qt.Vertical and None for no buttons area
@@ -289,6 +285,13 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         OWComponent.__init__(self)
         WidgetMessagesMixin.__init__(self)
         WidgetSignalsMixin.__init__(self)
+
+        # handle deprecated left_side_scrolling
+        if hasattr(self, 'left_side_scrolling'):
+            warnings.warn(
+                "'OWBaseWidget.left_side_scrolling' is deprecated.",
+                DeprecationWarning
+            )
 
         stored_settings = kwargs.get('stored_settings', None)
         if self.settingsHandler:
@@ -466,50 +469,36 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.__splitter = self._Splitter(Qt.Horizontal, self)
         self.layout().addWidget(self.__splitter)
 
-    class _HiddenVerticalScrollArea(VerticalScrollArea):
-
-        def __init__(self, parent):
-            super().__init__(parent)
-            self.setFrameShape(QFrame.NoFrame)
-
-        def sizeHint(self):
-            if self.widget():
-                return self.widget().sizeHint()
-            else:
-                return super().sizeHint()
-
-        def minimumSizeHint(self):
-            if self.widget():
-                min_height = min(self.widget().minimumSizeHint().height(), 300)
-                return QSize(self.widget().minimumSizeHint().width(), min_height)
-            else:
-                return super().minimumSizeHint()
-
     def _insert_control_area(self):
-        if self.left_side_scrolling:
-            scroll_area = self._HiddenVerticalScrollArea(self)
-            self.__splitter.addWidget(scroll_area)
-            self.left_side = gui.vBox(scroll_area, spacing=0)
-            scroll_area.setWidget(self.left_side)
-        else:
-            self.left_side = gui.vBox(self.__splitter, spacing=0)
-        self.__splitter.setSizes([1])  # Smallest size allowed by policy
-        if self.buttons_area_orientation is not None:
-            self.controlArea = gui.vBox(self.left_side, addSpace=0)
-            self._insert_buttons_area()
-        else:
-            self.controlArea = self.left_side
+        self.left_side = gui.vBox(self.__splitter, addSpace=0)
         if self.want_main_area:
-            self.controlArea.setSizePolicy(
-                QSizePolicy.Fixed, QSizePolicy.MinimumExpanding)
+            self.left_side.setSizePolicy(
+                QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+
+            scroll_area = VerticalScrollArea(self.left_side)
+            scroll_area.setSizePolicy(QSizePolicy.MinimumExpanding,
+                                      QSizePolicy.Preferred)
+            self.controlArea = gui.vBox(scroll_area, spacing=0,
+                                        sizePolicy=(QSizePolicy.Fixed,
+                                                    QSizePolicy.MinimumExpanding))
+            scroll_area.setWidget(self.controlArea)
+            self.left_side.layout().addWidget(scroll_area)
+
             m = 0
         else:
+            self.controlArea = gui.vBox(self.left_side, spacing=0)
             m = 4
+
+        if self.buttons_area_orientation is not None:
+            self._insert_buttons_area()
+
         self.controlArea.layout().setContentsMargins(m, m, m, m)
 
     def _insert_buttons_area(self):
+        if self.want_main_area:
+            gui.rubber(self.left_side)
         self.buttonsArea = gui.widgetBox(
-            self.left_side, addSpace=0, spacing=9,
+            self.left_side, addSpace=0, spacing=9, margin=4,
             orientation=self.buttons_area_orientation)
 
     def _insert_main_area(self):
@@ -522,6 +511,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             self.__splitter.indexOf(self.mainArea), False)
         self.mainArea.layout().setContentsMargins(
             0 if self.want_control_area else 4, 4, 4, 4)
+        if self.want_control_area:
+            self.__splitter.setSizes([1, QWIDGETSIZE_MAX])
 
     def _create_default_buttons(self):
         # These buttons are inserted in buttons_area, if it exists

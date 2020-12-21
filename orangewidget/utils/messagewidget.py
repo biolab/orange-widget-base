@@ -575,12 +575,10 @@ class MessagesWidget(QWidget):
         messages = [m for m in self.__messages.values() if not m.isEmpty()]
         if not messages:
             fulltext = ""
-        elif len(messages) > 1 or len(messages) == 1 and is_short(messages[0]):
+        else:
             messages = sorted(messages, key=attrgetter("severity"),
                               reverse=True)
             fulltext = "<hr/>".join(m.asHtml() for m in messages)
-        else:
-            fulltext = messages[0].asHtml(includeShortText=False)
         self.__fulltext = fulltext
         self.setToolTip(self.__styled(self.__defaultStyleSheet, fulltext))
         self.anim.start(QPropertyAnimation.KeepWhenStopped)

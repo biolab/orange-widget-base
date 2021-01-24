@@ -15,8 +15,8 @@ from AnyQt.QtWidgets import (
     QHBoxLayout)
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QRect, QMargins, QByteArray, QDataStream, QBuffer,
-    QSettings, QUrl, QThread, pyqtSignal as Signal, QSize)
-from AnyQt.QtGui import QIcon, QKeySequence, QDesktopServices, QPainter, QColor
+    QSettings, QUrl, QThread, pyqtSignal as Signal, QSize, QLine)
+from AnyQt.QtGui import QIcon, QKeySequence, QDesktopServices, QPainter, QColor, QPen
 
 from orangewidget import settings, gui
 from orangewidget.report import Report
@@ -397,7 +397,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, *kwargs)
-            self.setHandleWidth(8)
+            self.setHandleWidth(18)
 
         def _adjusted_size(self, size_method):
             size = size_method(super())()
@@ -443,17 +443,23 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             def paintEvent(self, event):
                 super(QSplitterHandle, self).paintEvent(event)
                 painter = QPainter(self)
-                painter.setPen(QColor(160, 160, 160))
-                w = self.width() - 2
+                pen = QPen()
+                pen.setColor(QColor(160, 160, 160))
+                pen.setCapStyle(Qt.RoundCap)
+                pen.setWidth(3)
+                painter.setPen(pen)
+                w = self.width() - 6
                 if self.controlAreaShown:
-                    x0, x1 = 2, w
+                    x0, x1 = 6, w
                 else:
-                    x0, x1 = w, 2
+                    x0, x1 = w, 6
                 y = self.height() / 2
-                h = 0.75 * w
+                h = (w - 6) / 1.12
                 painter.setRenderHint(painter.Antialiasing)
-                painter.drawLine(x0, y - h, x1, y)
-                painter.drawLine(x1, y, x0, y + h)
+                painter.drawLines(
+                    QLine(x0, y - h, x1, y),
+                    QLine(x1, y, x0, y + h)
+                )
 
             def mouseReleaseEvent(self, event):
                 """Resize on left button"""
@@ -483,16 +489,15 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                                                     QSizePolicy.MinimumExpanding))
             scroll_area.setWidget(self.controlArea)
             self.left_side.layout().addWidget(scroll_area)
-
-            m = 0
+            m = 4, 4, 0, 4
         else:
             self.controlArea = gui.vBox(self.left_side, spacing=0)
-            m = 4
+            m = 4, 4, 4, 4
 
         if self.buttons_area_orientation is not None:
             self._insert_buttons_area()
 
-        self.controlArea.layout().setContentsMargins(m, m, m, m)
+        self.controlArea.layout().setContentsMargins(*m)
 
     def _insert_buttons_area(self):
         if self.want_main_area:
@@ -509,10 +514,13 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.__splitter.addWidget(self.mainArea)
         self.__splitter.setCollapsible(
             self.__splitter.indexOf(self.mainArea), False)
-        self.mainArea.layout().setContentsMargins(
-            0 if self.want_control_area else 4, 4, 4, 4)
         if self.want_control_area:
+            self.mainArea.layout().setContentsMargins(
+                0, 4, 4, 4)
             self.__splitter.setSizes([1, QWIDGETSIZE_MAX])
+        else:
+            self.mainArea.layout().setContentsMargins(
+                4, 4, 4, 4)
 
     def _create_default_buttons(self):
         # These buttons are inserted in buttons_area, if it exists

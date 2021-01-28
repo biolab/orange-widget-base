@@ -11,7 +11,7 @@ from typing import Optional
 
 import pkg_resources
 
-from AnyQt.QtCore import Qt, QObject, pyqtSlot
+from AnyQt.QtCore import Qt, QObject, pyqtSlot, QSize
 from AnyQt.QtGui import QIcon, QCursor, QStandardItemModel, QStandardItem
 from AnyQt.QtWidgets import (
     QApplication, QDialog, QFileDialog, QTableView, QHeaderView,
@@ -197,6 +197,9 @@ class OWReport(OWBaseWidget):
             self.mainArea.layout().addWidget(self.report_view)
         else:
             self.report_view = None
+
+    def sizeHint(self):
+        return QSize(850, 500)
 
     def _table_clicked(self, index):
         if index.column() == Column.remove:

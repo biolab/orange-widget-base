@@ -208,7 +208,13 @@ class WidgetTest(GuiTest):
         def test_minimum_size(self):
             widget = getattr(self, "widget", None)
             if widget is None:
-                self.skipTest("minimum size not tested as .widget was not set")
+                self.skipTest(
+                    "minimum size not tested as .widget was not set"
+                )
+            elif widget.want_main_area and widget.want_control_area:
+                self.skipTest(
+                    "minimum size does not apply as widget is scrollable"
+                )
             self.check_minimum_size(widget)
 
         def test_msg_base_class(self):

@@ -2853,6 +2853,11 @@ class VerticalScrollArea(QScrollArea):
         sb.styleChange.connect(self.updateGeometry)
 
     def resizeEvent(self, event):
+        sb = self.verticalScrollBar()
+        if sb.minimum() == sb.maximum():
+            self.setViewportMargins(0, 0, 0, 0)
+        else:
+            self.setViewportMargins(0, 0, 5, 0)
         super().resizeEvent(event)
         self.updateGeometry()
         self.parent().updateGeometry()
@@ -2868,6 +2873,8 @@ class VerticalScrollArea(QScrollArea):
             width += sb.style().pixelMetric(QStyle.PM_ScrollBarExtent, widget=sb)
 
         sh = self.widget().sizeHint()
+        if sb.minimum() != sb.maximum():
+            width += 5
         sh.setWidth(width)
         return sh
 

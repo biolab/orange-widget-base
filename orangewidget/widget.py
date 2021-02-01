@@ -480,6 +480,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if self.want_main_area:
             self.left_side.setSizePolicy(
                 QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+            self.left_side.layout().setStretch(0, 9999999)
 
             scroll_area = VerticalScrollArea(self.left_side)
             scroll_area.setSizePolicy(QSizePolicy.MinimumExpanding,
@@ -488,10 +489,13 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                                         sizePolicy=(QSizePolicy.Fixed,
                                                     QSizePolicy.MinimumExpanding))
             scroll_area.setWidget(self.controlArea)
+
             self.left_side.layout().addWidget(scroll_area)
+
             m = 4, 4, 0, 4
         else:
             self.controlArea = gui.vBox(self.left_side, spacing=0)
+
             m = 4, 4, 4, 4
 
         if self.buttons_area_orientation is not None:

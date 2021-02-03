@@ -480,7 +480,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if self.want_main_area:
             self.left_side.setSizePolicy(
                 QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
-            self.left_side.layout().setStretch(0, 9999999)
 
             scroll_area = VerticalScrollArea(self.left_side)
             scroll_area.setSizePolicy(QSizePolicy.MinimumExpanding,
@@ -491,6 +490,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             scroll_area.setWidget(self.controlArea)
 
             self.left_side.layout().addWidget(scroll_area)
+            self.left_side.layout().setStretch(0, 9999999)  # allow full stretch
 
             m = 4, 4, 0, 4
         else:

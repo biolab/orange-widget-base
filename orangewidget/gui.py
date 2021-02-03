@@ -2854,10 +2854,13 @@ class VerticalScrollArea(QScrollArea):
 
     def resizeEvent(self, event):
         sb = self.verticalScrollBar()
-        if sb.minimum() == sb.maximum():
+        isTransient = sb.style().styleHint(QStyle.SH_ScrollBar_Transient, widget=sb)
+
+        if isTransient or sb.minimum() == sb.maximum():
             self.setViewportMargins(0, 0, 0, 0)
         else:
             self.setViewportMargins(0, 0, 5, 0)
+
         super().resizeEvent(event)
         self.updateGeometry()
         self.parent().updateGeometry()
@@ -2871,10 +2874,9 @@ class VerticalScrollArea(QScrollArea):
         isTransient = sb.style().styleHint(QStyle.SH_ScrollBar_Transient, widget=sb)
         if not isTransient and sb.maximum() != sb.minimum():
             width += sb.style().pixelMetric(QStyle.PM_ScrollBarExtent, widget=sb)
+            width += 5
 
         sh = self.widget().sizeHint()
-        if sb.minimum() != sb.maximum():
-            width += 5
         sh.setWidth(width)
         return sh
 

@@ -18,8 +18,7 @@ from AnyQt.QtGui import QCursor, QColor
 from AnyQt.QtWidgets import (
     QApplication, QStyle, QSizePolicy, QWidget, QLabel, QGroupBox, QSlider,
     QTableWidgetItem, QStyledItemDelegate, QTableView, QHeaderView,
-    QScrollArea, QFrame, QScrollBar, QLineEdit,
-    QCalendarWidget, QDateTimeEdit,
+    QScrollArea, QFrame, QLineEdit, QCalendarWidget, QDateTimeEdit,
 )
 
 from orangewidget.utils import getdeepattr
@@ -2833,24 +2832,18 @@ class VerticalScrollArea(QScrollArea):
     needs to scroll horizontally: it adapts its width to the contents.
     """
 
-    class ScrollBar(QScrollBar):
-        #: Emitted when the scroll bar receives a StyleChange event
-        styleChange = Signal()
-
-        def changeEvent(self, event: QEvent) -> None:
-            if event.type() == QEvent.StyleChange:
-                self.styleChange.emit()
-            super().changeEvent(event)
-
     def __init__(self, parent):
         super().__init__(parent)
         self.setWidgetResizable(True)
         self.setFrameShape(QFrame.NoFrame)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.horizontalScrollBar().setEnabled(False)
-        sb = VerticalScrollArea.ScrollBar()
-        self.setVerticalScrollBar(sb)
-        sb.styleChange.connect(self.updateGeometry)
+        self.verticalScrollBar().installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj == self.verticalScrollBar() and event.type() == QEvent.StyleChange:
+            self.updateGeometry()
+        return super().eventFilter(obj, event)
 
     def resizeEvent(self, event):
         sb = self.verticalScrollBar()

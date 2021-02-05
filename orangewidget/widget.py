@@ -485,7 +485,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             scroll_area.setSizePolicy(QSizePolicy.MinimumExpanding,
                                       QSizePolicy.Preferred)
             self.controlArea = gui.vBox(scroll_area, spacing=0,
-                                        sizePolicy=(QSizePolicy.Fixed,
+                                        sizePolicy=(QSizePolicy.MinimumExpanding,
                                                     QSizePolicy.MinimumExpanding))
             scroll_area.setWidget(self.controlArea)
 

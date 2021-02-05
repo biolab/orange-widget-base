@@ -1689,7 +1689,8 @@ class StateInfo(QObject):
         elif isinstance(summary, StateInfo.Summary):
             assert_single_arg()
             if isinstance(summary, StateInfo.Empty):
-                summary = summary.updated(details="No data on input")
+                summary = summary.updated(details="No data on input",
+                                          brief='-')
             if summary.icon.isNull():
                 summary = summary.updated(icon=summary.default_icon("input"))
         elif isinstance(summary, str):
@@ -1746,7 +1747,8 @@ class StateInfo(QObject):
         elif isinstance(summary, StateInfo.Summary):
             assert_single_arg()
             if isinstance(summary, StateInfo.Empty):
-                summary = summary.updated(details="No data on output")
+                summary = summary.updated(details="No data on output",
+                                          brief='-')
             if summary.icon.isNull():
                 summary = summary.updated(icon=summary.default_icon("output"))
         elif isinstance(summary, str):

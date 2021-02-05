@@ -1727,7 +1727,6 @@ def auto_commit(widget, master, value, label, auto_label=None, box=True,
             orientation = Qt.Vertical if checkbox_label else Qt.Horizontal
         b = widgetBox(widget, box=box, orientation=orientation,
                       addToLayout=False)
-        b.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
 
     b.checkbox = cb = checkBox(b, master, value, checkbox_label,
                                callback=checkbox_toggled, tooltip=auto_label)

@@ -963,6 +963,31 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             # Note: This should always be stored as bytes and not QByteArray.
             self.savedWidgetGeometry = bytes(self.saveGeometry())
 
+    def sizeHint(self):
+        sh = QSize()
+        # boxes look nice on macOS with starting width/height 4
+        width = 4
+        height = 4
+
+        if self.want_message_bar:
+            msh = self.statusBar().sizeHint()
+            height += msh.height()
+        if self.want_control_area:
+            csh = self.controlArea.sizeHint()
+            width += csh.width()
+            height += csh.height()
+            if self.buttons_area_orientation:
+                bsh = self.buttonsArea.sizeHint()
+                height += bsh.height()
+        height = max(height, 500)
+        if self.want_main_area:
+            width += self.__splitter.handleWidth()
+            if self.want_control_area:
+                width += height * 1.1
+            else:
+                return super().sizeHint()
+        return QSize(width, height)
+
     # when widget is resized, save the new width and height
     def resizeEvent(self, event):
         """Overloaded to save the geometry (width and height) when the widget

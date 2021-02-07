@@ -553,7 +553,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if not self.resizing_enabled:
             self.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
 
-        self.want_main_area = self.want_main_area or self.graph_name
         self._create_default_buttons()
 
         self._insert_splitter()

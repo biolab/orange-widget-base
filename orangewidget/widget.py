@@ -476,7 +476,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.layout().addWidget(self.__splitter)
 
     def _insert_control_area(self):
-        self.left_side = gui.vBox(self.__splitter, addSpace=0)
+        self.left_side = gui.vBox(self.__splitter, addSpace=0, spacing=0)
         if self.want_main_area:
             self.left_side.setSizePolicy(
                 QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
@@ -484,7 +484,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             scroll_area = VerticalScrollArea(self.left_side)
             scroll_area.setSizePolicy(QSizePolicy.MinimumExpanding,
                                       QSizePolicy.Preferred)
-            self.controlArea = gui.vBox(scroll_area, spacing=0,
+            self.controlArea = gui.vBox(scroll_area, spacing=6,
                                         sizePolicy=(QSizePolicy.MinimumExpanding,
                                                     QSizePolicy.Preferred))
             scroll_area.setWidget(self.controlArea)
@@ -493,7 +493,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
             m = 4, 4, 0, 4
         else:
-            self.controlArea = gui.vBox(self.left_side, spacing=0)
+            self.controlArea = gui.vBox(self.left_side, spacing=6)
 
             m = 4, 4, 4, 4
 
@@ -507,7 +507,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
     def _insert_buttons_area(self):
         self.buttonsArea = gui.widgetBox(
-            self.left_side, addSpace=0, spacing=9,
+            self.left_side, addSpace=0, spacing=6,
             orientation=self.buttons_area_orientation,
             sizePolicy=(QSizePolicy.MinimumExpanding,
                         QSizePolicy.Maximum)
@@ -515,7 +515,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
     def _insert_main_area(self):
         self.mainArea = gui.vBox(
-            self.__splitter, margin=4,
+            self.__splitter, spacing=6,
             sizePolicy=QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         )
         self.__splitter.addWidget(self.mainArea)

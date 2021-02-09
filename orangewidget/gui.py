@@ -304,11 +304,13 @@ def _addSpace(widget, space):
         Otherwise, the default space is inserted by calling a :obj:`separator`.
     :type space: bool or int
     """
-    if space:
-        if type(space) == int:  # distinguish between int and bool!
-            separator(widget, space, space)
-        else:
-            separator(widget)
+    warnings.warn("'addSpace' has been deprecated. Use gui.separator instead.",
+                  DeprecationWarning, stacklevel=4)
+    # if space:
+    #     if type(space) == int:  # distinguish between int and bool!
+    #         separator(widget, space, space)
+    #     else:
+    #         separator(widget)
 
 
 def separator(widget, width=4, height=4):
@@ -368,7 +370,7 @@ def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=4,
         if isinstance(box, str):
             b.setTitle(" " + box.strip() + " ")
         if margin is None:
-            margin = 7
+            margin = 4
     else:
         b = QtWidgets.QWidget(widget)
         b.setContentsMargins(0, 0, 0, 0)
@@ -377,7 +379,6 @@ def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=4,
     setLayout(b, orientation)
     b.layout().setSpacing(spacing)
     b.layout().setContentsMargins(margin, margin, margin, margin)
-    misc.setdefault('addSpace', bool(box))
     miscellanea(b, None, widget, **misc)
     return b
 
@@ -1178,7 +1179,6 @@ def radioButtons(widget, master, value, btnLabels=(), tooltips=None,
         appendRadioButton(bg, lab, tooltip=tooltips and tooltips[i], id=i + 1)
     connectControl(master, value, callback, bg.group.buttonClicked[int],
                    CallFrontRadioButtons(bg), CallBackRadioButton(bg, master))
-    misc.setdefault('addSpace', bool(box))
     miscellanea(bg.group, bg, widget, **misc)
     return bg
 
@@ -1233,7 +1233,6 @@ def appendRadioButton(group, label, insertInto=None,
     if addToLayout:
         dest = insertInto or group
         dest.layout().addWidget(w, stretch)
-        _addSpace(dest, addSpace)
     return w
 
 

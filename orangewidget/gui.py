@@ -341,7 +341,7 @@ def rubber(widget):
     widget.layout().addStretch(100)
 
 
-def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=4,
+def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=None,
               **misc):
     """
     Construct a box with vertical or horizontal layout, and optionally,
@@ -378,7 +378,8 @@ def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=4,
         if margin is None:
             margin = 0
     setLayout(b, orientation)
-    b.layout().setSpacing(spacing)
+    if spacing is not None:
+        b.layout().setSpacing(spacing)
     b.layout().setContentsMargins(margin, margin, margin, margin)
     miscellanea(b, None, widget, **misc)
     return b

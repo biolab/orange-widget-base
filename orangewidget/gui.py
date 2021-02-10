@@ -231,10 +231,11 @@ def miscellanea(control, box, parent,
     :type sizePolicy: QSizePolicy
     """
     for prop, val in kwargs.items():
-        if prop == "sizePolicy":
-            control.setSizePolicy(QSizePolicy(*val))
+        method = getattr(control, "set" + prop[0].upper() + prop[1:])
+        if isinstance(val, tuple):
+            method(*val)
         else:
-            getattr(control, "set" + prop[0].upper() + prop[1:])(val)
+            method(val)
     if disabled:
         # if disabled==False, do nothing; it can be already disabled
         control.setDisabled(disabled)

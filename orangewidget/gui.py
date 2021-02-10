@@ -363,14 +363,37 @@ def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=4,
     :return: Constructed box
     :rtype: QGroupBox or QWidget
     """
+    outer_box = None
     if box:
         b = QtWidgets.QGroupBox(widget)
+        b.outer_box = None
         if isinstance(box, str):
             b.setTitle(" " + box.strip() + " ")
+        else:
+            b.setTitle(" ")
+
+            font = b.font()
+            original_size = font.pointSize()
+            font.setPointSize(1)
+            b.setFont(font)
+
+            b.setLayout(QtWidgets.QHBoxLayout())
+            b.layout().setContentsMargins(0, 0, 0, 0)
+
+            outer_box = b
+
+            b = QtWidgets.QGroupBox(widget)
+            b.outer_box = outer_box
+            b.setFlat(True)
+            font = b.font()
+            font.setPointSize(original_size)
+            b.setFont(font)
+
         if margin is None:
             margin = 7
     else:
         b = QtWidgets.QWidget(widget)
+        b.outer_box = None
         b.setContentsMargins(0, 0, 0, 0)
         if margin is None:
             margin = 0
@@ -378,7 +401,7 @@ def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=4,
     b.layout().setSpacing(spacing)
     b.layout().setContentsMargins(margin, margin, margin, margin)
     misc.setdefault('addSpace', bool(box))
-    miscellanea(b, None, widget, **misc)
+    miscellanea(b, outer_box, widget, **misc)
     return b
 
 
@@ -1721,13 +1744,14 @@ def auto_commit(widget, master, value, label, auto_label=None, box=True,
         else:
             auto_label = label.title() + " Automatically"
     if isinstance(box, QWidget):
-        b = box
+        outer_box = b = box
     else:
         if orientation is None:
             orientation = Qt.Vertical if checkbox_label else Qt.Horizontal
         b = widgetBox(widget, box=box, orientation=orientation,
                       addToLayout=False)
         b.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        outer_box = b.outer_box or b
 
     b.checkbox = cb = checkBox(b, master, value, checkbox_label,
                                callback=checkbox_toggled, tooltip=auto_label)
@@ -1746,7 +1770,7 @@ def auto_commit(widget, master, value, label, auto_label=None, box=True,
     setattr(master, commit_name, unconditional_commit)
     misc['addToLayout'] = misc.get('addToLayout', True) and \
                           not isinstance(box, QtWidgets.QWidget)
-    miscellanea(b, widget, widget, **misc)
+    miscellanea(outer_box, widget, widget, **misc)
     return b
 
 

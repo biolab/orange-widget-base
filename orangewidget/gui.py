@@ -2620,9 +2620,11 @@ def tabWidget(widget):
     return w
 
 
-def createTabPage(tab_widget, name, widgetToAdd=None, canScroll=False):
+def createTabPage(tab_widget, name, widgetToAdd=None, canScroll=False,
+                  orientation=Qt.Vertical):
     if widgetToAdd is None:
-        widgetToAdd = vBox(tab_widget, addToLayout=0, margin=4)
+        widgetToAdd = widgetBox(tab_widget, orientation=orientation,
+                                addToLayout=0, margin=4)
     if canScroll:
         scrollArea = QtWidgets.QScrollArea()
         tab_widget.addTab(scrollArea, name)

@@ -259,7 +259,9 @@ def miscellanea(control, box, parent,
     if sizePolicy is not None:
         if isinstance(sizePolicy, tuple):
             sizePolicy = QSizePolicy(*sizePolicy)
-        (box or control).setSizePolicy(sizePolicy)
+        if box:
+            box.setSizePolicy(sizePolicy)
+        control.setSizePolicy(sizePolicy)
     if addToLayout and parent and parent.layout() is not None:
         _addSpace(parent, addSpaceBefore)
         parent.layout().addWidget(box or control, stretch)

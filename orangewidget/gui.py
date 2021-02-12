@@ -1639,7 +1639,7 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     return combo
 
 
-def auto_commit(widget, master, value, label, auto_label=None, box=True,
+def auto_commit(widget, master, value, label, auto_label=None, box=False,
                 checkbox_label=None, orientation=None, commit=None,
                 callback=None, **misc):
     """
@@ -1727,10 +1727,12 @@ def auto_commit(widget, master, value, label, auto_label=None, box=True,
         b = widgetBox(widget, box=box, orientation=orientation,
                       addToLayout=False)
 
+    if _is_horizontal(orientation):
+        b.layout().addSpacing(4)
     b.checkbox = cb = checkBox(b, master, value, checkbox_label,
                                callback=checkbox_toggled, tooltip=auto_label)
     if _is_horizontal(orientation):
-        b.layout().addSpacing(10)
+        b.layout().addSpacing(4)
     cb.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
 
     b.button = btn = VariableTextPushButton(

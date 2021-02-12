@@ -181,7 +181,8 @@ class OWComponent:
 
 def miscellanea(control, box, parent,
                 addToLayout=True, stretch=0, sizePolicy=None, addSpace=False,
-                disabled=False, tooltip=None, disabledBy=None, **kwargs):
+                disabled=False, tooltip=None, disabledBy=None,
+                addSpaceBefore=False, **kwargs):
     """
     Helper function that sets various properties of the widget using a common
     set of arguments.
@@ -230,6 +231,9 @@ def miscellanea(control, box, parent,
     :param sizePolicy: the size policy for the box or the control
     :type sizePolicy: QSizePolicy
     """
+    if addSpace is not False:
+        warnings.warn("'addSpace' has been deprecated. Use gui.separator instead.",
+                      DeprecationWarning, stacklevel=3)
     for prop, val in kwargs.items():
         method = getattr(control, "set" + prop[0].upper() + prop[1:])
         if isinstance(val, tuple):
@@ -257,8 +261,8 @@ def miscellanea(control, box, parent,
             sizePolicy = QSizePolicy(*sizePolicy)
         (box or control).setSizePolicy(sizePolicy)
     if addToLayout and parent and parent.layout() is not None:
+        _addSpace(parent, addSpaceBefore)
         parent.layout().addWidget(box or control, stretch)
-        _addSpace(parent, addSpace)
 
 
 def _is_horizontal(orientation):
@@ -305,13 +309,11 @@ def _addSpace(widget, space):
         Otherwise, the default space is inserted by calling a :obj:`separator`.
     :type space: bool or int
     """
-    warnings.warn("'addSpace' has been deprecated. Use gui.separator instead.",
-                  DeprecationWarning, stacklevel=4)
-    # if space:
-    #     if type(space) == int:  # distinguish between int and bool!
-    #         separator(widget, space, space)
-    #     else:
-    #         separator(widget)
+    if space:
+        if type(space) == int:  # distinguish between int and bool!
+            separator(widget, space, space)
+        else:
+            separator(widget)
 
 
 def separator(widget, width=4, height=4):
@@ -370,6 +372,10 @@ def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=No
         b = QtWidgets.QGroupBox(widget)
         if isinstance(box, str):
             b.setTitle(" " + box.strip() + " ")
+            if widget and widget.layout() and \
+                    isinstance(widget.layout(), QtWidgets.QVBoxLayout) and \
+                    not widget.layout().isEmpty():
+                misc.setdefault('addSpaceBefore', True)
         if margin is None:
             margin = 4
     else:
@@ -1167,8 +1173,10 @@ def radioButtons(widget, master, value, btnLabels=(), tooltips=None,
         instance of `QLayout`
     :rtype: QButtonGroup
     """
-    bg = widgetBox(widget, box, orientation, addToLayout=False)
-    if not label is None:
+    bg = widgetBox(widget, box, orientation,
+                   addToLayout=misc.get('addToLayout', True))
+    misc['addToLayout'] = False
+    if label is not None:
         widgetLabel(bg, label)
 
     rb = QtWidgets.QButtonGroup(bg)
@@ -1563,7 +1571,9 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     """
     widget_label = None
     if box or label:
-        hb = widgetBox(widget, box, orientation, addToLayout=False)
+        hb = widgetBox(widget, box, orientation,
+                       addToLayout=misc.get('addToLayout', True))
+        misc['addToLayout'] = False
         if label is not None:
             widget_label = widgetLabel(hb, label, labelWidth)
     else:

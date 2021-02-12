@@ -180,7 +180,7 @@ class OWComponent:
 
 
 def miscellanea(control, box, parent,
-                addToLayout=True, stretch=0, sizePolicy=None, addSpace=False,
+                addToLayout=True, stretch=0, sizePolicy=None, addSpace=None,
                 disabled=False, tooltip=None, disabledBy=None,
                 addSpaceBefore=False, **kwargs):
     """
@@ -231,7 +231,7 @@ def miscellanea(control, box, parent,
     :param sizePolicy: the size policy for the box or the control
     :type sizePolicy: QSizePolicy
     """
-    if addSpace is not False:
+    if addSpace is not None:
         warnings.warn("'addSpace' has been deprecated. Use gui.separator instead.",
                       DeprecationWarning, stacklevel=3)
     for prop, val in kwargs.items():
@@ -1199,7 +1199,7 @@ radioButtonsInBox = radioButtons
 
 def appendRadioButton(group, label, insertInto=None,
                       disabled=False, tooltip=None, sizePolicy=None,
-                      addToLayout=True, stretch=0, addSpace=False, id=None):
+                      addToLayout=True, stretch=0, addSpace=None, id=None):
     """
     Construct a radio button and add it to the group. The group must be
     constructed with :obj:`radioButtons` since it adds additional
@@ -1218,6 +1218,9 @@ def appendRadioButton(group, label, insertInto=None,
     :type insertInto: QWidget
     :rtype: QRadioButton
     """
+    if addSpace is not None:
+        warnings.warn("'addSpace' has been deprecated. Use gui.separator instead.",
+                      DeprecationWarning, stacklevel=2)
     i = len(group.buttons)
     if isinstance(label, str):
         w = QtWidgets.QRadioButton(label)

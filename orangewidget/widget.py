@@ -499,7 +499,9 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
         if self.buttons_area_orientation is not None:
             self._insert_buttons_area()
-            self.buttonsArea.layout().setContentsMargins(*m)
+            self.buttonsArea.layout().setContentsMargins(
+                m[0] + 8, m[1], m[2] + 8, m[3]
+            )
             # margins are nice on macOS with this
             m = m[0], m[1], m[2], m[3] - 2
 

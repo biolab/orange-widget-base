@@ -512,6 +512,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.controlArea.layout().setContentsMargins(*m)
 
     def _insert_buttons_area(self):
+        if not self.want_main_area:
+            gui.separator(self.left_side)
         self.buttonsArea = gui.widgetBox(
             self.left_side, addSpace=0, spacing=6,
             orientation=self.buttons_area_orientation,

@@ -246,6 +246,10 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     #: should it not already be part of a package.
     category: str = None
 
+    #: Ratio between width and height for mainArea widgets,
+    #: set to None for super().sizeHint()
+    mainArea_width_height_ratio: Optional[float] = 1.1
+
     # -------------------------------------------------------------------------
     # Private Interface
     # -------------------------------------------------------------------------
@@ -966,6 +970,11 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             self.savedWidgetGeometry = bytes(self.saveGeometry())
 
     def sizeHint(self):
+        if self.mainArea_width_height_ratio is None:
+            return super().sizeHint()
+
+        # Super sizeHint with scroll_area isn't calculated right (slightly too small on macOS)
+        # on some platforms. This way, width/height should be optimal for most widgets.
         sh = QSize()
         # boxes look nice on macOS with starting width/height 4
         width = 4
@@ -985,7 +994,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if self.want_main_area:
             width += self.__splitter.handleWidth()
             if self.want_control_area:
-                width += height * 1.1
+                width += height * self.mainArea_width_height_ratio
             else:
                 return super().sizeHint()
         return QSize(width, height)

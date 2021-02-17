@@ -1772,6 +1772,7 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
 
     b.button = btn = VariableTextPushButton(
         b, text=label, textChoiceList=[label, auto_label], clicked=do_commit)
+    btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
     if b.layout() is not None:
         if is_macstyle():
             btnpaddingbox = vBox(b, margin=0, spacing=0)
@@ -1781,7 +1782,7 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
             b.layout().addWidget(btn)
 
     if not checkbox_label:
-        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
     checkbox_toggled()
     setattr(master, commit_name, unconditional_commit)
     misc['addToLayout'] = addToLayout

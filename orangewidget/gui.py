@@ -37,6 +37,12 @@ OrangeUserRole = itertools.count(Qt.UserRole)
 LAMBDA_NAME = (f"_lambda_{i}" for i in itertools.count(1))
 
 
+def is_macstyle():
+    style = QApplication.style()
+    style_name = style.metaObject().className()
+    return style_name == 'QMacStyle'
+
+
 class TableView(QTableView):
     """An auxilliary table view for use with PyTableModel in control areas"""
     def __init__(self, parent=None, **kwargs):
@@ -318,7 +324,7 @@ def _addSpace(widget, space):
             separator(widget)
 
 
-def separator(widget, width=4, height=4):
+def separator(widget, width=None, height=None):
     """
     Add a separator of the given size into the widget.
 
@@ -334,8 +340,19 @@ def separator(widget, width=4, height=4):
     sep = QtWidgets.QWidget(widget)
     if widget is not None and widget.layout() is not None:
         widget.layout().addWidget(sep)
-    sep.setFixedSize(width, height)
+    size = separator_size(width, height)
+    sep.setFixedSize(*size)
     return sep
+
+
+def separator_size(width=None, height=None):
+    if is_macstyle():
+        width = 2 if width is None else width
+        height = 2 if height is None else height
+    else:
+        width = 4 if width is None else width
+        height = 4 if height is None else height
+    return width, height
 
 
 def rubber(widget):
@@ -374,7 +391,7 @@ def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=No
         b = QtWidgets.QGroupBox(widget)
         if isinstance(box, str):
             b.setTitle(" " + box.strip() + " ")
-            if widget and widget.layout() and \
+            if is_macstyle() and widget and widget.layout() and \
                     isinstance(widget.layout(), QtWidgets.QVBoxLayout) and \
                     not widget.layout().isEmpty():
                 misc.setdefault('addSpaceBefore', True)
@@ -1096,6 +1113,12 @@ def button(widget, master, label, callback=None, width=None, height=None,
     :rtype: QPushButton
     """
     button = buttonType(widget)
+    if is_macstyle():
+        btnpaddingbox = vBox(widget, margin=0, spacing=0)
+        separator(btnpaddingbox, 0, 4)  # lines up with a WA_LayoutUsesWidgetRect checkbox
+        button.outer_box = btnpaddingbox
+    else:
+        button.outer_box = None
     if label:
         button.setText(label)
     if width:
@@ -1118,7 +1141,7 @@ def button(widget, master, label, callback=None, width=None, height=None,
     elif callback:
         button.clicked.connect(callback)
 
-    miscellanea(button, None, widget, **misc)
+    miscellanea(button, button.outer_box, widget, **misc)
     return button
 
 
@@ -1743,7 +1766,12 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
     b.button = btn = VariableTextPushButton(
         b, text=label, textChoiceList=[label, auto_label], clicked=do_commit)
     if b.layout() is not None:
-        b.layout().addWidget(b.button)
+        if is_macstyle():
+            btnpaddingbox = vBox(b, margin=0, spacing=0)
+            separator(btnpaddingbox, 0, 4)
+            btnpaddingbox.layout().addWidget(btn)
+        else:
+            b.layout().addWidget(btn)
 
     if not checkbox_label:
         btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -1752,6 +1780,10 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
     misc['addToLayout'] = misc.get('addToLayout', True) and \
                           not isinstance(box, QtWidgets.QWidget)
     miscellanea(b, widget, widget, **misc)
+
+    cb.setAttribute(Qt.WA_LayoutUsesWidgetRect)
+    btn.setAttribute(Qt.WA_LayoutUsesWidgetRect)
+
     return b
 
 

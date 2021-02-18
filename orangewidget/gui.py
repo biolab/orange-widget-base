@@ -1749,18 +1749,25 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
             auto_label = label.title() + " Automatically"
     if isinstance(box, QWidget):
         b = box
+        addToLayout = False
     else:
         if orientation is None:
             orientation = Qt.Vertical if checkbox_label else Qt.Horizontal
         b = widgetBox(widget, box=box, orientation=orientation,
-                      addToLayout=False)
+                      addToLayout=False, margin=0, spacing=0)
+        addToLayout = misc.get('addToLayout', True)
+        if addToLayout and widget and \
+                not widget.layout().isEmpty() \
+                and _is_horizontal(orientation) \
+                and isinstance(widget.layout(), QtWidgets.QHBoxLayout):
+            # put a separator before the checkbox
+            separator(b, 16, 0)
 
-    if _is_horizontal(orientation):
-        b.layout().addSpacing(4)
     b.checkbox = cb = checkBox(b, master, value, checkbox_label,
                                callback=checkbox_toggled, tooltip=auto_label)
     if _is_horizontal(orientation):
-        b.layout().addSpacing(4)
+        w = b.style().pixelMetric(QStyle.PM_CheckBoxLabelSpacing)
+        separator(b, w, 0)
     cb.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
 
     b.button = btn = VariableTextPushButton(
@@ -1777,8 +1784,7 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
         btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
     checkbox_toggled()
     setattr(master, commit_name, unconditional_commit)
-    misc['addToLayout'] = misc.get('addToLayout', True) and \
-                          not isinstance(box, QtWidgets.QWidget)
+    misc['addToLayout'] = addToLayout
     miscellanea(b, widget, widget, **misc)
 
     cb.setAttribute(Qt.WA_LayoutUsesWidgetRect)

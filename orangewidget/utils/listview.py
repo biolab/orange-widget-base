@@ -32,6 +32,7 @@ class ListViewSearch(QListView):
         self.__pmodel.rowsInserted.connect(self.__filter_rowsInserted)
         self.__layout()
         self.preferred_size = preferred_size
+        self.setMinimumHeight(100)
 
     def setFilterPlaceholderText(self, text: str):
         self.__search.setPlaceholderText(text)

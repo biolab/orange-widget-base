@@ -37,6 +37,12 @@ OrangeUserRole = itertools.count(Qt.UserRole)
 LAMBDA_NAME = (f"_lambda_{i}" for i in itertools.count(1))
 
 
+def is_macstyle():
+    style = QApplication.style()
+    style_name = style.metaObject().className()
+    return style_name == 'QMacStyle'
+
+
 class TableView(QTableView):
     """An auxilliary table view for use with PyTableModel in control areas"""
     def __init__(self, parent=None, **kwargs):
@@ -180,8 +186,9 @@ class OWComponent:
 
 
 def miscellanea(control, box, parent,
-                addToLayout=True, stretch=0, sizePolicy=None, addSpace=False,
-                disabled=False, tooltip=None, disabledBy=None, **kwargs):
+                addToLayout=True, stretch=0, sizePolicy=None, addSpace=None,
+                disabled=False, tooltip=None, disabledBy=None,
+                addSpaceBefore=False, **kwargs):
     """
     Helper function that sets various properties of the widget using a common
     set of arguments.
@@ -230,11 +237,15 @@ def miscellanea(control, box, parent,
     :param sizePolicy: the size policy for the box or the control
     :type sizePolicy: QSizePolicy
     """
+    if addSpace is not None:
+        warnings.warn("'addSpace' has been deprecated. Use gui.separator instead.",
+                      DeprecationWarning, stacklevel=3)
     for prop, val in kwargs.items():
-        if prop == "sizePolicy":
-            control.setSizePolicy(QSizePolicy(*val))
+        method = getattr(control, "set" + prop[0].upper() + prop[1:])
+        if isinstance(val, tuple):
+            method(*val)
         else:
-            getattr(control, "set" + prop[0].upper() + prop[1:])(val)
+            method(val)
     if disabled:
         # if disabled==False, do nothing; it can be already disabled
         control.setDisabled(disabled)
@@ -254,10 +265,12 @@ def miscellanea(control, box, parent,
     if sizePolicy is not None:
         if isinstance(sizePolicy, tuple):
             sizePolicy = QSizePolicy(*sizePolicy)
-        (box or control).setSizePolicy(sizePolicy)
+        if box:
+            box.setSizePolicy(sizePolicy)
+        control.setSizePolicy(sizePolicy)
     if addToLayout and parent and parent.layout() is not None:
+        _addSpace(parent, addSpaceBefore)
         parent.layout().addWidget(box or control, stretch)
-        _addSpace(parent, addSpace)
 
 
 def _is_horizontal(orientation):
@@ -311,7 +324,7 @@ def _addSpace(widget, space):
             separator(widget)
 
 
-def separator(widget, width=4, height=4):
+def separator(widget, width=None, height=None):
     """
     Add a separator of the given size into the widget.
 
@@ -327,8 +340,19 @@ def separator(widget, width=4, height=4):
     sep = QtWidgets.QWidget(widget)
     if widget is not None and widget.layout() is not None:
         widget.layout().addWidget(sep)
-    sep.setFixedSize(width, height)
+    size = separator_size(width, height)
+    sep.setFixedSize(*size)
     return sep
+
+
+def separator_size(width=None, height=None):
+    if is_macstyle():
+        width = 2 if width is None else width
+        height = 2 if height is None else height
+    else:
+        width = 4 if width is None else width
+        height = 4 if height is None else height
+    return width, height
 
 
 def rubber(widget):
@@ -338,7 +362,7 @@ def rubber(widget):
     widget.layout().addStretch(100)
 
 
-def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=4,
+def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=None,
               **misc):
     """
     Construct a box with vertical or horizontal layout, and optionally,
@@ -367,17 +391,21 @@ def widgetBox(widget, box=None, orientation=Qt.Vertical, margin=None, spacing=4,
         b = QtWidgets.QGroupBox(widget)
         if isinstance(box, str):
             b.setTitle(" " + box.strip() + " ")
+            if is_macstyle() and widget and widget.layout() and \
+                    isinstance(widget.layout(), QtWidgets.QVBoxLayout) and \
+                    not widget.layout().isEmpty():
+                misc.setdefault('addSpaceBefore', True)
         if margin is None:
-            margin = 7
+            margin = 4
     else:
         b = QtWidgets.QWidget(widget)
         b.setContentsMargins(0, 0, 0, 0)
         if margin is None:
             margin = 0
     setLayout(b, orientation)
-    b.layout().setSpacing(spacing)
+    if spacing is not None:
+        b.layout().setSpacing(spacing)
     b.layout().setContentsMargins(margin, margin, margin, margin)
-    misc.setdefault('addSpace', bool(box))
     miscellanea(b, None, widget, **misc)
     return b
 
@@ -909,10 +937,6 @@ def checkBox(widget, master, value, label, box=None,
     cbox.toggled[bool].connect(cbox.makeConsistent)
     cbox.makeConsistent(value)
     miscellanea(cbox, b, widget, **misc)
-
-    # QTBUG-2699
-    cbox.setAttribute(Qt.WA_LayoutUsesWidgetRect)
-
     return cbox
 
 
@@ -1089,6 +1113,12 @@ def button(widget, master, label, callback=None, width=None, height=None,
     :rtype: QPushButton
     """
     button = buttonType(widget)
+    if is_macstyle():
+        btnpaddingbox = vBox(widget, margin=0, spacing=0)
+        separator(btnpaddingbox, 0, 4)  # lines up with a WA_LayoutUsesWidgetRect checkbox
+        button.outer_box = btnpaddingbox
+    else:
+        button.outer_box = None
     if label:
         button.setText(label)
     if width:
@@ -1111,11 +1141,7 @@ def button(widget, master, label, callback=None, width=None, height=None,
     elif callback:
         button.clicked.connect(callback)
 
-    miscellanea(button, None, widget, **misc)
-
-    # QTBUG-2699
-    button.setAttribute(Qt.WA_LayoutUsesWidgetRect)
-
+    miscellanea(button, button.outer_box, widget, **misc)
     return button
 
 
@@ -1172,8 +1198,10 @@ def radioButtons(widget, master, value, btnLabels=(), tooltips=None,
         instance of `QLayout`
     :rtype: QButtonGroup
     """
-    bg = widgetBox(widget, box, orientation, addToLayout=False)
-    if not label is None:
+    bg = widgetBox(widget, box, orientation,
+                   addToLayout=misc.get('addToLayout', True))
+    misc['addToLayout'] = False
+    if label is not None:
         widgetLabel(bg, label)
 
     rb = QtWidgets.QButtonGroup(bg)
@@ -1186,7 +1214,6 @@ def radioButtons(widget, master, value, btnLabels=(), tooltips=None,
         appendRadioButton(bg, lab, tooltip=tooltips and tooltips[i], id=i + 1)
     connectControl(master, value, callback, bg.group.buttonClicked[int],
                    CallFrontRadioButtons(bg), CallBackRadioButton(bg, master))
-    misc.setdefault('addSpace', bool(box))
     miscellanea(bg.group, bg, widget, **misc)
     return bg
 
@@ -1195,7 +1222,7 @@ radioButtonsInBox = radioButtons
 
 def appendRadioButton(group, label, insertInto=None,
                       disabled=False, tooltip=None, sizePolicy=None,
-                      addToLayout=True, stretch=0, addSpace=False, id=None):
+                      addToLayout=True, stretch=0, addSpace=None, id=None):
     """
     Construct a radio button and add it to the group. The group must be
     constructed with :obj:`radioButtons` since it adds additional
@@ -1214,6 +1241,9 @@ def appendRadioButton(group, label, insertInto=None,
     :type insertInto: QWidget
     :rtype: QRadioButton
     """
+    if addSpace is not None:
+        warnings.warn("'addSpace' has been deprecated. Use gui.separator instead.",
+                      DeprecationWarning, stacklevel=2)
     i = len(group.buttons)
     if isinstance(label, str):
         w = QtWidgets.QRadioButton(label)
@@ -1241,7 +1271,6 @@ def appendRadioButton(group, label, insertInto=None,
     if addToLayout:
         dest = insertInto or group
         dest.layout().addWidget(w, stretch)
-        _addSpace(dest, addSpace)
     return w
 
 
@@ -1570,7 +1599,9 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     """
     widget_label = None
     if box or label:
-        hb = widgetBox(widget, box, orientation, addToLayout=False)
+        hb = widgetBox(widget, box, orientation,
+                       addToLayout=misc.get('addToLayout', True))
+        misc['addToLayout'] = False
         if label is not None:
             widget_label = widgetLabel(hb, label, labelWidth)
     else:
@@ -1633,14 +1664,10 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
         log.warning("comboBox no longer accepts argument 'valueType'")
     miscellanea(combo, hb, widget, **misc)
     combo.emptyString = emptyString
-
-    # QTBUG-2699
-    combo.setAttribute(Qt.WA_LayoutUsesWidgetRect)
-
     return combo
 
 
-def auto_commit(widget, master, value, label, auto_label=None, box=True,
+def auto_commit(widget, master, value, label, auto_label=None, box=False,
                 checkbox_label=None, orientation=None, commit=None,
                 callback=None, **misc):
     """
@@ -1722,31 +1749,48 @@ def auto_commit(widget, master, value, label, auto_label=None, box=True,
             auto_label = label.title() + " Automatically"
     if isinstance(box, QWidget):
         b = box
+        addToLayout = False
     else:
         if orientation is None:
             orientation = Qt.Vertical if checkbox_label else Qt.Horizontal
         b = widgetBox(widget, box=box, orientation=orientation,
-                      addToLayout=False)
-        b.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+                      addToLayout=False, margin=0, spacing=0)
+        addToLayout = misc.get('addToLayout', True)
+        if addToLayout and widget and \
+                not widget.layout().isEmpty() \
+                and _is_horizontal(orientation) \
+                and isinstance(widget.layout(), QtWidgets.QHBoxLayout):
+            # put a separator before the checkbox
+            separator(b, 16, 0)
 
     b.checkbox = cb = checkBox(b, master, value, checkbox_label,
                                callback=checkbox_toggled, tooltip=auto_label)
     if _is_horizontal(orientation):
-        b.layout().addSpacing(10)
+        w = b.style().pixelMetric(QStyle.PM_CheckBoxLabelSpacing)
+        separator(b, w, 0)
     cb.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
 
     b.button = btn = VariableTextPushButton(
         b, text=label, textChoiceList=[label, auto_label], clicked=do_commit)
+    btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
     if b.layout() is not None:
-        b.layout().addWidget(b.button)
+        if is_macstyle():
+            btnpaddingbox = vBox(b, margin=0, spacing=0)
+            separator(btnpaddingbox, 0, 4)
+            btnpaddingbox.layout().addWidget(btn)
+        else:
+            b.layout().addWidget(btn)
 
     if not checkbox_label:
-        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
     checkbox_toggled()
     setattr(master, commit_name, unconditional_commit)
-    misc['addToLayout'] = misc.get('addToLayout', True) and \
-                          not isinstance(box, QtWidgets.QWidget)
+    misc['addToLayout'] = addToLayout
     miscellanea(b, widget, widget, **misc)
+
+    cb.setAttribute(Qt.WA_LayoutUsesWidgetRect)
+    btn.setAttribute(Qt.WA_LayoutUsesWidgetRect)
+
     return b
 
 
@@ -2615,9 +2659,11 @@ def tabWidget(widget):
     return w
 
 
-def createTabPage(tab_widget, name, widgetToAdd=None, canScroll=False):
+def createTabPage(tab_widget, name, widgetToAdd=None, canScroll=False,
+                  orientation=Qt.Vertical):
     if widgetToAdd is None:
-        widgetToAdd = vBox(tab_widget, addToLayout=0, margin=4)
+        widgetToAdd = widgetBox(tab_widget, orientation=orientation,
+                                addToLayout=0, margin=4)
     if canScroll:
         scrollArea = QtWidgets.QScrollArea()
         tab_widget.addTab(scrollArea, name)

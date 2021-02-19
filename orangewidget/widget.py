@@ -246,6 +246,10 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     #: should it not already be part of a package.
     category: str = None
 
+    #: Ratio between width and height for mainArea widgets,
+    #: set to None for super().sizeHint()
+    mainArea_width_height_ratio: Optional[float] = 1.1
+
     # -------------------------------------------------------------------------
     # Private Interface
     # -------------------------------------------------------------------------
@@ -476,7 +480,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.layout().addWidget(self.__splitter)
 
     def _insert_control_area(self):
-        self.left_side = gui.vBox(self.__splitter, addSpace=0)
+        self.left_side = gui.vBox(self.__splitter, addSpace=0, spacing=0)
         if self.want_main_area:
             self.left_side.setSizePolicy(
                 QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
@@ -484,28 +488,34 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             scroll_area = VerticalScrollArea(self.left_side)
             scroll_area.setSizePolicy(QSizePolicy.MinimumExpanding,
                                       QSizePolicy.Preferred)
-            self.controlArea = gui.vBox(scroll_area, spacing=0,
-                                        sizePolicy=(QSizePolicy.Fixed,
-                                                    QSizePolicy.MinimumExpanding))
+            self.controlArea = gui.vBox(scroll_area, spacing=6,
+                                        sizePolicy=(QSizePolicy.MinimumExpanding,
+                                                    QSizePolicy.Preferred))
             scroll_area.setWidget(self.controlArea)
 
             self.left_side.layout().addWidget(scroll_area)
 
             m = 4, 4, 0, 4
         else:
-            self.controlArea = gui.vBox(self.left_side, spacing=0)
+            self.controlArea = gui.vBox(self.left_side, spacing=6)
 
             m = 4, 4, 4, 4
 
         if self.buttons_area_orientation is not None:
             self._insert_buttons_area()
-            self.buttonsArea.layout().setContentsMargins(4, 4, 0, 4)
+            self.buttonsArea.layout().setContentsMargins(
+                m[0] + 8, m[1], m[2] + 8, m[3]
+            )
+            # margins are nice on macOS with this
+            m = m[0], m[1], m[2], m[3] - 2
 
         self.controlArea.layout().setContentsMargins(*m)
 
     def _insert_buttons_area(self):
+        if not self.want_main_area:
+            gui.separator(self.left_side)
         self.buttonsArea = gui.widgetBox(
-            self.left_side, addSpace=0, spacing=9,
+            self.left_side, addSpace=0, spacing=6,
             orientation=self.buttons_area_orientation,
             sizePolicy=(QSizePolicy.MinimumExpanding,
                         QSizePolicy.Maximum)
@@ -513,7 +523,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
     def _insert_main_area(self):
         self.mainArea = gui.vBox(
-            self.__splitter, margin=4,
+            self.__splitter, spacing=6,
             sizePolicy=QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         )
         self.__splitter.addWidget(self.mainArea)
@@ -551,7 +561,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if not self.resizing_enabled:
             self.layout().setSizeConstraint(QVBoxLayout.SetFixedSize)
 
-        self.want_main_area = self.want_main_area or self.graph_name
         self._create_default_buttons()
 
         self._insert_splitter()
@@ -961,6 +970,36 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             # window management).
             # Note: This should always be stored as bytes and not QByteArray.
             self.savedWidgetGeometry = bytes(self.saveGeometry())
+
+    def sizeHint(self):
+        if self.mainArea_width_height_ratio is None:
+            return super().sizeHint()
+
+        # Super sizeHint with scroll_area isn't calculated right (slightly too small on macOS)
+        # on some platforms. This way, width/height should be optimal for most widgets.
+        sh = QSize()
+        # boxes look nice on macOS with starting width/height 4
+        width = 4
+        height = 4
+
+        if self.want_message_bar:
+            msh = self.statusBar().sizeHint()
+            height += msh.height()
+        if self.want_control_area:
+            csh = self.controlArea.sizeHint()
+            width += csh.width()
+            height += csh.height()
+            if self.buttons_area_orientation:
+                bsh = self.buttonsArea.sizeHint()
+                height += bsh.height()
+        height = max(height, 500)
+        if self.want_main_area:
+            width += self.__splitter.handleWidth()
+            if self.want_control_area:
+                width += height * self.mainArea_width_height_ratio
+            else:
+                return super().sizeHint()
+        return QSize(width, height)
 
     # when widget is resized, save the new width and height
     def resizeEvent(self, event):

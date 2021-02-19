@@ -436,6 +436,10 @@ if HAVE_WEBKIT:
 
     class WebviewWidget(_WebViewBase, WebKitView):
         def __init__(self, parent=None, bridge=None, *, debug=False, **kwargs):
+            # WebEngine base WebviewWidget has js_timeout parameter, since
+            # user do not know which one will get and passing js_timeout to
+            # WebKitView causes error we should remove
+            kwargs.pop("js_timeout", None)
             WebKitView.__init__(self, parent, bridge, debug=debug, **kwargs)
             _WebViewBase.__init__(self)
 

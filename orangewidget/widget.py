@@ -98,6 +98,7 @@ class WidgetMetaClass(type(QDialog)):
         if not cls.name: # not a widget
             return cls
         cls.convert_signals()
+        cls.set_default_auto_summary()
         cls.settingsHandler = \
             SettingsHandler.create(cls, template=cls.settingsHandler)
         return cls

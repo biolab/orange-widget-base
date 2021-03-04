@@ -1,5 +1,6 @@
 import copy
 import itertools
+from functools import singledispatch
 
 from orangecanvas.registry.description import (
     InputSignal, OutputSignal, Single, Multiple, Default, NonDefault,
@@ -12,6 +13,11 @@ from orangewidget.utils import getmembers
 # is preserved when going through the unordered class namespace of
 # WidgetSignalsMixin.Inputs/Outputs.
 _counter = itertools.count()
+
+
+@singledispatch
+def summarize(_):
+    return None, None
 
 
 class _Signal:
@@ -133,12 +139,18 @@ class Output(OutputSignal, _Signal):
         of the declared type and that the output can be connected to any input
         signal which can accept a subtype of the declared output type
         (default: `True`)
+    auto_summary (bool, optional):
+        decides whether this signal is used for auto_summary; only one signal
+        should set this to True. If left at default (`None`), the value is set
+        by `set_default_auto_summary`, which is called from the meta-class. 
     """
     def __init__(self, name, type, id=None, doc=None, replaces=None, *,
-                 default=False, explicit=False, dynamic=True):
+                 default=False, explicit=False, dynamic=True,
+                 auto_summary=None):
         flags = self.get_flags(False, default, explicit, dynamic)
+        self.auto_summary = auto_summary
         super().__init__(name, type, flags, id, doc, replaces or [])
-        self.widget = None
+        self.widget = None  #: OWBaseWidget
         self._seq_id = next(_counter)
 
     def send(self, value, id=None):
@@ -147,6 +159,14 @@ class Output(OutputSignal, _Signal):
         signal_manager = self.widget.signalManager
         if signal_manager is not None:
             signal_manager.send(self.widget, self.name, value, id)
+        info = self.widget.info
+        if self.auto_summary:
+            if value is None:
+                info.set_output_summary(info.NoOutput)
+            else:
+                summary, details = summarize(value)
+                if summary is not None:
+                    info.set_output_summary(summary, details)
 
     def invalidate(self):
         """Invalidate the current output value on the signal"""
@@ -256,6 +276,26 @@ class WidgetSignalsMixin:
         signal_class = getattr(cls, direction.title())
         signals = [signal for _, signal in getmembers(signal_class, _Signal)]
         return list(sorted(signals, key=lambda s: s._seq_id))
+
+    @classmethod
+    def set_default_auto_summary(cls):
+        """
+        Set the default auto_summary; called from meta class.
+
+        If
+        - there is only a single output, or there is a default output.
+        - and that output has auto_summary left at default (None),
+        - and no other signal has auto_summar set to True,
+        set that signal's auto_summary to True, so that it's value will be
+        shown in the status.
+        """
+        outputs = getmembers(cls.Outputs, Output)
+        if any(output.auto_summary for _, output in outputs):
+            return
+        for _, output in outputs:
+            if output.auto_summary is None:
+                output.auto_summary = \
+                    bool(output.flags & Default) or len(outputs) == 1
 
 
 class AttributeList(list):

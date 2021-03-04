@@ -82,11 +82,17 @@ class Input(InputSignal, _Signal):
     explicit (bool, optional):
         if set, this signal is only used when it is the only option or when
         explicitly connected in the dialog (default: `False`)
+    auto_summary (bool, optional):
+        decides whether this signal is used for auto_summary; only one signal
+        should set this to True. If left at default (`None`), the value is set
+        by `set_default_auto_summary`, which is called from the meta-class.
     """
     def __init__(self, name, type, id=None, doc=None, replaces=None, *,
-                 multiple=False, default=False, explicit=False):
+                 multiple=False, default=False, explicit=False,
+                 auto_summary=None):
         flags = self.get_flags(multiple, default, explicit, False)
         super().__init__(name, type, "", flags, id, doc, replaces or [])
+        self.auto_summary = auto_summary
         self._seq_id = next(_counter)
 
     def __call__(self, method):
@@ -94,11 +100,22 @@ class Input(InputSignal, _Signal):
         Decorator that stores decorated method's name in the signal's
         `handler` attribute. The method is returned unchanged.
         """
+        def set_summary(widget, value, *args, **kwargs):
+            if self.auto_summary:
+                info = widget.info
+                if value is None:
+                    info.set_input_summary(info.NoInput)
+                else:
+                    summary, details = summarize(value)
+                    if summary is not None:
+                        info.set_input_summary(summary, details)
+            return method(widget, value, *args, **kwargs)
+
         if self.handler:
             raise ValueError("Input {} is already bound to method {}".
                              format(self.name, self.handler))
         self.handler = method.__name__
-        return method
+        return set_summary
 
 
 class Output(OutputSignal, _Signal):
@@ -283,19 +300,21 @@ class WidgetSignalsMixin:
         Set the default auto_summary; called from meta class.
 
         If
-        - there is only a single output, or there is a default output.
-        - and that output has auto_summary left at default (None),
-        - and no other signal has auto_summar set to True,
+        - there is only a single input/output, or there is a default signal,
+        - and that signal has auto_summary left at default (None),
+        - and no other signal has auto_summary set to True,
         set that signal's auto_summary to True, so that it's value will be
         shown in the status.
         """
-        outputs = getmembers(cls.Outputs, Output)
-        if any(output.auto_summary for _, output in outputs):
-            return
-        for _, output in outputs:
-            if output.auto_summary is None:
-                output.auto_summary = \
-                    bool(output.flags & Default) or len(outputs) == 1
+        for signal_cls, signal_type in ((cls.Inputs, Input),
+                                        (cls.Outputs, Output)):
+            signals = getmembers(signal_cls, signal_type)
+            if any(signal.auto_summary for _, signal in signals):
+                continue
+            for _, signal in signals:
+                if signal.auto_summary is None:
+                    signal.auto_summary = \
+                        bool(signal.flags & Default) or len(signals) == 1
 
 
 class AttributeList(list):

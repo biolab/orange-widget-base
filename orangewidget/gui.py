@@ -186,7 +186,7 @@ class OWComponent:
 
 
 def miscellanea(control, box, parent,
-                addToLayout=True, stretch=0, sizePolicy=None, addSpace=None,
+                addToLayout=True, stretch=0, sizePolicy=None,
                 disabled=False, tooltip=None, disabledBy=None,
                 addSpaceBefore=False, **kwargs):
     """
@@ -237,9 +237,10 @@ def miscellanea(control, box, parent,
     :param sizePolicy: the size policy for the box or the control
     :type sizePolicy: QSizePolicy
     """
-    if addSpace is not None:
+    if 'addSpace' in kwargs:
         warnings.warn("'addSpace' has been deprecated. Use gui.separator instead.",
                       DeprecationWarning, stacklevel=3)
+        kwargs.pop('addSpace')
     for prop, val in kwargs.items():
         method = getattr(control, "set" + prop[0].upper() + prop[1:])
         if isinstance(val, tuple):

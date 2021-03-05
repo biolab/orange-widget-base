@@ -221,8 +221,8 @@ def miscellanea(control, box, parent,
     :param parent: the parent into whose layout the box or the control will be
         inserted
     :type parent: QWidget
-    :param addSpace: the amount of space to add after the widget
-    :type addSpace: bool or int
+    :param addSpaceBefore: the amount of space to add before the widget
+    :type addSpaceBefore: bool or int
     :param disabled: If set to `True`, the widget is initially disabled
     :type disabled: bool
     :param addToLayout: If set to `False` the widget is not added to the layout

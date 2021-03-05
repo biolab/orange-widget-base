@@ -480,7 +480,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.layout().addWidget(self.__splitter)
 
     def _insert_control_area(self):
-        self.left_side = gui.vBox(self.__splitter, addSpace=0, spacing=0)
+        self.left_side = gui.vBox(self.__splitter, spacing=0)
         if self.want_main_area:
             self.left_side.setSizePolicy(
                 QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
@@ -515,7 +515,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if not self.want_main_area:
             gui.separator(self.left_side)
         self.buttonsArea = gui.widgetBox(
-            self.left_side, addSpace=0, spacing=6,
+            self.left_side, spacing=6,
             orientation=self.buttons_area_orientation,
             sizePolicy=(QSizePolicy.MinimumExpanding,
                         QSizePolicy.Maximum)

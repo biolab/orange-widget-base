@@ -1,18 +1,35 @@
 import copy
 import itertools
+import warnings
+from functools import singledispatch
+import inspect
 
 from orangecanvas.registry.description import (
     InputSignal, OutputSignal, Single, Multiple, Default, NonDefault,
     Explicit, Dynamic
 )
 
-from orangewidget.utils import getmembers
 
 # increasing counter for ensuring the order of Input/Output definitions
 # is preserved when going through the unordered class namespace of
 # WidgetSignalsMixin.Inputs/Outputs.
 _counter = itertools.count()
 
+
+def base_summarize(_):
+    return None, None
+
+summarize = singledispatch(base_summarize)
+
+def can_summarize(type_, name):
+    if summarize.dispatch(type_) is base_summarize:
+        warnings.warn(
+            f"declare 'summarize' for type {type_.__name__};"
+            f"to silence this warning, set auto_sumarize of signal '{name}' to"
+            "False",
+            UserWarning)
+        return False
+    return True
 
 class _Signal:
     @staticmethod
@@ -33,6 +50,15 @@ class _Signal:
         new_signal = copy.copy(self)
         new_signal.widget = widget
         return new_signal
+
+
+def getsignals(signals_cls):
+    # This function is preferred over getmembers because it returns the signals
+    # in order of appearance
+    return [(k, v)
+            for cls in reversed(inspect.getmro(signals_cls))
+            for k, v in cls.__dict__.items()
+            if isinstance(v, _Signal)]
 
 
 class Input(InputSignal, _Signal):
@@ -76,11 +102,16 @@ class Input(InputSignal, _Signal):
     explicit (bool, optional):
         if set, this signal is only used when it is the only option or when
         explicitly connected in the dialog (default: `False`)
+    auto_summary (bool, optional):
+        if changed to `False` (default is `True`) the signal is excluded from
+        auto summary
     """
     def __init__(self, name, type, id=None, doc=None, replaces=None, *,
-                 multiple=False, default=False, explicit=False):
+                 multiple=False, default=False, explicit=False,
+                 auto_summary=True):
         flags = self.get_flags(multiple, default, explicit, False)
         super().__init__(name, type, "", flags, id, doc, replaces or [])
+        self.auto_summary = auto_summary and can_summarize(type, name)
         self._seq_id = next(_counter)
 
     def __call__(self, method):
@@ -88,11 +119,22 @@ class Input(InputSignal, _Signal):
         Decorator that stores decorated method's name in the signal's
         `handler` attribute. The method is returned unchanged.
         """
+        def summarize_wrapper(widget, value, *args, **kwargs):
+            if self.auto_summary:
+                if value is None:
+                    summary, details = widget.info.NoInput, ""
+                else:
+                    summary, details = summarize(value)
+                    if summary is None:
+                        return
+                widget.set_partial_input_summary(self.name, summary, details)
+            method(widget, value, *args, **kwargs)
+
         if self.handler:
             raise ValueError("Input {} is already bound to method {}".
                              format(self.name, self.handler))
         self.handler = method.__name__
-        return method
+        return summarize_wrapper
 
 
 class Output(OutputSignal, _Signal):
@@ -133,17 +175,32 @@ class Output(OutputSignal, _Signal):
         of the declared type and that the output can be connected to any input
         signal which can accept a subtype of the declared output type
         (default: `True`)
+    auto_summary (bool, optional):
+        if changed to `False` (default is `True`) the signal is excluded from
+        auto summary
     """
     def __init__(self, name, type, id=None, doc=None, replaces=None, *,
-                 default=False, explicit=False, dynamic=True):
+                 default=False, explicit=False, dynamic=True,
+                 auto_summary=True):
         flags = self.get_flags(False, default, explicit, dynamic)
         super().__init__(name, type, flags, id, doc, replaces or [])
+        self.auto_summary = auto_summary and can_summarize(type, name)
         self.widget = None
         self._seq_id = next(_counter)
 
     def send(self, value, id=None):
         """Emit the signal through signal manager."""
         assert self.widget is not None
+
+        if self.auto_summary:
+            if value is None:
+                summary, details = self.widget.info.NoOutput, ""
+            else:
+                summary, details = summarize(value)
+                if summary is None:
+                    return
+            self.widget.set_partial_output_summary(self.name, summary, details)
+
         signal_manager = self.widget.signalManager
         if signal_manager is not None:
             signal_manager.send(self.widget, self.name, value, id)
@@ -165,14 +222,23 @@ class WidgetSignalsMixin:
         pass
 
     def __init__(self):
+        self.input_summaries = {}
+        self.output_summaries = {}
         self._bind_signals()
 
     def _bind_signals(self):
-        for direction, signal_type in (("Inputs", Input), ("Outputs", Output)):
-            bound_cls = getattr(self, direction)()
-            for name, signal in getmembers(bound_cls, signal_type):
-                setattr(bound_cls, name, signal.bound_signal(self))
-            setattr(self, direction, bound_cls)
+        from orangewidget.widget import StateInfo
+
+        for direction, summaries, empty in (
+                ("Inputs", self.input_summaries, StateInfo.NoInput),
+                ("Outputs", self.output_summaries, StateInfo.NoOutput)):
+            bound_cls = getattr(self, direction)
+            bound_signals = bound_cls()
+            for name, signal in getsignals(bound_cls):
+                setattr(bound_signals, name, signal.bound_signal(self))
+                if signal.auto_summary:
+                    summaries[signal.name] = (empty, "")
+            setattr(self, direction, bound_signals)
 
     def send(self, signalName, value, id=None):
         """
@@ -222,7 +288,7 @@ class WidgetSignalsMixin:
     @classmethod
     def _check_input_handlers(cls):
         unbound = [signal.name
-                   for _, signal in getmembers(cls.Inputs, Input)
+                   for _, signal in getsignals(cls.Inputs)
                    if not signal.handler]
         if unbound:
             raise ValueError("unbound signal(s) in {}: {}".
@@ -254,8 +320,50 @@ class WidgetSignalsMixin:
             return old_style
 
         signal_class = getattr(cls, direction.title())
-        signals = [signal for _, signal in getmembers(signal_class, _Signal)]
+        signals = [signal for _, signal in getsignals(signal_class)]
         return list(sorted(signals, key=lambda s: s._seq_id))
+
+    def set_partial_input_summary(self, name, summary, details):
+        self.input_summaries[name] = [summary, details]
+        self._update_summary(self.info.set_input_summary, self.input_summaries)
+
+    def set_partial_output_summary(self, name, summary, details):
+        self.output_summaries[name] = (summary, details)
+        self._update_summary(self.info.set_output_summary, self.output_summaries)
+
+    @staticmethod
+    def _update_summary(setter, summaries):
+        from orangewidget.widget import StateInfo
+
+        def format_short(short):
+            if short is None or isinstance(short, StateInfo.Empty):
+                return "-"
+            if isinstance(short, int):
+                return StateInfo.format_number(short)
+            if isinstance(short, str):
+                return short
+            raise ValueError("summary must be None, empty, string or int; got "
+                             + type(short).__name__)
+
+        def format_detail(short, detail):
+            if short is None or isinstance(short, StateInfo.Empty):
+                return "-"
+            return str(detail or short)
+
+        if not summaries:
+            return
+        shorts, details = zip(*summaries.values())
+        if len(summaries) == 1 \
+                or all(isinstance(short, StateInfo.Empty) for short in shorts):
+            # If all are empty, the output should be shown as empty
+            # If there is just one output, skip the empty line and signal name
+            summary, detail = shorts[0], details[0]
+        else:
+            summary = " | ".join(map(format_short, shorts))
+            detail = "\n".join(
+                f"\n{name}:\n{format_detail(short, detail)}"
+                for name, short, detail in zip(summaries, shorts, details))
+        setter(summary, detail)
 
 
 class AttributeList(list):

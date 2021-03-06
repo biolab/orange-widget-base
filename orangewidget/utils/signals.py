@@ -1,9 +1,12 @@
 import copy
+import html
 import itertools
 import warnings
 from functools import singledispatch
 import inspect
 from typing import NamedTuple, Union, Optional
+
+from AnyQt.QtCore import Qt
 
 from orangecanvas.registry.description import (
     InputSignal, OutputSignal, Single, Multiple, Default, NonDefault,
@@ -27,6 +30,24 @@ def base_summarize(_) -> PartialSummary:
 
 
 summarize = singledispatch(base_summarize)
+
+SUMMARY_STYLE = """
+<style>
+    ul {
+        margin-left: 10px;
+        margin-top: 2px;
+        -qt-list-indent:0
+    }
+
+    li {
+        margin-top: 3px;
+    }
+
+    th {
+        text-align: right;
+    }
+</style>
+"""
 
 
 def can_summarize(type_, name):
@@ -339,21 +360,28 @@ class WidgetSignalsMixin:
             if isinstance(summary, int):
                 return StateInfo.format_number(summary)
             if isinstance(summary, str):
-                return summary
+                return html.escape(summary).replace("\n", "<br/>")
             raise ValueError("summary must be None, string or int; "
                              f"got {type(summary).__name__}")
 
         def format_detail(partial):
             if partial.summary is None:
                 return "-"
-            else:
-                return str(partial.details or partial.summary)
+            details = str(partial.details or partial.summary)
+            return html.escape(details).replace("\n", "<br/>")
 
         def join_multiples(partials):
             if not partials:
                 return "-", "-"
-            return ",".join(map(format_short, partials.values())), \
-                   "\n+\n".join(map(format_detail, partials.values()))
+            shorts = ",".join(map(format_short, partials.values()))
+            if len(partials) == 1:
+                details = format_detail(next(iter(partials.values())))
+            else:
+                details = "<ul>" \
+                          + "".join(f"<li>{format_detail(partial)}</li>"
+                                    for partial in partials.values()) \
+                          + "</ul>"
+            return shorts, details
 
         if partial_summary.summary is None:
             if id in summaries[name]:
@@ -363,16 +391,17 @@ class WidgetSignalsMixin:
 
         if not any(summaries.values()):
             summary, detail = empty_obj, ""
-
-        elif len(summaries) == 1:
-            # If there is just one output, skip the empty line and signal name
-            summary, detail = join_multiples(next(iter(summaries.values())))
         else:
             summary, details = zip(*map(join_multiples, summaries.values()))
             summary = " | ".join(summary)
-            detail = "\n".join(f"\n{name}:\n{detail}"
-                               for name, detail in zip(summaries, details))
-        setter(summary, detail)
+            detail = "<hr/><table>" \
+                     + "".join(f"<tr><th>{name}: </th><td>{detail}</td></tr>"
+                               for name, detail in zip(summaries, details)) \
+                     + "</table>"
+        if detail:
+            setter(summary, SUMMARY_STYLE + detail, format=Qt.RichText)
+        else:
+            setter(summary)
 
 
 class AttributeList(list):

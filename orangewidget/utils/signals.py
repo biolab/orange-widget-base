@@ -1,5 +1,4 @@
 import copy
-import html
 import itertools
 import warnings
 from functools import singledispatch
@@ -51,12 +50,21 @@ SUMMARY_STYLE = """
 
 
 def can_summarize(type_, name):
-    if summarize.dispatch(type_) is base_summarize:
-        warnings.warn(
-            f"register 'summarize' function for type {type_.__name__}; "
-            f"to silence this warning, set auto_sumarize of '{name}' to False",
-            UserWarning)
-        return False
+    if not isinstance(type_, tuple):
+        type_ = (type_, )
+    instr = f"To silence this warning, set auto_sumarize of '{name}' to False."
+    for a_type in type_:
+        try:
+            summarizer = summarize.dispatch(a_type)
+        except TypeError:
+            warnings.warn(f"{a_type.__name__} cannot be summarized. {instr}",
+                          UserWarning)
+            return False
+        if summarizer is base_summarize:
+            warnings.warn(
+                f"register 'summarize' function for type {a_type.__name__}. "
+                + instr, UserWarning)
+            return False
     return True
 
 
@@ -150,14 +158,20 @@ class Input(InputSignal, _Signal):
         """
         if self.flags & Multiple:
             def summarize_wrapper(widget, value, id=None):
-                widget.set_partial_input_summary(summarize(value), self.name, id)
+                widget.set_partial_input_summary(
+                    self.name, summarize(value), id=id)
                 method(widget, value, id)
         else:
             def summarize_wrapper(widget, value):
-                widget.set_partial_input_summary(summarize(value), self.name)
+                widget.set_partial_input_summary(
+                    self.name, summarize(value))
                 method(widget, value)
 
-        if self.handler:
+        # Re-binding with the same name can happen in derived classes
+        # We do not allow re-binding to a different name; for the same class
+        # it wouldn't work, in derived class it could mislead into thinking
+        # that the signal is passed to two different methods
+        if self.handler and self.handler != method.__name__:
             raise ValueError("Input {} is already bound to method {}".
                              format(self.name, self.handler))
         self.handler = method.__name__
@@ -222,7 +236,8 @@ class Output(OutputSignal, _Signal):
         if signal_manager is not None:
             signal_manager.send(self.widget, self.name, value, id)
         if self.auto_summary:
-            self.widget.set_partial_output_summary(summarize(value), self.name, id)
+            self.widget.set_partial_output_summary(
+                self.name, summarize(value), id=id)
 
     def invalidate(self):
         """Invalidate the current output value on the signal"""
@@ -339,18 +354,37 @@ class WidgetSignalsMixin:
         signals = [signal for _, signal in getsignals(signal_class)]
         return list(sorted(signals, key=lambda s: s._seq_id))
 
-    def set_partial_input_summary(self, partial_summary, name, id=None):
-        self._update_summary(
+    def update_summaries(self):
+        info = self.info
+        if self.input_summaries:
+            self._update_summary(self.input_summaries,
+                                 self.info.set_input_summary, info.NoInput)
+        if self.output_summaries:
+            self._update_summary(self.output_summaries,
+                                 self.info.set_output_summary, info.NoOutput)
+
+    def set_partial_input_summary(self, name, partial_summary, *, id=None):
+        self._set_and_update_summary(
             self.input_summaries, name, id, partial_summary,
             self.info.set_input_summary, self.info.NoInput)
 
-    def set_partial_output_summary(self, partial_summary, name, id):
-        self._update_summary(
+    def set_partial_output_summary(self, name, partial_summary, *, id=None):
+        self._set_and_update_summary(
             self.output_summaries, name, id, partial_summary,
             self.info.set_output_summary, self.info.NoOutput)
 
+    @classmethod
+    def _set_and_update_summary(cls, summaries, name, id, partial_summary,
+                                setter, empty_obj):
+        if partial_summary.summary is None:
+            if id in summaries[name]:
+                del summaries[name][id]
+        else:
+            summaries[name][id] = partial_summary
+        cls._update_summary(summaries, setter, empty_obj)
+
     @staticmethod
-    def _update_summary(summaries, name, id, partial_summary, setter, empty_obj):
+    def _update_summary(summaries, setter, empty_obj):
         from orangewidget.widget import StateInfo
 
         def format_short(partial):
@@ -360,15 +394,14 @@ class WidgetSignalsMixin:
             if isinstance(summary, int):
                 return StateInfo.format_number(summary)
             if isinstance(summary, str):
-                return html.escape(summary).replace("\n", "<br/>")
+                return summary
             raise ValueError("summary must be None, string or int; "
                              f"got {type(summary).__name__}")
 
         def format_detail(partial):
             if partial.summary is None:
                 return "-"
-            details = str(partial.details or partial.summary)
-            return html.escape(details).replace("\n", "<br/>")
+            return str(partial.details or partial.summary)
 
         def join_multiples(partials):
             if not partials:
@@ -383,19 +416,14 @@ class WidgetSignalsMixin:
                           + "</ul>"
             return shorts, details
 
-        if partial_summary.summary is None:
-            if id in summaries[name]:
-                del summaries[name][id]
-        else:
-            summaries[name][id] = partial_summary
-
         if not any(summaries.values()):
             summary, detail = empty_obj, ""
         else:
             summary, details = zip(*map(join_multiples, summaries.values()))
             summary = " | ".join(summary)
             detail = "<hr/><table>" \
-                     + "".join(f"<tr><th>{name}: </th><td>{detail}</td></tr>"
+                     + "".join(f"<tr><th><nobr>{name}</nobr>: "
+                               f"</th><td>{detail}</td></tr>"
                                for name, detail in zip(summaries, details)) \
                      + "</table>"
         if detail:

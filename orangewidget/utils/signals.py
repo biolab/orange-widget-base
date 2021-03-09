@@ -406,7 +406,7 @@ class WidgetSignalsMixin:
         def join_multiples(partials):
             if not partials:
                 return "-", "-"
-            shorts = ",".join(map(format_short, partials.values()))
+            shorts = " ".join(map(format_short, partials.values()))
             if len(partials) == 1:
                 details = format_detail(next(iter(partials.values())))
             else:

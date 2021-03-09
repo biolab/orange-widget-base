@@ -33,13 +33,13 @@ summarize = singledispatch(base_summarize)
 SUMMARY_STYLE = """
 <style>
     ul {
-        margin-left: 10px;
+        margin-left: 4px;
         margin-top: 2px;
-        -qt-list-indent:0
+        -qt-list-indent:1
     }
 
     li {
-        margin-top: 3px;
+        margin-bottom: 3px;
     }
 
     th {
@@ -407,7 +407,7 @@ class WidgetSignalsMixin:
             if not partials:
                 return "-", "-"
             shorts = " ".join(map(format_short, partials.values()))
-            details = "<br/>".join(format_detail(partial) for partial in partials.values())
+            details = "".join(format_detail(partial) for partial in partials.values())
             return shorts, details
 
         if not any(summaries.values()):

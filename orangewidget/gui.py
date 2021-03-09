@@ -617,11 +617,12 @@ class SpinBoxMixin:
 
             pos = event.globalPos()
             posVal = pos.y() if self.verticalDirection else -pos.x()
-            valueOffset = (self.mouseStartPos - posVal) * self.stepSize
+            diff = self.mouseStartPos - posVal
+            # these magic params are pretty arbitrary, ensure that it's still
+            # possible to easily highlight the text if moving mouse slightly
+            # up/down, with the default stepsize
+            valueOffset = int((diff / 25) ** 3) * self.stepSize
             self.setValue(self.preDragValue + valueOffset)
-
-            event.accept()
-            return True
         elif event.type() == QEvent.MouseButtonRelease:
             # end click+drag
             # restore default cursor on release

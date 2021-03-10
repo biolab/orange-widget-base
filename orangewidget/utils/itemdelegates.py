@@ -1,11 +1,16 @@
+from datetime import date, datetime
 from functools import partial
 from itertools import filterfalse
 from types import MappingProxyType as MappingProxy
 from typing import (
     Sequence, Any, Mapping, Dict, TypeVar, Type, Optional, Container
 )
+
+import numpy as np
+
 from AnyQt.QtCore import (
-    Qt, QObject, QAbstractItemModel, QModelIndex, QPersistentModelIndex, Slot
+    Qt, QObject, QAbstractItemModel, QModelIndex, QPersistentModelIndex, Slot,
+    QLocale
 )
 from AnyQt.QtGui import (
     QFont, QFontMetrics, QPalette, QColor, QBrush, QIcon, QPixmap, QImage
@@ -270,3 +275,43 @@ class CachedDataItemDelegate(QStyledItemDelegate):
         """
         data = self.cachedItemData(index, self.roles)
         init_style_option(self, option, index, data, self.roles)
+
+
+_Real = (float, np.float64, np.float32, np.float16)
+_Integral = (int, np.integer)
+_Number = _Integral + _Real
+_String = (str, np.str_)
+_DateTime = (date, datetime, np.datetime64)
+_TypesAlignRight = _Number + _DateTime
+
+
+class StyledItemDelegate(QStyledItemDelegate):
+    """
+    A `QStyledItemDelegate` subclass supporting a broader range of python
+    and numpy types for display.
+
+    E.g. supports `np.float*`, `np.(u)int`, `datetime.date`,
+    `datetime.datetime`
+    """
+    def displayText(self, value: Any, locale: QLocale) -> str:
+        """
+        Reimplemented.
+        """
+        # NOTE: Maybe replace the if,elif with a dispatch a table
+        if value is None:
+            return ""
+        elif type(value) is str:  # pylint: disable=unidiomatic-typecheck
+            return value  # avoid copies
+        elif isinstance(value, _Integral):
+            return super().displayText(int(value), locale)
+        elif isinstance(value, _Real):
+            return super().displayText(float(value), locale)
+        elif isinstance(value, _String):
+            return str(value)
+        elif isinstance(value, datetime):
+            return value.isoformat(sep=" ")
+        elif isinstance(value, date):
+            return value.isoformat()
+        elif isinstance(value, np.datetime64):
+            return self.displayText(value.astype(datetime), locale)
+        return super().displayText(value, locale)

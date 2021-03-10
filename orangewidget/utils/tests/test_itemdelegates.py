@@ -1,11 +1,15 @@
 import unittest
-from AnyQt.QtCore import Qt, QModelIndex
+from datetime import date, datetime
+
+import numpy as np
+
+from AnyQt.QtCore import Qt, QModelIndex, QLocale
 from AnyQt.QtGui import QStandardItemModel, QFont, QColor, QIcon
 from AnyQt.QtWidgets import QStyleOptionViewItem
 
 from orangecanvas.gui.svgiconengine import SvgIconEngine
 from orangewidget.utils.itemdelegates import ModelItemCache, \
-    CachedDataItemDelegate
+    CachedDataItemDelegate, StyledItemDelegate
 
 
 def create_model(rows, columns):
@@ -96,3 +100,25 @@ class TestCachedDataItemDelegate(unittest.TestCase):
         self.assertIn(Qt.TextAlignmentRole, res)
         self.assertEqual(res[Qt.TextAlignmentRole], Qt.AlignRight)
         self.assertEqual(res[Qt.DisplayRole], "AA")
+
+
+class TestStyledItemDelegate(unittest.TestCase):
+    def test_display_text(self):
+        delegate = StyledItemDelegate()
+        locale = QLocale.c()
+        displayText = lambda value: delegate.displayText(value, locale)
+        self.assertEqual(displayText(None), "")
+        self.assertEqual(displayText(1), "1")
+        self.assertEqual(displayText(np.int64(1)), "1")
+        self.assertEqual(displayText(np.int64(1)), "1")
+        self.assertEqual(displayText(1.5), "1.5")
+        self.assertEqual(displayText(np.float16(1.5)), "1.5")
+        self.assertEqual(displayText("A"), "A")
+        self.assertEqual(displayText(np.str_("A")), "A")
+
+        self.assertEqual(displayText(date(1999, 12, 31)), "1999-12-31")
+        self.assertEqual(displayText(datetime(1999, 12, 31, 23, 59, 59)),
+                         "1999-12-31 23:59:59")
+
+        self.assertEqual(displayText(np.datetime64(0, "s")),
+                         "1970-01-01 00:00:00")

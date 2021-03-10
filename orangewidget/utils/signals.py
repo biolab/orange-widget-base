@@ -355,36 +355,26 @@ class WidgetSignalsMixin:
         return list(sorted(signals, key=lambda s: s._seq_id))
 
     def update_summaries(self):
-        info = self.info
-        if self.input_summaries:
-            self._update_summary(self.input_summaries,
-                                 self.info.set_input_summary, info.NoInput)
-        if self.output_summaries:
-            self._update_summary(self.output_summaries,
-                                 self.info.set_output_summary, info.NoOutput)
+        self._update_summary(self.input_summaries)
+        self._update_summary(self.output_summaries)
 
     def set_partial_input_summary(self, name, partial_summary, *, id=None):
-        self._set_and_update_summary(
-            self.input_summaries, name, id, partial_summary,
-            self.info.set_input_summary, self.info.NoInput)
+        self._set_part_summary(self.input_summaries[name], id, partial_summary)
+        self._update_summary(self.input_summaries)
 
     def set_partial_output_summary(self, name, partial_summary, *, id=None):
-        self._set_and_update_summary(
-            self.output_summaries, name, id, partial_summary,
-            self.info.set_output_summary, self.info.NoOutput)
-
-    @classmethod
-    def _set_and_update_summary(cls, summaries, name, id, partial_summary,
-                                setter, empty_obj):
-        if partial_summary.summary is None:
-            if id in summaries[name]:
-                del summaries[name][id]
-        else:
-            summaries[name][id] = partial_summary
-        cls._update_summary(summaries, setter, empty_obj)
+        self._set_part_summary(self.output_summaries[name], id, partial_summary)
+        self._update_summary(self.output_summaries)
 
     @staticmethod
-    def _update_summary(summaries, setter, empty_obj):
+    def _set_part_summary(summary, id, partial_summary):
+        if partial_summary.summary is None:
+            if id in summary:
+                del summary[id]
+        else:
+            summary[id] = partial_summary
+
+    def _update_summary(self, summaries):
         from orangewidget.widget import StateInfo
 
         def format_short(partial):
@@ -410,8 +400,15 @@ class WidgetSignalsMixin:
             details = "<br/>".join(format_detail(partial) for partial in partials.values())
             return shorts, details
 
+        info = self.info
+        is_input = summaries is self.input_summaries
+        assert is_input or summaries is self.output_summaries
+
+        if not summaries:
+            return
         if not any(summaries.values()):
-            summary, detail = empty_obj, ""
+            summary = info.NoInput if is_input else info.NoOutput
+            detail = ""
         else:
             summary, details = zip(*map(join_multiples, summaries.values()))
             summary = " | ".join(summary)
@@ -420,6 +417,8 @@ class WidgetSignalsMixin:
                                f"</th><td>{detail}</td></tr>"
                                for name, detail in zip(summaries, details)) \
                      + "</table>"
+
+        setter = info.set_input_summary if is_input else info.set_output_summary
         if detail:
             setter(summary, SUMMARY_STYLE + detail, format=Qt.RichText)
         else:

@@ -3,19 +3,21 @@ from functools import partial
 from itertools import filterfalse
 from types import MappingProxyType as MappingProxy
 from typing import (
-    Sequence, Any, Mapping, Dict, TypeVar, Type, Optional, Container
+    Sequence, Any, Mapping, Dict, TypeVar, Type, Optional, Container, Tuple
 )
 
 import numpy as np
 
 from AnyQt.QtCore import (
     Qt, QObject, QAbstractItemModel, QModelIndex, QPersistentModelIndex, Slot,
-    QLocale
+    QLocale, QRect, QPointF,
 )
 from AnyQt.QtGui import (
-    QFont, QFontMetrics, QPalette, QColor, QBrush, QIcon, QPixmap, QImage
+    QFont, QFontMetrics, QPalette, QColor, QBrush, QIcon, QPixmap, QImage,
+    QPainter, QStaticText, QTransform, QPen
 )
-from AnyQt.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem
+from AnyQt.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, \
+    QApplication, QStyle
 
 from orangewidget.utils.cache import LRUCache
 
@@ -315,3 +317,138 @@ class StyledItemDelegate(QStyledItemDelegate):
         elif isinstance(value, np.datetime64):
             return self.displayText(value.astype(datetime), locale)
         return super().displayText(value, locale)
+
+
+_Qt_AlignRight = int(Qt.AlignRight)
+_Qt_AlignLeft = int(Qt.AlignLeft)
+_Qt_AlignHCenter = int(Qt.AlignHCenter)
+_Qt_AlignTop = int(Qt.AlignTop)
+_Qt_AlignBottom = int(Qt.AlignBottom)
+_Qt_AlignVCenter = int(Qt.AlignVCenter)
+
+_StaticTextKey = Tuple[str, QFont, Qt.TextElideMode, int]
+_PenKey = Tuple[str, int]
+_State_Mask = int(QStyle.State_Selected | QStyle.State_Enabled |
+                  QStyle.State_Active)
+
+
+class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
+    """
+    A QStyledItemDelegate optimized for displaying fixed tabular data.
+
+    This delegate will automatically display numeric and date/time values
+    aligned to the right.
+
+    Note
+    ----
+    Does not support text wrapping
+    """
+    __slots__ = (
+        "__static_text_lru_cache", "__pen_lru_cache", "__style"
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__static_text_lru_cache: LRUCache[_StaticTextKey, QStaticText]
+        self.__static_text_lru_cache = LRUCache(100 * 200)
+        self.__pen_lru_cache: LRUCache[_PenKey, QPen] = LRUCache(100)
+        self.__style = None
+
+    def initStyleOption(
+            self, option: QStyleOptionViewItem, index: QModelIndex
+    ) -> None:
+        data = self.cachedItemData(index, self.roles)
+        init_style_option(self, option, index, data, self.roles)
+        if data.get(Qt.TextAlignmentRole) is None \
+                and Qt.TextAlignmentRole in self.roles \
+                and isinstance(data.get(Qt.DisplayRole), _TypesAlignRight):
+            option.displayAlignment = \
+                (option.displayAlignment & ~Qt.AlignHorizontal_Mask) | \
+                Qt.AlignRight
+
+    def paint(
+            self, painter: QPainter, option: QStyleOptionViewItem,
+            index: QModelIndex
+    ) -> None:
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        widget = option.widget
+        style = QApplication.style() if widget is None else widget.style()
+        # Keep ref to style wrapper. This is ugly, wrong but the wrapping of
+        # C++ QStyle instance takes ~5% unless the wrapper already exists.
+        self.__style = style
+        text = opt.text
+        opt.text = ""
+        style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
+        trect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, widget)
+        opt.text = text
+        self.drawViewItemText(style, painter, opt, trect)
+
+    def drawViewItemText(
+            self, style: QStyle, painter: QPainter,
+            option: QStyleOptionViewItem, rect: QRect
+    ) -> None:
+        """
+        Draw view item text in `rect` using `style` and `painter`.
+        """
+        margin = style.pixelMetric(
+            QStyle.PM_FocusFrameHMargin, None, option.widget) + 1
+        rect = rect.adjusted(margin, 0, -margin, 0)
+        font = option.font
+        st = self.__static_text_elided_cache(
+            option.text, font, option.fontMetrics, option.textElideMode,
+            rect.width()
+        )
+        tsize = st.size()
+        textalign = int(option.displayAlignment)
+        text_pos_x = text_pos_y = 0.0
+
+        if textalign & _Qt_AlignLeft:
+            text_pos_x = rect.left()
+        elif textalign & _Qt_AlignRight:
+            text_pos_x = rect.x() + rect.width() - tsize.width()
+        elif textalign & _Qt_AlignHCenter:
+            text_pos_x = rect.x() + rect.width() / 2 - tsize.width() / 2
+
+        if textalign & _Qt_AlignVCenter:
+            text_pos_y = rect.y() + rect.height() / 2 - tsize.height() / 2
+        elif textalign & _Qt_AlignTop:
+            text_pos_y = rect.top()
+        elif textalign & _Qt_AlignBottom:
+            text_pos_y = rect.top() + rect.height() - tsize.height()
+
+        painter.setPen(self.__pen_cache(option.palette, option.state))
+        painter.setFont(font)
+        painter.drawStaticText(QPointF(text_pos_x, text_pos_y), st)
+
+    def __static_text_elided_cache(
+            self, text: str, font: QFont, fontMetrics: QFontMetrics,
+            elideMode: Qt.TextElideMode, width: int
+    ) -> QStaticText:
+        """
+        Return a `QStaticText` instance for depicting the text with the `font`
+        """
+        try:
+            return self.__static_text_lru_cache[text, font, elideMode, width]
+        except KeyError:
+            text = fontMetrics.elidedText(text, elideMode, width)
+            st = QStaticText(text)
+            st.prepare(QTransform(), font)
+            # take a copy of the font for cache key
+            key = text, QFont(font), elideMode, width
+            self.__static_text_lru_cache[key] = st
+            return st
+
+    def __pen_cache(self, palette: QPalette, state: QStyle.State) -> QPen:
+        """Return a QPen from the `palette` for `state`."""
+        # NOTE: This method exists mostly to avoid QPen, QColor (de)allocations.
+        key = palette.cacheKey(), int(state) & _State_Mask
+        try:
+            return self.__pen_lru_cache[key]
+        except KeyError:
+            cgroup = QPalette.Normal if state & QStyle.State_Active else QPalette.Inactive
+            cgroup = cgroup if state & QStyle.State_Enabled else QPalette.Disabled
+            role = QPalette.HighlightedText if state & QStyle.State_Selected else QPalette.Text
+            pen = QPen(palette.color(cgroup, role))
+            self.__pen_lru_cache[key] = pen
+            return pen

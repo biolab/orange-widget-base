@@ -84,7 +84,6 @@ class TestCachedDataItemDelegate(unittest.TestCase):
             Qt.BackgroundRole: magenta,
         }
         self.model.setItemData(index, data)
-        self.delegate.roles = (*data.keys(),)
         self.delegate.initStyleOption(opt, index)
         self.assertEqual(opt.font.family(), QFont("Times New Roman").family())
         self.assertEqual(opt.displayAlignment, Qt.AlignRight)
@@ -156,7 +155,6 @@ class TestDataDelegate(GuiTest):
 
     def test_paint(self):
         delegate = self.delegate
-        delegate.roles = (*delegate.roles, Qt.TextAlignmentRole)
         model = self.model
         index = model.index(0, 0)
         model.setData(index, 1, Qt.DisplayRole)

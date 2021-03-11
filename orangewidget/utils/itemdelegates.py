@@ -238,15 +238,24 @@ class CachedDataItemDelegate(QStyledItemDelegate):
     ----------
     roles: Sequence[int]
         A set of roles to query the model and fill the `QStyleOptionItemView`
-        with. By default this contains `Qt.DisplayRole` only, meaning only
-        the option's text will be filled.
+        with. By specifying only a subset of the roles here the delegate can
+        be speed up (e.g. if you know the model does not provide the relevant
+        roles or you just want to ignore some of them).
     """
     __slots__ = ("roles", "__cache",)
 
+    #: The default roles that are filled in initStyleOption
+    DefaultRoles = (
+        Qt.DisplayRole, Qt.TextAlignmentRole, Qt.FontRole, Qt.ForegroundRole,
+        Qt.BackgroundRole, Qt.CheckStateRole, Qt.DecorationRole
+    )
+
     def __init__(
-            self, *args, roles: Sequence[int] = (Qt.DisplayRole,), **kwargs
+            self, *args, roles: Sequence[int] = None, **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
+        if roles is None:
+            roles = self.DefaultRoles
         self.roles = tuple(roles)
         self.__cache = ModelItemCache(self)
 

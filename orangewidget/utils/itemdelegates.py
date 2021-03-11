@@ -5,6 +5,7 @@ from types import MappingProxyType as MappingProxy
 from typing import (
     Sequence, Any, Mapping, Dict, TypeVar, Type, Optional, Container, Tuple
 )
+from typing_extensions import Final
 
 import numpy as np
 
@@ -288,7 +289,7 @@ class CachedDataItemDelegate(QStyledItemDelegate):
         init_style_option(self, option, index, data, self.roles)
 
 
-_Real = (float, np.float64, np.float32, np.float16)
+_Real = (float, np.floating)
 _Integral = (int, np.integer)
 _Number = _Integral + _Real
 _String = (str, np.str_)
@@ -304,6 +305,15 @@ class StyledItemDelegate(QStyledItemDelegate):
     E.g. supports `np.float*`, `np.(u)int`, `datetime.date`,
     `datetime.datetime`
     """
+    #: Types that are displayed as real (decimal)
+    RealTypes: Final[Tuple[type, ...]] = _Real
+    #: Types that are displayed as integers
+    IntegralTypes: Final[Tuple[type, ...]] = _Integral
+    #: RealTypes and IntegralTypes combined
+    NumberTypes: Final[Tuple[type, ...]] = _Number
+    #: Date time types
+    DateTimeTypes: Final[Tuple[type, ...]] = _DateTime
+
     def displayText(self, value: Any, locale: QLocale) -> str:
         """
         Reimplemented.
@@ -355,6 +365,9 @@ class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
     __slots__ = (
         "__static_text_lru_cache", "__pen_lru_cache", "__style"
     )
+    #: Types that are right aligned by default (when Qt.TextAlignmentRole
+    #: is not defined by the model or is excluded from self.roles)
+    TypesAlignRight: Final[Tuple[type, ...]] = _TypesAlignRight
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

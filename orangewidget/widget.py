@@ -343,6 +343,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.__splitter = None
         if self.want_basic_layout:
             self.set_basic_layout()
+            self.update_summaries()
 
         sc = QShortcut(QKeySequence(Qt.ShiftModifier | Qt.Key_F1), self)
         sc.activated.connect(self.__quicktip)

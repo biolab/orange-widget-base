@@ -1,17 +1,71 @@
 import copy
 import itertools
+import warnings
+from functools import singledispatch
+import inspect
+from typing import NamedTuple, Union, Optional
+
+from AnyQt.QtCore import Qt
 
 from orangecanvas.registry.description import (
     InputSignal, OutputSignal, Single, Multiple, Default, NonDefault,
     Explicit, Dynamic
 )
 
-from orangewidget.utils import getmembers
 
 # increasing counter for ensuring the order of Input/Output definitions
 # is preserved when going through the unordered class namespace of
 # WidgetSignalsMixin.Inputs/Outputs.
 _counter = itertools.count()
+
+
+PartialSummary = NamedTuple(
+    "PartialSummary", (("summary", Union[None, str, int]),
+                       ("details", Optional[str])))
+
+
+def base_summarize(_) -> PartialSummary:
+    return PartialSummary(None, None)
+
+
+summarize = singledispatch(base_summarize)
+
+SUMMARY_STYLE = """
+<style>
+    ul {
+        margin-left: 4px;
+        margin-top: 2px;
+        -qt-list-indent:1
+    }
+
+    li {
+        margin-bottom: 3px;
+    }
+
+    th {
+        text-align: right;
+    }
+</style>
+"""
+
+
+def can_summarize(type_, name):
+    if not isinstance(type_, tuple):
+        type_ = (type_, )
+    instr = f"To silence this warning, set auto_sumarize of '{name}' to False."
+    for a_type in type_:
+        try:
+            summarizer = summarize.dispatch(a_type)
+        except TypeError:
+            warnings.warn(f"{a_type.__name__} cannot be summarized. {instr}",
+                          UserWarning)
+            return False
+        if summarizer is base_summarize:
+            warnings.warn(
+                f"register 'summarize' function for type {a_type.__name__}. "
+                + instr, UserWarning)
+            return False
+    return True
 
 
 class _Signal:
@@ -33,6 +87,15 @@ class _Signal:
         new_signal = copy.copy(self)
         new_signal.widget = widget
         return new_signal
+
+
+def getsignals(signals_cls):
+    # This function is preferred over getmembers because it returns the signals
+    # in order of appearance
+    return [(k, v)
+            for cls in reversed(inspect.getmro(signals_cls))
+            for k, v in cls.__dict__.items()
+            if isinstance(v, _Signal)]
 
 
 class Input(InputSignal, _Signal):
@@ -76,11 +139,16 @@ class Input(InputSignal, _Signal):
     explicit (bool, optional):
         if set, this signal is only used when it is the only option or when
         explicitly connected in the dialog (default: `False`)
+    auto_summary (bool, optional):
+        if changed to `False` (default is `True`) the signal is excluded from
+        auto summary
     """
     def __init__(self, name, type, id=None, doc=None, replaces=None, *,
-                 multiple=False, default=False, explicit=False):
+                 multiple=False, default=False, explicit=False,
+                 auto_summary=True):
         flags = self.get_flags(multiple, default, explicit, False)
         super().__init__(name, type, "", flags, id, doc, replaces or [])
+        self.auto_summary = auto_summary and can_summarize(type, name)
         self._seq_id = next(_counter)
 
     def __call__(self, method):
@@ -88,11 +156,26 @@ class Input(InputSignal, _Signal):
         Decorator that stores decorated method's name in the signal's
         `handler` attribute. The method is returned unchanged.
         """
-        if self.handler:
+        if self.flags & Multiple:
+            def summarize_wrapper(widget, value, id=None):
+                widget.set_partial_input_summary(
+                    self.name, summarize(value), id=id)
+                method(widget, value, id)
+        else:
+            def summarize_wrapper(widget, value):
+                widget.set_partial_input_summary(
+                    self.name, summarize(value))
+                method(widget, value)
+
+        # Re-binding with the same name can happen in derived classes
+        # We do not allow re-binding to a different name; for the same class
+        # it wouldn't work, in derived class it could mislead into thinking
+        # that the signal is passed to two different methods
+        if self.handler and self.handler != method.__name__:
             raise ValueError("Input {} is already bound to method {}".
                              format(self.name, self.handler))
         self.handler = method.__name__
-        return method
+        return summarize_wrapper if self.auto_summary else method
 
 
 class Output(OutputSignal, _Signal):
@@ -133,11 +216,16 @@ class Output(OutputSignal, _Signal):
         of the declared type and that the output can be connected to any input
         signal which can accept a subtype of the declared output type
         (default: `True`)
+    auto_summary (bool, optional):
+        if changed to `False` (default is `True`) the signal is excluded from
+        auto summary
     """
     def __init__(self, name, type, id=None, doc=None, replaces=None, *,
-                 default=False, explicit=False, dynamic=True):
+                 default=False, explicit=False, dynamic=True,
+                 auto_summary=True):
         flags = self.get_flags(False, default, explicit, dynamic)
         super().__init__(name, type, flags, id, doc, replaces or [])
+        self.auto_summary = auto_summary and can_summarize(type, name)
         self.widget = None
         self._seq_id = next(_counter)
 
@@ -147,6 +235,9 @@ class Output(OutputSignal, _Signal):
         signal_manager = self.widget.signalManager
         if signal_manager is not None:
             signal_manager.send(self.widget, self.name, value, id)
+        if self.auto_summary:
+            self.widget.set_partial_output_summary(
+                self.name, summarize(value), id=id)
 
     def invalidate(self):
         """Invalidate the current output value on the signal"""
@@ -165,14 +256,20 @@ class WidgetSignalsMixin:
         pass
 
     def __init__(self):
+        self.input_summaries = {}
+        self.output_summaries = {}
         self._bind_signals()
 
     def _bind_signals(self):
-        for direction, signal_type in (("Inputs", Input), ("Outputs", Output)):
-            bound_cls = getattr(self, direction)()
-            for name, signal in getmembers(bound_cls, signal_type):
-                setattr(bound_cls, name, signal.bound_signal(self))
-            setattr(self, direction, bound_cls)
+        for direction, summaries in (("Inputs", self.input_summaries),
+                                     ("Outputs", self.output_summaries)):
+            bound_cls = getattr(self, direction)
+            bound_signals = bound_cls()
+            for name, signal in getsignals(bound_cls):
+                setattr(bound_signals, name, signal.bound_signal(self))
+                if signal.auto_summary:
+                    summaries[signal.name] = {}
+            setattr(self, direction, bound_signals)
 
     def send(self, signalName, value, id=None):
         """
@@ -222,7 +319,7 @@ class WidgetSignalsMixin:
     @classmethod
     def _check_input_handlers(cls):
         unbound = [signal.name
-                   for _, signal in getmembers(cls.Inputs, Input)
+                   for _, signal in getsignals(cls.Inputs)
                    if not signal.handler]
         if unbound:
             raise ValueError("unbound signal(s) in {}: {}".
@@ -254,8 +351,78 @@ class WidgetSignalsMixin:
             return old_style
 
         signal_class = getattr(cls, direction.title())
-        signals = [signal for _, signal in getmembers(signal_class, _Signal)]
+        signals = [signal for _, signal in getsignals(signal_class)]
         return list(sorted(signals, key=lambda s: s._seq_id))
+
+    def update_summaries(self):
+        self._update_summary(self.input_summaries)
+        self._update_summary(self.output_summaries)
+
+    def set_partial_input_summary(self, name, partial_summary, *, id=None):
+        self._set_part_summary(self.input_summaries[name], id, partial_summary)
+        self._update_summary(self.input_summaries)
+
+    def set_partial_output_summary(self, name, partial_summary, *, id=None):
+        self._set_part_summary(self.output_summaries[name], id, partial_summary)
+        self._update_summary(self.output_summaries)
+
+    @staticmethod
+    def _set_part_summary(summary, id, partial_summary):
+        if partial_summary.summary is None:
+            if id in summary:
+                del summary[id]
+        else:
+            summary[id] = partial_summary
+
+    def _update_summary(self, summaries):
+        from orangewidget.widget import StateInfo
+
+        def format_short(partial):
+            summary = partial.summary
+            if summary is None:
+                return "-"
+            if isinstance(summary, int):
+                return StateInfo.format_number(summary)
+            if isinstance(summary, str):
+                return summary
+            raise ValueError("summary must be None, string or int; "
+                             f"got {type(summary).__name__}")
+
+        def format_detail(partial):
+            if partial.summary is None:
+                return "-"
+            return str(partial.details or partial.summary)
+
+        def join_multiples(partials):
+            if not partials:
+                return "-", "-"
+            shorts = " ".join(map(format_short, partials.values()))
+            details = "<br/>".join(format_detail(partial) for partial in partials.values())
+            return shorts, details
+
+        info = self.info
+        is_input = summaries is self.input_summaries
+        assert is_input or summaries is self.output_summaries
+
+        if not summaries:
+            return
+        if not any(summaries.values()):
+            summary = info.NoInput if is_input else info.NoOutput
+            detail = ""
+        else:
+            summary, details = zip(*map(join_multiples, summaries.values()))
+            summary = " | ".join(summary)
+            detail = "<hr/><table>" \
+                     + "".join(f"<tr><th><nobr>{name}</nobr>: "
+                               f"</th><td>{detail}</td></tr>"
+                               for name, detail in zip(summaries, details)) \
+                     + "</table>"
+
+        setter = info.set_input_summary if is_input else info.set_output_summary
+        if detail:
+            setter(summary, SUMMARY_STYLE + detail, format=Qt.RichText)
+        else:
+            setter(summary)
 
 
 class AttributeList(list):

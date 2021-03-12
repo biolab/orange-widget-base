@@ -1,20 +1,35 @@
 # pylint: disable=protected-access
+from collections import namedtuple
 import os
 import pickle
+from enum import IntEnum
+from fractions import Fraction
+from numbers import Integral
 from tempfile import mkstemp, NamedTemporaryFile
 
 import unittest
+from typing import List, Dict, NamedTuple, Optional, Tuple, Set, Union
 from unittest.mock import patch, Mock
 import warnings
 
-from AnyQt.QtCore import pyqtSignal as Signal, QObject
+from AnyQt.QtCore import pyqtSignal as Signal
 
-from orangewidget.tests.base import named_file, override_default_settings
-from orangewidget.settings import SettingsHandler, Setting, SettingProvider,\
-    VERSION_KEY, rename_setting, Context
+from orangewidget.tests.base import named_file, override_default_settings, \
+    WidgetTest
+from orangewidget.settings import SettingsHandler, Setting, SettingProvider, \
+    VERSION_KEY, rename_setting, Context, get_origin
+from orangewidget.tests.utils import remove_base_settings
+from orangewidget.widget import OWBaseWidget, OWComponent
 
 
-class SettingHandlerTestCase(unittest.TestCase):
+coords = NamedTuple("coords", (("x", int), ("y", str)))
+
+
+class SortBy(IntEnum):
+    NO_SORTING, INCREASING, DECREASING = range(3)
+
+
+class SettingHandlerTestCase(WidgetTest):
     @patch('orangewidget.settings.SettingProvider', create=True)
     def test_create(self, SettingProvider):
         """:type SettingProvider: unittest.mock.Mock"""
@@ -46,6 +61,7 @@ class SettingHandlerTestCase(unittest.TestCase):
     def test_read_defaults(self):
         handler = SettingsHandler()
         handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(SimpleWidget)
 
         defaults = {'a': 5, 'b': {1: 5}}
         with override_default_settings(SimpleWidget, defaults):
@@ -105,6 +121,7 @@ class SettingHandlerTestCase(unittest.TestCase):
         handler = SettingsHandler()
         handler.defaults = {'default': 42, 'setting': 1}
         handler.provider = provider = Mock()
+        provider.traverse_settings = Mock(return_value=())
         handler.widget_class = SimpleWidget
         provider.get_provider.return_value = provider
         widget = SimpleWidget()
@@ -135,6 +152,7 @@ class SettingHandlerTestCase(unittest.TestCase):
         handler = SettingsHandler()
         handler.defaults = {'default': 42}
         provider = Mock()
+        provider.traverse_settings = Mock(return_value=())
         handler.widget_class = SimpleWidget
         handler.provider = Mock(get_provider=Mock(return_value=provider))
         widget = SimpleWidget()
@@ -153,115 +171,33 @@ class SettingHandlerTestCase(unittest.TestCase):
         handler.initialize(widget, pickle.dumps({'setting': 5}))
         provider.initialize.assert_called_once_with(widget, {'setting': 5})
 
-    @patch('orangewidget.settings.SettingProvider', create=True)
-    def test_initialize_with_no_provider(self, SettingProvider):
-        """:type SettingProvider: unittest.mock.Mock"""
-        handler = SettingsHandler()
-        handler.provider = Mock(get_provider=Mock(return_value=None))
-        handler.widget_class = SimpleWidget
-        provider = Mock()
-        SettingProvider.return_value = provider
-        widget = SimpleWidget()
-
-        # initializing an undeclared provider should display a warning
-        with warnings.catch_warnings(record=True) as w:
-            handler.initialize(widget)
-
-            self.assertEqual(1, len(w))
-
-        SettingProvider.assert_called_once_with(SimpleWidget)
-        provider.initialize.assert_called_once_with(widget, None)
-
-    def test_fast_save(self):
-        handler = SettingsHandler()
-
-        with override_default_settings(SimpleWidget):
-            handler.bind(SimpleWidget)
-
-        widget = SimpleWidget()
-
-        handler.fast_save(widget, 'component.int_setting', 5)
-
-        self.assertEqual(
-            handler.known_settings['component.int_setting'].default, 5)
-
-        self.assertEqual(Component.int_setting.default, 42)
-
-        handler.fast_save(widget, 'non_setting', 4)
-
-    def test_fast_save_siblings_spill(self):
-        handler_mk1 = SettingsHandler()
-        with override_default_settings(SimpleWidgetMk1):
-            handler_mk1.bind(SimpleWidgetMk1)
-
-        widget_mk1 = SimpleWidgetMk1()
-
-        handler_mk1.fast_save(widget_mk1, "setting", -1)
-        handler_mk1.fast_save(widget_mk1, "component.int_setting", 1)
-
-        self.assertEqual(
-            handler_mk1.known_settings['setting'].default, -1)
-        self.assertEqual(
-            handler_mk1.known_settings['component.int_setting'].default, 1)
-
-        handler_mk1.initialize(widget_mk1, data=None)
-        handler_mk1.provider.providers["component"].initialize(
-            widget_mk1.component, data=None)
-
-        self.assertEqual(widget_mk1.setting, -1)
-        self.assertEqual(widget_mk1.component.int_setting, 1)
-
-        handler_mk2 = SettingsHandler()
-        with override_default_settings(SimpleWidgetMk2):
-            handler_mk2.bind(SimpleWidgetMk2)
-
-        widget_mk2 = SimpleWidgetMk2()
-
-        handler_mk2.initialize(widget_mk2, data=None)
-        handler_mk2.provider.providers["component"].initialize(
-            widget_mk2.component, data=None)
-
-        self.assertEqual(widget_mk2.setting, 42,
-                         "spils defaults into sibling classes")
-
-        self.assertEqual(Component.int_setting.default, 42)
-
-        self.assertEqual(widget_mk2.component.int_setting, 42,
-                         "spils defaults into sibling classes")
-
     def test_schema_only_settings(self):
         handler = SettingsHandler()
         with override_default_settings(SimpleWidget):
             handler.bind(SimpleWidget)
 
-        # fast_save should not update defaults
         widget = SimpleWidget()
-        handler.fast_save(widget, 'schema_only_setting', 5)
-        self.assertEqual(
-            handler.known_settings['schema_only_setting'].default, None)
-        handler.fast_save(widget, 'component.schema_only_setting', 5)
-        self.assertEqual(
-            handler.known_settings['component.schema_only_setting'].default, "only")
 
         # update_defaults should not update defaults
         widget.schema_only_setting = 5
         handler.update_defaults(widget)
         self.assertEqual(
             handler.known_settings['schema_only_setting'].default, None)
-        widget.component.schema_only_setting = 5
+        widget.component.schema_only_setting = "foo"
         self.assertEqual(
             handler.known_settings['component.schema_only_setting'].default, "only")
 
         # pack_data should pack setting
         widget.schema_only_setting = 5
-        widget.component.schema_only_setting = 5
+        widget.component.schema_only_setting = "foo"
         data = handler.pack_data(widget)
         self.assertEqual(data['schema_only_setting'], 5)
-        self.assertEqual(data['component']['schema_only_setting'], 5)
+        self.assertEqual(data['component']['schema_only_setting'], "foo")
 
     def test_read_defaults_migrates_settings(self):
         handler = SettingsHandler()
         handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(SimpleWidget)
 
         migrate_settings = Mock()
         with patch.object(SimpleWidget, "migrate_settings", migrate_settings):
@@ -325,10 +261,8 @@ class SettingHandlerTestCase(unittest.TestCase):
         self.assertNotEqual(id(widget.list_setting), id(widget2.list_setting))
 
     def test_about_pack_settings_signal(self):
-        handler = SettingsHandler()
-        handler.bind(SimpleWidget)
         widget = SimpleWidget()
-        handler.initialize(widget)
+        handler = widget.settingsHandler
         fn = Mock()
         widget.settingsAboutToBePacked.connect(fn)
         handler.pack_data(widget)
@@ -336,18 +270,398 @@ class SettingHandlerTestCase(unittest.TestCase):
         handler.update_defaults(widget)
         self.assertEqual(2, fn.call_count)
 
+    def test_warns_against_unsupported_types(self):
+        class Widget:
+            func = Setting(abs)
+        handler = SettingsHandler()
+        with self.assertWarns(UserWarning):
+            bound = handler.create(Widget)
+        self.assertEqual(bound.known_settings["func"].default, abs)
 
-class Component:
+        class SortBy(IntEnum):
+            NO_SORTING, INCREASING, DECREASING = range(3)
+
+        coords = namedtuple("coords", ("x", "y"))
+
+        class Widget2:
+            sorting = Setting(SortBy.DECREASING)
+            xy = coords(0, "foo")
+
+        with warnings.catch_warnings() as w:
+            warnings.simplefilter("always")
+            handler.create(Widget2)
+            self.assertFalse(w)
+
+    def test_settings_detect_types(self):
+        class Widget(OWBaseWidget):
+            name = "foo"
+
+            a_bool = Setting(True)
+            a_dict: Dict[str, int] = Setting(None)
+            sorting = Setting(SortBy.INCREASING)
+            sorting2: SortBy = Setting(None)
+            xy = Setting(coords(0, "bar"))
+            xy2: coords = Setting(None)
+
+        provider = Widget.settingsHandler.provider
+        self.assertIs(provider.settings["a_bool"].type, bool)
+        self.assertEqual(provider.settings["a_dict"].type, Dict[str, int])
+        self.assertIs(get_origin(provider.settings["a_dict"].type), dict)
+        self.assertIs(provider.settings["sorting"].type, SortBy)
+        self.assertIs(provider.settings["sorting2"].type, SortBy)
+        self.assertIs(provider.settings["xy"].type, coords)
+        self.assertFalse(provider.settings["xy"].nullable)
+        self.assertIs(provider.settings["xy2"].type, coords)
+        self.assertTrue(provider.settings["xy2"].nullable)
+
+        with self.assertWarns(UserWarning):
+            class Widget2(OWBaseWidget):
+                name = "foo"
+                a_list = Setting([])
+
+        self.assertIsNone(
+            Widget2.settingsHandler.provider.settings["a_list"].type)
+
+        with self.assertWarns(UserWarning):
+            class Widget3(OWBaseWidget):
+                name = "foo"
+                an_unknown = Setting(None)
+
+        self.assertIsNone(
+            Widget3.settingsHandler.provider.settings["an_unknown"].type)
+
+    @patch("orangewidget.settings.get_type_hints", side_effect=TypeError)
+    def test_settings_with_invalid_hints(self, _):
+        with self.assertWarns(UserWarning):
+            class Widget(OWBaseWidget):
+                name = "foo"
+                y = Setting(None)
+                x = Setting(True)
+
+        self.assertIsNone(Widget.settingsHandler.provider.settings["y"].type)
+        self.assertEqual(Widget.settingsHandler.provider.settings["x"].type, bool)
+
+    def test_settings_optional_is_nullable(self):
+        class Widget(OWBaseWidget):
+            name = "foo"
+            u = Setting(42)
+            x: int = Setting(42)
+            y: Optional[int] = Setting(42)
+
+        self.assertFalse(Widget.settingsHandler.provider.settings["u"].nullable)
+        self.assertEqual(Widget.settingsHandler.provider.settings["u"].type, int)
+
+        self.assertFalse(Widget.settingsHandler.provider.settings["x"].nullable)
+        self.assertEqual(Widget.settingsHandler.provider.settings["x"].type, int)
+
+        self.assertTrue(Widget.settingsHandler.provider.settings["y"].nullable)
+        self.assertEqual(Widget.settingsHandler.provider.settings["y"].type, int)
+
+    def test_is_allowed_type(self):
+        iat = SettingsHandler.is_allowed_type
+        self.assertTrue(iat(int))
+        self.assertTrue(iat(str))
+        self.assertTrue(iat(SortBy))
+        self.assertTrue(iat(coords))
+        self.assertTrue(iat(List[int]))
+        self.assertTrue(iat(Set[int]))
+        self.assertTrue(iat(Tuple[int]))
+        self.assertTrue(iat(Dict[int, str]))
+        self.assertTrue(iat(Tuple[int, str, bool]))
+
+        composed = Tuple[Dict[int, Optional[List[int]]], Set[bool]]
+        self.assertTrue(iat(composed))
+
+        self.assertTrue(iat(Union[Dict[str, Optional[int]],
+                                  List[str],
+                                  Tuple[bytes, ...]]))
+
+        self.assertFalse(iat(unittest.TestCase))
+        self.assertFalse(iat({}))
+        self.assertFalse(iat(set()))
+        self.assertFalse(iat([]))
+        self.assertFalse(iat([42]))
+        self.assertFalse(iat(()))
+        self.assertFalse(iat((3, 5)))
+
+        self.assertFalse(iat(Union[Dict[str, Set[int]], List[str]]))
+
+        # Should return false because of `set` without type
+        composed = Tuple[Dict[int, Optional[List[set]]], Set[bool]]
+        self.assertFalse(iat(composed))
+
+    def test_check_type_nullable(self):
+        ct = SettingsHandler.check_type
+
+        self.assertFalse(ct(None, int))
+        self.assertFalse(ct(None, Setting(42)))
+        self.assertTrue(ct(None, Setting(42, nullable=True)))
+
+        self.assertFalse(ct(None, str))
+        self.assertFalse(ct(None, Setting("bar")))
+        self.assertTrue(ct(None, Setting("bar", nullable=True)))
+
+        self.assertFalse(ct(None, SortBy))
+        self.assertFalse(ct(None, Setting(SortBy.DECREASING)))
+        self.assertTrue(ct(None, Setting("bar", nullable=True)))
+
+    def test_check_type_from_setting(self):
+        ct = SettingsHandler.check_type
+
+        self.assertTrue(ct(42, Setting(13)))
+        self.assertTrue(ct(b"foo", Setting(b"bar")))
+        self.assertTrue(ct(SortBy.DECREASING, Setting(SortBy.DECREASING)))
+
+    def test_check_type_simple(self):
+        ct = SettingsHandler.check_type
+
+        class IntegralDummy(Integral, float):
+            pass
+
+        self.assertTrue(ct(3, int))
+        self.assertTrue(ct(IntegralDummy(), int))
+        self.assertFalse(ct(3.14, int))
+        self.assertFalse(ct((1, 2, 3), int))
+        self.assertFalse(ct(unittest.TestCase, int))
+
+        self.assertTrue(ct(3, float))
+        self.assertTrue(ct(Fraction(3, 5), float))
+        self.assertTrue(ct(3.14, float))
+        self.assertFalse(ct((1, 2, 3), float))
+        self.assertFalse(ct(unittest.TestCase, float))
+        self.assertFalse(ct(None, float))
+
+        self.assertTrue(ct(True, bool))
+        self.assertTrue(ct(False, bool))
+        self.assertTrue(ct(0, bool))
+        self.assertTrue(ct(1, bool))
+        self.assertFalse(ct(3, bool))
+        self.assertFalse(ct(0.0, bool))
+        self.assertFalse(ct((1, 2, 3), bool))
+        self.assertFalse(ct(unittest.TestCase, bool))
+        self.assertFalse(ct(None, bool))
+
+        self.assertTrue(ct("foo", str))
+        self.assertTrue(ct("", str))
+        self.assertFalse(ct(3, str))
+        self.assertFalse(ct((1, 2, 3), str))
+        self.assertFalse(ct(unittest.TestCase, str))
+
+        self.assertTrue(ct(b"foo", bytes))
+        self.assertTrue(ct(b"", bytes))
+        self.assertFalse(ct(3, bytes))
+        self.assertFalse(ct((1, 2, 3), bytes))
+        self.assertFalse(ct(unittest.TestCase, bytes))
+
+        class NoYes(IntEnum):
+            NO, YES = 0, 1
+
+        self.assertTrue(ct(SortBy.DECREASING, SortBy))
+        self.assertFalse(ct(1, SortBy))
+        self.assertFalse(ct(NoYes.NO, SortBy))
+        self.assertFalse(ct((1, 2, 3), SortBy))
+        self.assertFalse(ct(unittest.TestCase, SortBy))
+
+        self.assertTrue(ct(coords(0, "foo"), coords))
+        self.assertFalse(ct(coords(0, 13), coords))
+        self.assertFalse(ct((0, 1), coords))
+        self.assertFalse(ct(unittest.TestCase, coords))
+
+        tifs = Tuple[int, float, str]
+        self.assertTrue(ct((1, 2.0, "foo"), tifs))
+        self.assertTrue(ct((1, 2, "foo"), tifs))
+        self.assertFalse(ct((), tifs))
+        self.assertFalse(ct((1, "foo", 2.0), tifs))
+        self.assertFalse(ct((1, 2.0), tifs))
+        self.assertFalse(ct((1, 2.0, "foo", 3), tifs))
+
+    def test_check_type_homogenous_generics(self):
+        ct = SettingsHandler.check_type
+
+        self.assertTrue(ct([1, 2, 3], List[int]))
+        self.assertTrue(ct([], List[int]))
+        self.assertFalse(ct([1, 2.0, 3], List[int]))
+        self.assertFalse(ct((1, 2.0, 3), List[float]))
+        self.assertFalse(ct((1, 2, 3), List[int]))
+        self.assertFalse(ct(42, List[int]))
+
+        self.assertTrue(ct((1, 2, 3), Tuple[int, ...]))
+        self.assertTrue(ct((), Tuple[int, ...]))
+        self.assertFalse(ct((1, 2.0, 3), Tuple[int, ...]))
+        self.assertFalse(ct([1, 2, 3], Tuple[int, ...]))
+        self.assertFalse(ct(42, Tuple[int, ...]))
+
+        self.assertTrue(ct({1, 2, 3}, Set[int]))
+        self.assertTrue(ct(set(), Set[int]))
+        self.assertFalse(ct({1, 2.0, 3}, Set[int]))
+        self.assertFalse(ct([1, 2, 3], Set[int]))
+        self.assertFalse(ct(42, Set[int]))
+
+        dios = Dict[int, Optional[str]]
+        self.assertTrue(ct({1: None, 2: "bar", 3: None}, dios))
+        self.assertTrue(ct({}, dios))
+        self.assertFalse(ct({"foo": 13, 2: "bar", 3: None}, dios))
+        self.assertFalse(ct({1, 2.0, 3}, dios))
+        self.assertFalse(ct(42, dios))
+
+    def test_check_type_complex(self):
+        ct = SettingsHandler.check_type
+        composed = Tuple[str, Dict[int, Optional[List[Set[int]]]], Set[bool]]
+
+        self.assertTrue(ct(("foo", {4: [{1, 2}, {3, 1}], 5: []}, {False, True}), composed))
+        self.assertTrue(ct(("foo", {4: [{1, 2}, {3, 1}], 5: []}, set()), composed))
+        self.assertTrue(ct(("foo", {}, set()), composed))
+
+    def test_check_type_from_packer(self):
+        # Setting `unknown` will trigger a warning
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            class Widget(OWBaseWidget):
+                name = "foo"
+                unknown = Setting(None)
+                an_int = Setting(42)
+
+        widget = Widget()
+        widget.settingsHandler.pack_data(widget)
+        widget.an_int = 42.0
+        self.assertWarns(UserWarning, widget.settingsHandler.pack_data, widget)
+        widget.an_int = [0] * 100
+        self.assertWarns(UserWarning, widget.settingsHandler.pack_data, widget)
+
+    def test_check_type_from_packer_tuple_suggestion(self):
+        class Widget(OWBaseWidget):
+            name = "foo"
+            a_tuple: Tuple[int] = Setting((42,))
+
+        widget = Widget()
+        widget.settingsHandler.pack_data(widget)
+        widget.a_tuple = (1, 2, 3)
+        with patch("warnings.warn") as warn:
+            widget.settingsHandler.pack_data(widget)
+        warn.assert_called_once()
+        self.assertIn("Tuple[T, ...]", warn.call_args[0][0])
+
+    def test_pack_value(self):
+        pv = SettingsHandler.pack_value
+        self.assertEqual(pv(5, int), 5)
+        self.assertEqual(pv(5, float), 5)
+        self.assertAlmostEqual(pv(3.14, float), 3.14)
+        self.assertEqual(pv("foo", str), "foo")
+        self.assertEqual(pv("foo", str), "foo")
+        self.assertEqual(pv(True, bool), True)
+        self.assertEqual(pv(1, bool), True)
+        self.assertEqual(pv(1, bool), True)
+        self.assertEqual(pv(SortBy.INCREASING, SortBy), int(SortBy.INCREASING))
+        self.assertIsInstance(pv(SortBy.INCREASING, SortBy), int)
+        self.assertEqual(pv(bytes([1, 2, 3]), bytes), bytes([1, 2, 3]))
+        self.assertEqual(pv(coords(42, "foo"), coords), (42, "foo"))
+
+        self.assertEqual(pv((1, "foo", True), Tuple[int, str, bool]), (1, "foo", True))
+        self.assertEqual(pv([1, 2, 3], List[int]), [1, 2, 3])
+        self.assertEqual(pv({1, 2, 3}, Set[int]), [1, 2, 3])
+        self.assertEqual(pv((1, 2, 3), Tuple[int, ...]), (1, 2, 3))
+
+        self.assertEqual(pv(None, Optional[Tuple[int, ...]]), None)
+
+        composed = Tuple[str, Dict[int, Optional[List[Tuple[int, ...]]]], Set[bool]]
+        self.assertEqual(pv(("foo", {4: [(1, 2), (3, )], 5: []}, {False}), composed),
+                         ("foo", {4: [(1, 2), (3, )], 5: []}, [False]))
+        self.assertEqual(pv(("foo", {4: None, 5: []}, {False}), composed),
+                         ("foo", {4: None, 5: []}, [False]))
+
+        union = Tuple[SortBy, Union[Dict[str, Optional[int]], Tuple[str, ...]]]
+        packed = pv((SortBy.INCREASING, {"a": 12, "b": None}), union)
+        self.assertEqual(packed, (int(SortBy.INCREASING), {"a": 12, "b": None}))
+        self.assertIsInstance(packed[0], int)
+        packed = pv((SortBy.INCREASING, ("a", "b")), union)
+        self.assertEqual(packed, (int(SortBy.INCREASING), ("a", "b")))
+
+
+    def test_unpack_value(self):
+        uv = SettingsHandler.unpack_value
+        self.assertEqual(uv(5, int), 5)
+        self.assertEqual(uv(5, float), 5)
+        self.assertAlmostEqual(uv(3.14, float), 3.14)
+        self.assertEqual(uv("foo", str), "foo")
+        self.assertEqual(uv("foo", str), "foo")
+        self.assertEqual(uv(True, bool), True)
+        self.assertEqual(uv(int(SortBy.INCREASING), SortBy), SortBy.INCREASING)
+        self.assertEqual(uv(bytes([1, 2, 3]), bytes), bytes([1, 2, 3]))
+        self.assertEqual(uv([42, "foo"], coords), coords(42, "foo"))
+
+        self.assertEqual(uv([1, "foo", True], Tuple[int, str, bool]), (1, "foo", True))
+        self.assertEqual(uv([1, 2, 3], List[int]), [1, 2, 3])
+        self.assertEqual(uv([1, 2, 3], Set[int]), {1, 2, 3})
+        self.assertEqual(uv([1, 2, 3], Tuple[int, ...]), (1, 2, 3))
+
+        self.assertEqual(uv(None, Optional[Tuple[int, ...]]), None)
+
+        composed = Tuple[str, Dict[int, Optional[List[Tuple[int, ...]]]], Set[bool]]
+        self.assertEqual(uv(["foo", {4: [[1, 2], [3]], 5: []}, [False]], composed),
+                         ("foo", {4: [(1, 2), (3, )], 5: []}, {False}))
+        self.assertEqual(uv(["foo", {4: None, 5: []}, [False]], composed),
+                         ("foo", {4: None, 5: []}, {False}))
+
+        union = Tuple[SortBy, Union[Dict[str, Optional[int]], Tuple[str, ...]]]
+        self.assertEqual(uv((int(SortBy.INCREASING), {"a": 12, "b": None}), union),
+                         (SortBy.INCREASING, {"a": 12, "b": None}), union)
+        self.assertEqual(uv((SortBy.INCREASING, ("a", "b")), union),
+                         (SortBy.INCREASING, ("a", "b")))
+
+    def test_pack_from_widget(self):
+        composed = Optional[Tuple[str, Dict[int, Optional[List[Tuple[int, ...]]]], Set[bool]]]
+
+        class Widget(OWBaseWidget):
+            name = "foo"
+            an_int = Setting(42)
+            a_comp: composed = Setting(None)
+            a_context: Optional[Tuple[int, ...]] = Setting(None)
+
+        widget = Widget()
+        widget.a_comp = ("foo", {4: [(1, 2), (3, )], 5: []}, {False})
+        widget.a_context = (4, 2, 1)
+        packed = widget.settingsHandler.pack_data(widget)
+        remove_base_settings(packed)
+        self.assertEqual(
+            packed,
+            {"an_int": 42,
+             "a_comp": ("foo", {4: [(1, 2), (3, )], 5: []}, [False]),
+             "a_context": (4, 2, 1)
+             })
+
+    def test_unpack_to_widget(self):
+        composed = Optional[Tuple[str, Dict[int, Optional[List[Tuple[int, ...]]]], Set[bool]]]
+
+        class Widget(OWBaseWidget):
+            name = "foo"
+            an_int = Setting(42)
+            a_comp: composed = Setting(None)
+            a_context: Optional[Tuple[int, ...]] = Setting(None)
+
+        widget = Widget(
+            stored_settings={
+                "an_int": 42,
+                "a_comp": ["foo", {4: [[1, 2], [3]], 5: []}, [False]],
+                "a_context": [4, 2, 1]})
+        self.assertEqual(widget.a_comp,
+                         ("foo", {4: [(1, 2), (3, )], 5: []}, {False}))
+        self.assertEqual(widget.a_context, (4, 2, 1))
+        self.assertEqual(widget.an_int, 42)
+
+
+class Component(OWComponent):
     int_setting = Setting(42)
     schema_only_setting = Setting("only", schema_only=True)
 
 
-class SimpleWidget(QObject):
+class SimpleWidget(OWBaseWidget, openclass=True):
+    name = "Simple widget"
     settings_version = 1
 
     setting = Setting(42)
-    schema_only_setting = Setting(None, schema_only=True)
-    list_setting = Setting([])
+    schema_only_setting: int = Setting(None, schema_only=True)
+    list_setting: List[int] = Setting([])
     non_setting = 5
 
     component = SettingProvider(Component)
@@ -355,7 +669,7 @@ class SimpleWidget(QObject):
 
     def __init__(self):
         super().__init__()
-        self.component = Component()
+        self.component = Component(self)
 
     migrate_settings = Mock()
     migrate_context = Mock()
@@ -385,3 +699,7 @@ class MigrationsTestCase(unittest.TestCase):
         context = Context(values=dict(foo=42, bar=13))
         rename_setting(context, "foo", "baz")
         self.assertDictEqual(context.values, dict(baz=42, bar=13))
+
+
+if __name__ == "__main__":
+    unittest.main()

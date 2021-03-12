@@ -2,42 +2,24 @@ import pickle
 from copy import copy, deepcopy
 from io import BytesIO
 from unittest import TestCase
+from typing import Optional, Tuple, Dict
 from unittest.mock import Mock, patch, call
-from AnyQt.QtCore import pyqtSignal as Signal, QObject
+from AnyQt.QtCore import pyqtSignal as Signal
+
 from orangewidget.settings import (
     ContextHandler, ContextSetting, Context, Setting, SettingsPrinter,
-    VERSION_KEY, IncompatibleContext, SettingProvider)
-from orangewidget.tests.base import override_default_settings
+    OWComponent, VERSION_KEY, IncompatibleContext, SettingProvider)
+from orangewidget.tests.base import override_default_settings, WidgetTest
+from orangewidget.tests.utils import remove_base_settings
+from orangewidget.widget import OWBaseWidget
 
 __author__ = 'anze'
 
 
-class Component:
+class Component(OWComponent):
     int_setting = Setting(42)
     context_setting = ContextSetting("global")
     schema_only_context_setting = ContextSetting("only", schema_only=True)
-
-
-class SimpleWidget(QObject):
-    settings_version = 1
-
-    setting = Setting(42)
-    schema_only_setting = Setting(None, schema_only=True)
-
-    context_setting = ContextSetting(42)
-    schema_only_context_setting = ContextSetting(None, schema_only=True)
-    settingsAboutToBePacked = Signal()
-
-    component = SettingProvider(Component)
-
-    migrate_settings = Mock()
-    migrate_context = Mock()
-
-    storeSpecificSettings = Mock()
-
-    def __init__(self):
-        super().__init__()
-        self.component = Component()
 
 
 class DummyContext(Context):
@@ -60,6 +42,31 @@ class DummyContext(Context):
         return self.id == other.id
 
 
+class SimpleWidget(OWBaseWidget):
+    name = "foo"
+
+    settings_version = 1
+
+    setting = Setting(42)
+    schema_only_setting: Optional[int] = Setting(None, schema_only=True)
+    settingsHandler = ContextHandler()
+
+    context_setting = ContextSetting(42)
+    schema_only_context_setting: Optional[str] = ContextSetting(None, schema_only=True)
+    settingsAboutToBePacked = Signal()
+
+    component = SettingProvider(Component)
+
+    migrate_settings = Mock()
+    migrate_context = Mock()
+
+    storeSpecificSettings = Mock()
+
+    def __init__(self):
+        super().__init__()
+        self.component = Component(self)
+
+
 def create_defaults_file(contexts):
     b = BytesIO()
     pickle.dump({"x": 5}, b)
@@ -68,12 +75,13 @@ def create_defaults_file(contexts):
     return b
 
 
-class TestContextHandler(TestCase):
+class TestContextHandler(WidgetTest):
     def test_read_defaults(self):
         contexts = [DummyContext() for _ in range(3)]
 
         handler = ContextHandler()
         handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(SimpleWidget)
 
         # Old settings without version
         migrate_context = Mock()
@@ -93,6 +101,8 @@ class TestContextHandler(TestCase):
     def test_initialize(self):
         handler = ContextHandler()
         handler.provider = Mock()
+        handler.provider.traverse_settings = Mock(return_value=())
+        handler.provider.get_provider = Mock(return_value=handler.provider)
         handler.widget_class = SimpleWidget
 
         # Context settings from data
@@ -147,19 +157,6 @@ class TestContextHandler(TestCase):
             self.assertTrue(
                 all(context.foo == i
                     for i, context in enumerate(contexts)))
-
-    def test_fast_save(self):
-        handler = ContextHandler()
-        handler.bind(SimpleWidget)
-
-        widget = SimpleWidget()
-        handler.initialize(widget)
-
-        context = widget.current_context = handler.new_context()
-        handler.fast_save(widget, 'context_setting', 55)
-        self.assertEqual(context.values['context_setting'], 55)
-        self.assertEqual(handler.known_settings['context_setting'].default,
-                         SimpleWidget.context_setting.default)
 
     def test_find_or_create_context(self):
         widget = SimpleWidget()
@@ -231,15 +228,12 @@ class TestContextHandler(TestCase):
         self.assertEqual(widget.schema_only_setting, 0xD06F00D)
 
     def test_about_pack_settings_signal(self):
-        handler = ContextHandler()
-        handler.bind(SimpleWidget)
         widget = SimpleWidget()
-        handler.initialize(widget)
         fn = Mock()
         widget.settingsAboutToBePacked.connect(fn)
-        handler.pack_data(widget)
+        widget.settingsHandler.pack_data(widget)
         self.assertEqual(1, fn.call_count)
-        handler.update_defaults(widget)
+        widget.settingsHandler.update_defaults(widget)
         self.assertEqual(2, fn.call_count)
 
     def test_schema_only_settings(self):
@@ -252,32 +246,106 @@ class TestContextHandler(TestCase):
         handler.initialize(widget)
         context = widget.current_context = handler.new_context()
         widget.context_settings.append(context)
-        handler.fast_save(widget, 'schema_only_context_setting', 5)
-        self.assertEqual(
-            handler.known_settings['schema_only_context_setting'].default, None)
-        handler.fast_save(widget, 'component.schema_only_context_setting', 5)
-        self.assertEqual(
-            handler.known_settings['component.schema_only_context_setting'].default, "only")
 
         # update_defaults should not update defaults
-        widget.schema_only_context_setting = 5
+        widget.schema_only_context_setting = "foo"
         handler.update_defaults(widget)
         self.assertEqual(
             handler.known_settings['schema_only_context_setting'].default, None)
-        widget.component.schema_only_setting = 5
+        widget.component.schema_only_setting = "foo"
         self.assertEqual(
             handler.known_settings['component.schema_only_context_setting'].default, "only")
 
         # close_context should pack setting
-        widget.schema_only_context_setting = 5
-        widget.component.context_setting = 5
-        widget.component.schema_only_context_setting = 5
+        widget.schema_only_context_setting = "foo"
+        widget.component.context_setting = "foo"
+        widget.component.schema_only_context_setting = "foo"
         handler.close_context(widget)
         global_values = handler.global_contexts[0].values
         self.assertTrue('context_setting' in global_values)
         self.assertFalse('schema_only_context_setting' in global_values)
         self.assertTrue('context_setting' in global_values["component"])
         self.assertFalse('schema_only_context_setting' in global_values["component"])
+
+    def test_check_type_from_packer(self):
+        widget = SimpleWidget()
+        handler = widget.settingsHandler
+
+        widget.current_context = handler.new_context()
+        widget.context_setting = 13
+        handler.close_context(widget)
+
+        widget.current_context = handler.new_context()
+        widget.context_setting = "foo"
+        self.assertWarns(UserWarning, handler.close_context, widget)
+
+
+class ContextPackingTest(WidgetTest):
+    class Widget(OWBaseWidget):
+        class MyContextHandler(ContextHandler):
+            class MyContext(Context):
+                cont: Tuple[int, int]
+
+            ContextType = MyContext
+
+        name = "foo"
+        settingsHandler = MyContextHandler()
+
+        a_tuple: Tuple[int, ...] = ContextSetting(None)
+        a_dict: Dict[str, int] = Setting(None)
+
+    def test_pack_from_widget(self):
+        widget = self.Widget()
+        widget.openContext()
+        widget.a_tuple = (1, 2, 3)
+        widget.a_dict = {"foo": 42, "bar": 13}
+        widget.current_context.cont = (1, 2)
+        widget.closeContext()
+        self.assertEqual(widget.context_settings[0].values,
+                         {"a_tuple": (1, 2, 3)})
+
+        packed = widget.settingsHandler.pack_data(widget)
+        remove_base_settings(packed)
+        self.assertEqual(
+            packed,
+            {'a_dict': {'foo': 42, 'bar': 13},
+             'context_settings': [
+                {'cont': (1, 2), 'values': {'a_tuple': (1, 2, 3)}}
+             ]}
+        )
+
+    def test_unpack_to_widget(self):
+        widget = self.Widget(stored_settings={
+            'a_dict': {'foo': 42, 'bar': 13},
+            'context_settings': [
+                {'values': {'a_tuple': (1, 2, 3)}}
+            ]})
+        self.assertIsInstance(widget.context_settings[0], Context)
+        self.assertEqual(widget.context_settings[0].values,
+                         {"a_tuple": (1, 2, 3)})
+
+    def test_pack_context(self):
+        widget = self.Widget()
+        widget.openContext()
+        widget.current_context.cont = (1, 2)
+        widget.closeContext()
+        packed = widget.settingsHandler.pack_data(widget)
+        self.assertEqual(packed["context_settings"][0]["cont"], (1, 2))
+
+    def test_pack_context_warnings(self):
+        widget = self.Widget()
+        widget.openContext()
+        widget.current_context.cont = (1, 2)
+        widget.current_context.no_annotation = True
+        widget.closeContext()
+        # warn that no_annotation is not annotated
+        self.assertWarns(UserWarning, widget.settingsHandler.pack_data, widget)
+
+        widget = self.Widget()
+        widget.openContext()
+        widget.closeContext()
+        # warn that `cont` is not set
+        self.assertWarns(UserWarning, widget.settingsHandler.pack_data, widget)
 
 
 class TestSettingsPrinter(TestCase):

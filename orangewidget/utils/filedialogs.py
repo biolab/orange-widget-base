@@ -9,8 +9,7 @@ from AnyQt.QtWidgets import \
     QMessageBox, QFileDialog, QFileIconProvider, QComboBox
 
 from orangewidget.io import Compression
-from orangewidget.settings import Setting
-
+from orangewidget.settings import Setting, SettingsHandler, TypeSupport
 
 if typing.TYPE_CHECKING:
     from typing_extensions import Protocol
@@ -192,7 +191,8 @@ class RecentPath:
         self.file_format = file_format
 
     def __eq__(self, other):
-        return (self.abspath == other.abspath or
+        return isinstance(other, RecentPath) and (
+                self.abspath == other.abspath or
                 (self.prefix is not None and self.relpath is not None and
                  self.prefix == other.prefix and
                  self.relpath == other.relpath))
@@ -297,6 +297,25 @@ class RecentPath:
     __str__ = __repr__
 
 
+class RecentPathTypeSupport(TypeSupport):
+    supported_types = (RecentPath, )
+
+    @classmethod
+    def pack_value(cls, value, tp):
+        return {attr: getattr(value, attr)
+                for attr in ("abspath", "prefix", "relpath",
+                             "title", "sheet", "file_format")}
+
+    @classmethod
+    def unpack_value(cls, value, tp, *args):
+        if tp is RecentPath:
+            if isinstance(value, RecentPath):  # backward compatibility
+                return value
+            return RecentPath(**value)
+        else:
+            return super().unpack_value(value, tp, *args)
+
+
 class RecentPathsWidgetMixin:
     """
     Provide a setting with recent paths and relocation capabilities
@@ -330,8 +349,9 @@ class RecentPathsWidgetMixin:
     #: list with search paths; overload to add, say, documentation datasets dir
     SEARCH_PATHS = []
 
-    #: List[RecentPath]
-    recent_paths = Setting([])
+    # This must be in the widget, not the mixin - otherwise all widgets will
+    # share the same paths
+    # recent_paths: typing.List[RecentPath] = Setting([])
 
     _init_called = False
 

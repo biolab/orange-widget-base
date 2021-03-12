@@ -6,6 +6,26 @@ serialized and stored. When a new widget is created, values of attributes
 marked as settings are read from disk. When schema is loaded, attribute values
 are set to one stored in schema.
 
+Allowed setting types are
+- int, float, bool, str, bytes,
+- IntEnum (implicitly encoded/decoded as int),
+
+and the following generics, whose elements must be one of allowed types
+- List, Dict, Tuple,
+- NamedTuple (implicitly converted to tuple and back)
+- Set (converted to list and back)
+- Optional
+- Union of types that can be saved as literals.
+
+Types that can be saved as literals are
+- int, float, bool, str, bytes
+- list, tuple of types that can be saved as literals
+- dicts whose keys and values can be saved as literals.
+
+
+Derived setting handlers may add additional types if the provide proper
+conversion.
+
 Each widget has its own SettingsHandler that takes care of serializing and
 storing of settings and SettingProvider that is incharge of reading and
 writing the setting values.
@@ -29,16 +49,20 @@ so they can be used alter. It should be called before widget starts modifying
 (initializing) the value of the setting attributes.
 """
 
+import base64
 import sys
 import copy
-import itertools
 import os
 import logging
 import pickle
 import pprint
 import warnings
+from enum import IntEnum
+from numbers import Number, Integral
 from operator import itemgetter
-from typing import Any, Optional, Tuple
+from typing import get_type_hints, \
+    Any, List, Tuple, Dict, Union, BinaryIO, \
+    Type, TypeVar, Callable, Generator, Optional, Iterator
 
 from orangewidget.gui import OWComponent
 
@@ -47,7 +71,7 @@ log = logging.getLogger(__name__)
 __all__ = [
     "Setting", "SettingsHandler", "SettingProvider",
     "ContextSetting", "Context", "ContextHandler", "IncompatibleContext",
-    "SettingsPrinter", "rename_setting", "widget_settings_dir"
+    "SettingsPrinter", "rename_setting", "widget_settings_dir", "TypeSupport"
 ]
 
 _IMMUTABLES = (str, int, bytes, bool, float, tuple)
@@ -59,6 +83,40 @@ PICKLE_PROTOCOL = 4
 
 
 __WIDGET_SETTINGS_DIR = None  # type: Optional[Tuple[str, str]]
+
+_T = TypeVar("_T")
+
+
+def _cname(obj: Any) -> str:
+    if not isinstance(obj, type):
+        obj = type(obj)
+    return obj.__name__
+
+# TODO: Remove parts of the below when we drop support for earlier versions
+if sys.version_info >= (3, 8):
+    from typing import get_origin, get_args
+
+elif sys.version_info >= (3, 7):
+    def get_args(tp):
+        return getattr(tp, "__args__", None)
+
+    def get_origin(tp):
+        return getattr(tp, "__origin__", None)
+
+else:
+    assert sys.version_info[:2] == (3, 6)
+
+    def get_args(tp):
+        return getattr(tp, "__args__", None)
+
+    def get_origin(tp):
+        # Python 3.6's typing is an embarassing mess
+        for base in getattr(tp, "__orig_bases__", ()):
+            if type(base) is type:
+                return base
+        if hasattr(tp, "__origin__"):
+            return tp.__origin__
+        return None
 
 
 def set_widget_settings_dir_components(basedir: str, versionstr: str) -> None:
@@ -139,6 +197,9 @@ class Setting:
     # Setting is only persisted to schema (default value does not change)
     schema_only = False
 
+    # Setting can be None
+    nullable = False
+
     def __new__(cls, default, *args, **kwargs):
         """A misleading docstring for providing type hints for Settings
 
@@ -150,10 +211,17 @@ class Setting:
     def __init__(self, default, **data):
         self.name = None  # Name gets set in widget's meta class
         self.default = default
+        if default is None:
+            self.nullable = True  # if default is None, assume this is OK
+            self.type = None
+        else:
+            self.type = type(default)
         self.__dict__.update(data)
 
     def __str__(self):
-        return '{0} "{1}"'.format(self.__class__.__name__, self.name)
+        if self.name is None:
+            return "Unbound {_cname(self)}"
+        return f'{_cname(self)} "{self.name}"'
 
     __repr__ = __str__
 
@@ -162,6 +230,7 @@ class Setting:
 
 
 # Pylint ignores type annotations in assignments. For
+# TODO: Check whether this is still the case; if not, remove this hack
 #
 #    x: int = Setting(0)
 #
@@ -179,27 +248,6 @@ if 1 == 0:
         pass
 
 
-def _apply_setting(setting: Setting, instance: OWComponent, value: Any):
-    """
-    Set `setting` of widget `instance` to the given `value`, in place if
-    possible.
-
-    If old and new values are of the same type, and the type is either a list
-    or has methods `clear` and `update`, setting is updated in place. Otherwise
-    the function calls `setattr`.
-    """
-    target = getattr(instance, setting.name, None)
-    if type(target) is type(value):
-        if isinstance(value, list):
-            target[:] = value
-            return
-        elif hasattr(value, "clear") and hasattr(value, "update"):
-            target.clear()
-            target.update(value)
-            return
-    setattr(instance, setting.name, value)
-
-
 class SettingProvider:
     """A hierarchical structure keeping track of settings belonging to
     a class and child setting providers.
@@ -209,166 +257,160 @@ class SettingProvider:
     from/to the instances of the class this provider belongs to.
     """
 
-    def __init__(self, provider_class):
-        """ Construct a new instance of SettingProvider.
+    def __init__(self, provider_class: Type[OWComponent]):
+        """
+        Construct a new instance of SettingProvider.
 
         Traverse provider_class members and store all instances of
         Setting and SettingProvider.
 
-        Parameters
-        ----------
-        provider_class : class
-            class containing settings definitions
+        Args:
+            provider_class (OWComponent): class containing settings definitions
         """
         self.name = ""
         self.provider_class = provider_class
-        self.providers = {}
-        """:type: dict[str, SettingProvider]"""
-        self.settings = {}
-        """:type: dict[str, Setting]"""
-        self.initialization_data = None
+        self.providers: Dict[str, SettingProvider] = {}
+        self.settings: Dict[str, Setting] = {}
+        self.initialization_data = {}
+
+        try:
+            type_hints = get_type_hints(provider_class)
+        except Exception as exc:
+            type_hints = None
+            warnings.warn(
+                f"{_cname(provider_class)} has invalid annotations: {exc}")
+
+        def set_type():
+            if type_hints is None:
+                return
+            # type hint has precedence over type deduced from default value
+            # (but if they mismatch, we will complain later, at packing)
+            value.type = type_hints.get(name, value.type)
+            if get_origin(value.type) is Union:
+                args = get_args(value.type)
+                if len(args) == 2 and args[1] is type(None):
+                    value.type = args[0]
+                    value.nullable = True
 
         for name in dir(provider_class):
             value = getattr(provider_class, name, None)
             if isinstance(value, Setting):
                 value = copy.deepcopy(value)
                 value.name = name
+                set_type()
                 self.settings[name] = value
             if isinstance(value, SettingProvider):
                 value = copy.deepcopy(value)
                 value.name = name
                 self.providers[name] = value
 
-    def initialize(self, instance, data=None):
-        """Initialize instance settings to their default values.
+    def initialize(self, component: OWComponent, data: Optional[dict] = None) \
+            -> None:
+        """
+        Initialize instance settings to given data or to defaults.
 
         Mutable values are (shallow) copied before they are assigned to the
         widget. Immutable are used as-is.
 
-        Parameters
-        ----------
-        instance : OWBaseWidget
-            widget instance to initialize
-        data : Optional[dict]
-            optional data used to override the defaults
-            (used when settings are loaded from schema)
+        Args:
+            component (OWComponent): widget or component to initialize
+            data (dict or None): data used to override the defaults
         """
-        if data is None and self.initialization_data is not None:
+        if data is None:
             data = self.initialization_data
 
-        self._initialize_settings(instance, data)
-        self._initialize_providers(instance, data)
-
-    def reset_to_original(self, instance):
-        self._initialize_settings(instance, None)
-        self._initialize_providers(instance, None)
-
-    def _initialize_settings(self, instance, data):
-        if data is None:
-            data = {}
         for name, setting in self.settings.items():
             value = data.get(name, setting.default)
-            if isinstance(value, _IMMUTABLES):
-                setattr(instance, name, value)
-            else:
-                setattr(instance, name, copy.copy(value))
-
-    def _initialize_providers(self, instance, data):
-        if not data:
-            return
+            if not isinstance(value, _IMMUTABLES):
+                value = copy.copy(value)
+            setattr(component, name, value)
 
         for name, provider in self.providers.items():
             if name not in data:
                 continue
 
-            member = getattr(instance, name, None)
+            member = getattr(component, name, None)
             if member is None or isinstance(member, SettingProvider):
                 provider.store_initialization_data(data[name])
             else:
                 provider.initialize(member, data[name])
 
-    def store_initialization_data(self, initialization_data):
-        """Store initialization data for later use.
+    def reset_to_original(self, instance):
+        self.initialize(instance)
+
+    def store_initialization_data(self, initialization_data: dict) -> None:
+        """
+        Store initialization data for later use.
 
         Used when settings handler is initialized, but member for this
-        provider does not exists yet (because handler.initialize is called in
+        provider does not exists yet, because handler.initialize is called in
         __new__, but member will be created in __init__.
 
-        Parameters
-        ----------
-        initialization_data : dict
-            data to be used for initialization when the component is created
+        Args:
+            initialization_data (dict):
+                data for initialization of a new component
         """
         self.initialization_data = initialization_data
 
-    @staticmethod
-    def _default_packer(setting, instance):
-        """A simple packet that yields setting name and value.
-
-        Parameters
-        ----------
-        setting : Setting
-        instance : OWBaseWidget
-        """
+    @classmethod
+    def default_packer(cls,
+                       setting: Setting,
+                       component: OWComponent,
+                       handler: "SettingsHandler") -> Iterator[Tuple[str, Any]]:
+        """Yield setting name and value for packable (= non-context) setting."""
         if setting.packable:
-            if hasattr(instance, setting.name):
-                yield setting.name, getattr(instance, setting.name)
-            else:
-                warnings.warn("{0} is declared as setting on {1} "
-                              "but not present on instance."
-                              .format(setting.name, instance))
+            value = getattr(component, setting.name)
+            if handler.is_allowed_type(setting.type) \
+                    and not handler.check_warn_type(value, setting, component):
+                value = handler.pack_value(value, setting.type)
+            yield setting.name, value
 
-    def pack(self, instance, packer=None):
-        """Pack instance settings in a name:value dict.
+    PackerType = Callable[[Setting, OWComponent, "SettingsHandler"],
+                          Iterator[Tuple[str, Any]]]
 
-        Parameters
-        ----------
-        instance : OWBaseWidget
-            widget instance
-        packer: callable (Setting, OWBaseWidget) -> Generator[(str, object)]
-            optional packing function
-            it will be called with setting and instance parameters and
-            should yield (name, value) pairs that will be added to the
-            packed_settings.
+    def pack(self, widget: "OWBaseWidget",
+             packer: Optional[PackerType] = None) -> dict:
+        """
+        Pack instance settings in a name:value dict.
+
+        Args:
+            widget (OWBaseWidget): widget instance
         """
         if packer is None:
-            packer = self._default_packer
+            packer = self.default_packer
+        handler = widget.settingsHandler
+        return self._pack_component(widget, handler, packer)
 
-        packed_settings = dict(itertools.chain(
-            *(packer(setting, instance) for setting in self.settings.values())
-        ))
+    def _pack_component(
+            self, component: OWComponent, handler: "SettingsHandler",
+            packer: PackerType) -> dict:
 
-        packed_settings.update({
-            name: provider.pack(getattr(instance, name), packer)
-            for name, provider in self.providers.items()
-            if hasattr(instance, name)
-        })
+        packed_settings = {}
+        comp_name = _cname(component)
+        for setting in self.settings.values():
+            for name, value in packer(setting, component, handler):
+                packed_settings[setting.name] = value
+
+        for name, provider in self.providers.items():
+            if not hasattr(component, name):
+                warnings.warn(f"{name} is declared as setting provider "
+                              f"on {comp_name}, but not present on instance.")
+                continue
+            instance = getattr(component, name)
+            packed_settings[name] = \
+                provider._pack_component(instance, handler, packer)
         return packed_settings
 
-    def unpack(self, instance, data):
-        """Restore settings from data to the instance.
+    def unpack(self, widget: "OWBaseWidget", packed_data: dict) -> None:
+        """Restore settings from packed_data to widget instance."""
+        handler = widget.settingsHandler
+        for setting, data_, inst in self.traverse_settings(packed_data, widget):
+            if setting.name in data_ and inst is not None:
+                handler._apply_setting(setting, inst, data_[setting.name])
 
-        Parameters
-        ----------
-        instance : OWBaseWidget
-            instance to restore settings to
-        data : dict
-            packed data
-        """
-        for setting, _data, inst in self.traverse_settings(data, instance):
-            if setting.name in _data and inst is not None:
-                _apply_setting(setting, inst, _data[setting.name])
-
-    def get_provider(self, provider_class):
-        """Return provider for provider_class.
-
-        If this provider matches, return it, otherwise pass
-        the call to child providers.
-
-        Parameters
-        ----------
-        provider_class : class
-        """
+    def get_provider(self, provider_class: Type[OWComponent]) \
+            -> Union["SettingProvider", None]:
+        """Return provider for the given provider_class."""
         if issubclass(provider_class, self.provider_class):
             return self
 
@@ -378,18 +420,21 @@ class SettingProvider:
                 return provider
         return None
 
-    def traverse_settings(self, data=None, instance=None):
-        """Generator of tuples (setting, data, instance) for each setting
-        in this and child providers..
-
-        Parameters
-        ----------
-        data : dict
-            dictionary with setting values
-        instance : OWBaseWidget
-            instance matching setting_provider
+    def traverse_settings(self,
+                          data: Optional[dict] = None,
+                          instance: Optional[OWComponent] = None) \
+            -> Generator[Tuple[Setting, dict, OWComponent], None, None]:
         """
-        data = data if data is not None else {}
+        Iterate over settings of this component and its child providers.
+
+        Generator returns tuples (setting, data, instance)
+
+        Args:
+            data (dict): dictionary with values for this component and children
+            instance (OWComponent): instance matching setting_provider
+        """
+        if data is None:
+            data = {}
 
         for setting in self.settings.values():
             yield setting, data, instance
@@ -397,13 +442,47 @@ class SettingProvider:
         for provider in self.providers.values():
             data_ = data.get(provider.name, {})
             instance_ = getattr(instance, provider.name, None)
-            for setting, component_data, component_instance in \
-                    provider.traverse_settings(data_, instance_):
-                yield setting, component_data, component_instance
+            yield from provider.traverse_settings(data_, instance_)
+
+
+class TypeSupportRegistry(type):
+    def __new__(mcs, name, bases, attrs):
+        cls = type.__new__(mcs, name, bases, attrs)  #: Type[TypeSupport]
+        if cls.supported_types:
+            SettingsHandler.type_support.append(cls)
+        return cls
+
+
+class TypeSupport(metaclass=TypeSupportRegistry):
+    supported_types: Tuple[type, ...] = ()
+    handle_derived_types = False
+
+    @classmethod
+    def supports_type(cls, tp: type) -> bool:
+        if cls.handle_derived_types:
+            return any(issubclass(tp, supp) for supp in cls.supported_types)
+        else:
+            return tp in cls.supported_types
+
+    @classmethod
+    def check_type(cls, value: Any, tp: type) -> bool:
+        if cls.handle_derived_types:
+            return isinstance(value, tp)
+        else:
+            return type(value) is tp
+
+    @classmethod
+    def pack_value(cls, value: Any, tp: type) -> Any:
+        raise NotImplementedError
+
+    @classmethod
+    def unpack_value(cls, value: Any, tp: type, *ctx_args: Any):
+        raise NotImplementedError
 
 
 class SettingsHandler:
     """Reads widget setting files and passes them to appropriate providers."""
+    type_support: List[Type[TypeSupport]] = []
 
     def __init__(self):
         """Create a setting handler template.
@@ -411,26 +490,21 @@ class SettingsHandler:
         Used in class definition. Bound instance will be created
         when SettingsHandler.create is called.
         """
-        self.widget_class = None
-        self.provider = None
-        """:type: SettingProvider"""
+        self.widget_class: Union[Type["OWWidgetBase"], None] = None  #
+        self.provider: Union[SettingProvider, None] = None
         self.defaults = {}
         self.known_settings = {}
 
     @staticmethod
-    def create(widget_class, template=None):
-        """Create a new settings handler based on the template and bind it to
-        widget_class.
+    def create(widget_class: Type["OWWidgetBase"],
+               template: Optional["SettingsHandler"] = None) \
+            -> "SettingsHandler":
+        """
+        Return a new handler based on the template and bound to widget_class.
 
-        Parameters
-        ----------
-        widget_class : class
-        template : SettingsHandler
-            SettingsHandler to copy setup from
-
-        Returns
-        -------
-        SettingsHandler
+        Args:
+            widget_class (WidgetMetaClass): widget class
+            template (SettingsHandler): SettingsHandler to copy setup from
         """
 
         if template is None:
@@ -441,165 +515,174 @@ class SettingsHandler:
         setting_handler.bind(widget_class)
         return setting_handler
 
-    def bind(self, widget_class):
-        """Bind settings handler instance to widget_class.
-
-        Parameters
-        ----------
-        widget_class : class
-        """
+    def bind(self, widget_class: Type["OWWidgetBase"]) -> None:
+        """Bind settings handler instance to widget_class."""
         self.widget_class = widget_class
         self.provider = SettingProvider(widget_class)
         self.known_settings = {}
-        self.analyze_settings(self.provider, "")
+        self.analyze_settings(self.provider, "", _cname(widget_class))
         self.read_defaults()
 
-    def analyze_settings(self, provider, prefix):
-        """Traverse through all settings known to the provider
-        and analyze each of them.
+    def analyze_settings(self,
+                         provider: SettingProvider,
+                         prefix: str, class_name: str) -> None:
+        """
+        Analyze settings at and below the provider
 
-        Parameters
-        ----------
-        provider : SettingProvider
-        prefix : str
-            prefix the provider is registered to handle
+        Args:
+            provider (SettingProvider): setting provider
+            prefix (str): prefix (relative to widget) that matches the provider
         """
         for setting in provider.settings.values():
-            self.analyze_setting(prefix, setting)
+            self.analyze_setting(prefix, setting, class_name)
 
         for name, sub_provider in provider.providers.items():
-            new_prefix = '{0}{1}.'.format(prefix or '', name)
-            self.analyze_settings(sub_provider, new_prefix)
+            new_prefix = f"{prefix}{name}."
+            self.analyze_settings(sub_provider, new_prefix, class_name)
 
-    def analyze_setting(self, prefix, setting):
-        """Perform any initialization task related to setting.
+    def analyze_setting(self, prefix: str, setting: Setting, class_name:str) \
+            -> None:
+        """Perform any initialization tasks related to setting."""
+        sname = prefix + setting.name
+        tname = _cname(setting.type)
+        if setting.type is None:
+            warnings.warn(f"type for setting '{class_name}.{sname}' "
+                          "is unknown; annotate it.")
+        elif setting.type in (list, tuple, dict, set):
+            warnings.warn(f"type for items in the {tname} "
+                          f"in '{class_name}.{sname}' is unknown; "
+                          f"annotate it with {tname.title()}[<type>]")
+            setting.type = None
+        elif not self.is_allowed_type(setting.type):
+            warnings.warn(f"{_cname(self)} does not support {tname} used "
+                          f"in {class_name}.{sname}) ")
+            setting.type = None
 
-        Parameters
-        ----------
-        prefix : str
-        setting : Setting
-        """
         self.known_settings[prefix + setting.name] = setting
 
-    def read_defaults(self):
-        """Read (global) defaults for this widget class from a file.
-        Opens a file and calls :obj:`read_defaults_file`. Derived classes
-        should overload the latter."""
+    def read_defaults(self) -> None:
+        """
+        Read (global) defaults for this widget class from a file.
+
+        Opens a file and calls :obj:`read_defaults_file`.
+        Derived classes should overload the latter."""
         filename = self._get_settings_filename()
         if os.path.isfile(filename):
-            settings_file = open(filename, "rb")
-            try:
-                self.read_defaults_file(settings_file)
-            # Unpickling exceptions can be of any type
-            # pylint: disable=broad-except
-            except Exception as ex:
-                warnings.warn("Could not read defaults for widget {0}\n"
-                              "The following error occurred:\n\n{1}"
-                              .format(self.widget_class, ex))
-            finally:
-                settings_file.close()
+            with open(filename, "rb") as settings_file:
+                try:
+                    self.read_defaults_file(settings_file)
+                # Unpickling exceptions can be of any type
+                except Exception as ex:  # pylint: disable=broad-except
+                    warnings.warn(
+                        "Error reading defaults for "
+                        f"{_cname(self.widget_class)}:\n\n{ex}")
 
-    def read_defaults_file(self, settings_file):
-        """Read (global) defaults for this widget class from a file.
+    def read_defaults_file(self, settings_file: BinaryIO) -> None:
+        """Read (global) defaults for this widget class from a file."""
+        def no_settings(impure):
+            pure = {}
+            for key, value in impure.items():
+                if isinstance(value, dict):
+                    pure[key] = no_settings(value)
+                elif isinstance(value, Setting):
+                    pure[key] = value.default
+                else:
+                    pure[key] = value
+            return pure
 
-        Parameters
-        ----------
-        settings_file : file-like object
-        """
         defaults = pickle.load(settings_file)
-        self.defaults = {
-            key: value
-            for key, value in defaults.items()
-            if not isinstance(value, Setting)
-        }
+        self.defaults = no_settings(defaults)
+        for setting, data, _ in self.provider.traverse_settings(self.defaults):
+            name = setting.name
+            if name in data \
+                    and setting.packable \
+                    and setting.type is not None \
+                    and self.is_allowed_type(setting.type):
+                data[name] = self.unpack_value(data[name], setting.type)
         self._migrate_settings(self.defaults)
 
-    def write_defaults(self):
-        """Write (global) defaults for this widget class to a file.
+    def write_defaults(self) -> None:
+        """
+        Write (global) defaults for this widget class to a file.
         Opens a file and calls :obj:`write_defaults_file`. Derived classes
         should overload the latter."""
         filename = self._get_settings_filename()
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         try:
-            settings_file = open(filename, "wb")
-            try:
+            with open(filename, "wb") as settings_file:
                 self.write_defaults_file(settings_file)
-            except (EOFError, IOError, pickle.PicklingError) as ex:
-                log.error("Could not write default settings for %s (%s).",
-                          self.widget_class, ex)
-                settings_file.close()
-                os.remove(filename)
-            else:
-                settings_file.close()
         except PermissionError as ex:
             log.error("Could not write default settings for %s (%s).",
                       self.widget_class, type(ex).__name__)
+        except (EOFError, IOError, pickle.PicklingError) as ex:
+            log.error("Error writing defaults for %s (%s).",
+                      _cname(self.widget_class), type(ex).__name__)
+            os.remove(filename)
 
-    def write_defaults_file(self, settings_file):
-        """Write defaults for this widget class to a file
-
-        Parameters
-        ----------
-        settings_file : file-like object
-        """
+    def write_defaults_file(self, settings_file: BinaryIO) -> None:
+        """Write defaults for this widget class to a file."""
         defaults = dict(self.defaults)
         defaults[VERSION_KEY] = self.widget_class.settings_version
         pickle.dump(defaults, settings_file, protocol=PICKLE_PROTOCOL)
 
-    def _get_settings_filename(self):
+    def _get_settings_filename(self) -> str:
         """Return the name of the file with default settings for the widget"""
+        cls = self.widget_class
         return os.path.join(widget_settings_dir(),
-                            "{0.__module__}.{0.__qualname__}.pickle"
-                            .format(self.widget_class))
+                            f"{cls.__module__}.{cls.__qualname__}.pickle")
 
-    def initialize(self, instance, data=None):
+    def initialize(self,
+                   component: OWComponent,
+                   data: Union[bytes, dict, None] = None) -> None:
         """
-        Initialize widget's settings.
+        Set widget's or component's settings to default
 
-        Replace all instance settings with their default values.
-
-        Parameters
-        ----------
-        instance : OWBaseWidget
-        data : dict or bytes that unpickle into a dict
-            values used to override the defaults
+        Args:
+            widget (OWBaseWidget): widget to initialize
+            data (dict or bytes): data or bytes that unpickle to data
         """
-        provider = self._select_provider(instance)
+        provider: SettingProvider = self._select_provider(component)
 
         if isinstance(data, bytes):
             data = pickle.loads(data)
+        for setting, data_, _ in provider.traverse_settings(data):
+            name = setting.name
+            if setting.name in data_ and self.is_allowed_type(setting.type):
+                data_[name] = self.unpack_value(data_[name], setting.type)
         self._migrate_settings(data)
 
         if provider is self.provider:
             data = self._add_defaults(data)
 
-        provider.initialize(instance, data)
+        provider.initialize(component, data)
 
-    def reset_to_original(self, instance):
-        provider = self._select_provider(instance)
-        provider.reset_to_original(instance)
+    def reset_to_original(self, widget: "OWBaseWidget") -> None:
+        provider = self._select_provider(widget)
+        provider.reset_to_original(widget)
 
-    def _migrate_settings(self, settings):
-        """Ask widget to migrate settings to the latest version."""
-        if settings:
-            try:
-                self.widget_class.migrate_settings(
-                    settings, settings.pop(VERSION_KEY, 0))
-            except Exception:  # pylint: disable=broad-except
-                sys.excepthook(*sys.exc_info())
-                settings.clear()
+    def _migrate_settings(self, settings: dict) -> None:
+        """Let widget migrate settings to the latest version."""
+        if not settings:
+            return
 
-    def _select_provider(self, instance):
+        try:
+            self.widget_class.migrate_settings(
+                settings, settings.pop(VERSION_KEY, 0))
+        except Exception:  # pylint: disable=broad-except
+            sys.excepthook(*sys.exc_info())
+            settings.clear()
+
+    def _select_provider(self, instance: "OWBaseWidget") -> SettingProvider:
         provider = self.provider.get_provider(instance.__class__)
         if provider is None:
-            message = "{0} has not been declared as setting provider in {1}. " \
-                      "Settings will not be saved/loaded properly. Defaults will be used instead." \
-                      .format(instance.__class__, self.widget_class)
-            warnings.warn(message)
+            warnings.warn(
+                f"{_cname(instance)} has not been declared as setting provider"
+                f"in {_cname(self.widget_class)}. Settings will not be"
+                f"saved/loaded properly. Defaults will be used instead.")
             provider = SettingProvider(instance.__class__)
         return provider
 
-    def _add_defaults(self, data):
+    def _add_defaults(self, data: Optional[dict] = None) -> dict:
         if data is None:
             return self.defaults
 
@@ -607,13 +690,13 @@ class SettingsHandler:
         new_data.update(data)
         return new_data
 
-    def _prepare_defaults(self, widget):
+    def _prepare_defaults(self, widget: "OWBaseWidget") -> None:
         self.defaults = self.provider.pack(widget)
         for setting, data, _ in self.provider.traverse_settings(data=self.defaults):
             if setting.schema_only:
                 data.pop(setting.name, None)
 
-    def pack_data(self, widget):
+    def pack_data(self, widget: "OWBaseWidget") -> dict:
         """
         Pack the settings for the given widget. This method is used when
         saving schema, so that when the schema is reloaded the widget is
@@ -623,54 +706,311 @@ class SettingsHandler:
 
         Inherited classes add other data, in particular widget-specific
         local contexts.
-
-        Parameters
-        ----------
-        widget : OWBaseWidget
         """
         widget.settingsAboutToBePacked.emit()
         packed_settings = self.provider.pack(widget)
         packed_settings[VERSION_KEY] = self.widget_class.settings_version
         return packed_settings
 
-    def update_defaults(self, widget):
+    def update_defaults(self, widget: "OWBaseWidget") -> None:
         """
         Writes widget instance's settings to class defaults. Called when the
         widget is deleted.
-
-        Parameters
-        ----------
-        widget : OWBaseWidget
         """
         widget.settingsAboutToBePacked.emit()
         self._prepare_defaults(widget)
         self.write_defaults()
 
-    def fast_save(self, widget, name, value):
-        """Store the (changed) widget's setting immediately to the context.
-
-        Parameters
-        ----------
-        widget : OWBaseWidget
-        name : str
-        value : object
-
-        """
-        if name in self.known_settings:
-            setting = self.known_settings[name]
-            if not setting.schema_only:
-                setting.default = value
-
-    def reset_settings(self, instance):
-        """Reset widget settings to defaults
-
-        Parameters
-        ----------
-        instance : OWBaseWidget
-        """
-        for setting, _, inst in self.provider.traverse_settings(instance=instance):
+    def reset_settings(self, widget: "OWBaseWidget") -> None:
+        """Reset widget settings to defaults"""
+        for setting, _, inst \
+                in self.provider.traverse_settings(instance=widget):
             if setting.packable:
-                _apply_setting(setting, inst, setting.default)
+                self._apply_setting(setting, inst, setting.default)
+
+    @classmethod
+    def _apply_setting(cls,
+                       setting: Setting, instance: OWComponent, value: Any
+                       ) -> None:
+        """
+        Set `setting` of widget `instance` to the given `value`, in place if
+        possible.
+
+        If old and new values are of the same type, and the type is either a list
+        or has methods `clear` and `update`, setting is updated in place. Otherwise
+        the function calls `setattr`.
+        """
+        cls.check_warn_type(value, setting, instance)
+        target = getattr(instance, setting.name, None)
+        if type(target) is type(value):
+            if isinstance(value, list):
+                target[:] = value
+                return
+            elif hasattr(value, "clear") and hasattr(value, "update"):
+                target.clear()
+                target.update(value)
+                return
+        setattr(instance, setting.name, value)
+
+    @staticmethod
+    def _non_none(args):
+        return [tp_ for tp_ in args if tp_ is not type(None)][0]
+
+    @staticmethod
+    def _union_is_optional(args):
+        return len(args) == 2 and type(None) in args
+
+    @classmethod
+    def _can_be_literal(cls, tp):
+        # types None and Ellipsis are "allowed" for easier support of
+        # Optional and Tuple[type, ...]
+        return tp in (str, bool, bytes, float, int, type(None), Ellipsis) \
+            or (get_origin(tp) in (list, dict, tuple, Union)
+                and all(map(cls._can_be_literal, get_args(tp))))
+
+    @classmethod
+    def is_allowed_type(cls, tp) -> bool:
+        if tp in (str, bool, bytes, float, int):
+            return True
+        if isinstance(tp, type):
+            if issubclass(tp, IntEnum):
+                return True
+            # When we drop support for Python 3.6, remove the second test
+            if issubclass(tp, tuple) and not hasattr(tp, "__origin__"):
+                # If it's tuple, it must be a NamedTuple of allowed types
+                args = getattr(tp, "__annotations__", None)
+                return args is not None \
+                       and all(map(cls.is_allowed_type, args.values()))
+            for type_handler in cls.type_support:
+                if type_handler.supports_type(tp):
+                    return True
+
+        orig, args = get_origin(tp), get_args(tp)
+        if orig is Union:
+            return (cls._union_is_optional(args)
+                    and cls.is_allowed_type(cls._non_none(args))
+                    ) or all(map(cls._can_be_literal, args))
+        if orig in (list, set) \
+                or orig is tuple and len(args) == 2 and args[1] is ...:
+            return cls.is_allowed_type(args[0])
+        if orig in (tuple, dict):
+            return all(map(cls.is_allowed_type, args))
+        return False
+
+    @classmethod
+    def check_type(cls, value, tp) -> bool:
+        # To do: This would be much more elegant if singledispatchmethod
+        # (backported from Python 3.8) worked with classmethods.
+        # It should, but the example from Python documentation crashes
+        # (https://bugs.python.org/issue39679)
+        if value is None:
+            return tp is type(None) \
+                   or isinstance(tp, Setting) and tp.nullable \
+                   or get_origin(tp) is Union and type(None) in tp.__args__
+
+        orig_tp = tp
+        if isinstance(tp, Setting):
+            tp = tp.type
+
+        if not cls.is_allowed_type(tp):
+            # We take no responsibility for invalid types
+            return True
+
+        # Simple types
+        if tp in (str, bytes):
+            return isinstance(value, tp)
+
+        # Numeric types that can be safely converted
+        if tp is int:
+            return isinstance(value, Integral)
+        if tp is float:
+            return isinstance(value, Number)
+        if tp is bool:
+            # (0, 1) also covers False and True
+            return value in (0, 1) and not isinstance(value, float)
+
+        # Named tuple: a tuple with annotations
+        # TODO: Simplify when we drop support for Python 3.6
+        if sys.version_info[:2] > (3, 6) and isinstance(tp, type) or \
+                sys.version_info[:2] == (3, 6) \
+                and (tp in (str, bytes)
+                     or (isinstance(tp, type)
+                         and (issubclass(tp, IntEnum)
+                              or (issubclass(tp, tuple)
+                                  and hasattr(tp, "__annotations__")
+                                  )
+                              )
+                         )
+                ):
+            if issubclass(tp, tuple):
+                assert hasattr(tp, "__annotations__")
+                return isinstance(value, tp) \
+                    and all(isinstance(x, tp_)
+                            for x, tp_ in zip(value, tp.__annotations__.values())
+                            )
+
+            # allow an int instead of IntEnum
+            # if this is undesired, remove this block and use the check below
+            if issubclass(tp, IntEnum):
+                return isinstance(value, tp) \
+                       or isinstance(tp, int) and 0 <= value < len(tp)
+
+            for type_handler in cls.type_support:
+                if type_handler.supports_type(tp):
+                    return type_handler.check_type(value, orig_tp)
+            return isinstance(value, tp)
+
+        # Common type check for generic classes
+        orig, args = get_origin(tp), get_args(tp)
+
+        if orig is Union:
+            return any(cls.check_type(value, tp) for tp in args)
+
+        if not isinstance(value, orig):
+            return False
+
+        # set, list and tuple of homogenous type with variable length
+        if orig in (set, list) \
+                or orig is tuple and len(args) == 2 and args[1] is ...:
+            tp1 = args[0]
+            return all(cls.check_type(x, tp1) for x in value)
+        # tuple with fixed length and types
+        if orig is tuple:
+            return len(value) == len(args) \
+                   and all(cls.check_type(x, tp1)
+                           for x, tp1 in zip(value, args))
+        # dicts
+        if orig is dict:
+            keytype, valuetype = args
+            return all(cls.check_type(k, keytype) and cls.check_type(v, valuetype)
+                       for k, v in value.items())
+
+    @classmethod
+    def check_warn_type(cls, value,
+                        setting: Setting,
+                        component: OWComponent) -> None:
+        if value is None:
+            if not setting.nullable:
+                warnings.warn(
+                    f"a non-nullable {_cname(component)}.{setting.name} is None"
+                )
+                return True
+        elif not cls.check_type(value, setting.type):
+            name = f"{_cname(component)}.{setting.name}"
+            cls._warn_wrong_value_type(name, value, setting.type)
+            return True
+        return False
+
+    @classmethod
+    def check_warn_pure_type(cls, value, type_: type, name: str):
+        if not cls.check_type(value, type_):
+            cls._warn_wrong_value_type(name, value, type_)
+            return True
+        return False
+
+    @classmethod
+    def _warn_wrong_value_type(cls, name, value, tp):
+        if isinstance(tp, type):
+            decl = _cname(tp)
+        else:
+            decl = str(tp).replace("typing.", "")
+        act = repr(value)
+        if len(act) > 300:
+            act = act[:300] + " (...)"
+        did_you = ""
+        if cls.check_expanded_tuple_type(value, tp):
+            did_you = "; did you use Tuple[T] instead of Tuple[T, ...]?"
+        warnings.warn(
+            f"setting {name} is declared as {decl} but contains {act}"
+            f"{did_you}")
+
+    @classmethod
+    def check_expanded_tuple_type(cls, value, tp):
+        orig, args = get_origin(tp), get_args(tp)
+        return orig is tuple and len(args) == 1 \
+               and cls.check_type(value, Tuple[args[0], ...])
+
+    @classmethod
+    def pack_value(cls, value, tp=None):
+        if value is None or tp in (str, bytes, int, float, bool):
+            return value
+
+        if tp is None:
+            if isinstance(value, set):
+                return list(value)
+            return value
+
+        if isinstance(tp, type):
+            if issubclass(tp, IntEnum):
+                return int(value)
+            if issubclass(tp, tuple) and hasattr(tp, "__annotations__"):
+                return tuple(cls.pack_value(x, tp_)
+                             for x, tp_ in zip(value, tp.__annotations__))
+            for type_handler in cls.type_support:
+                if type_handler.supports_type(tp):
+                    return type_handler.pack_value(value, tp)
+
+        orig, args = get_origin(tp), get_args(tp)
+        if orig is Union:
+            if cls._union_is_optional(args):
+                return cls.pack_value(value, cls._non_none(args))
+            else:
+                # Allowed elements of non-optional unions don't require packing
+                return value
+        if orig in (set, list):
+            tp_ = args[0]
+            return [cls.pack_value(x, tp_) for x in value]
+        if orig is tuple:
+            if len(args) == 2 and args[1] is ...:
+                tp_ = args[0]
+                return tuple(cls.pack_value(x, tp_) for x in value)
+            else:
+                return tuple(cls.pack_value(x, tp_) for x, tp_ in zip(value, args))
+        if orig is dict:
+            kt, vt = args
+            return {cls.pack_value(k, kt): cls.pack_value(v, vt)
+                    for k, v in value.items()}
+
+        # Shouldn't come to this, but ... what the heck.
+        return value
+
+    @classmethod
+    def unpack_value(cls, value, tp, *ctx_args):
+        if value is None or tp in (int, bool, float, str, bytes):
+            return value
+        if isinstance(tp, type):
+            if issubclass(tp, IntEnum):
+                return tp(value)
+            if issubclass(tp, tuple) and hasattr(tp, "__annotations__"):
+                return tuple(cls.unpack_value(x, tp_, *ctx_args)
+                             for x, tp_ in zip(value, tp.__annotations__))
+            for type_handler in cls.type_support:
+                if type_handler.supports_type(tp):
+                    return type_handler.unpack_value(value, tp, *ctx_args)
+
+        orig, args = get_origin(tp), get_args(tp)
+        if orig is Union:
+            if cls._union_is_optional(args):
+                return cls.unpack_value(value, cls._non_none(args), *ctx_args)
+            else:
+                # Such unions are allowed only if the consists of types
+                # that don't require unpacking,
+                return value
+        if orig in (set, list) \
+                or orig is tuple and len(args) == 2 and args[1] is ...:
+            tp_ = args[0]
+            return orig(cls.unpack_value(x, tp_, *ctx_args) for x in value)
+        if orig is tuple:
+            return tuple(cls.unpack_value(x, tp_, *ctx_args)
+                         for x, tp_ in zip(value, args))
+        if orig is dict:
+            kt, vt = args
+            return {cls.unpack_value(k, kt, *ctx_args):
+                    cls.unpack_value(v, vt, *ctx_args)
+                    for k, v in value.items()}
+
+        # Shouldn't come to this, but ... what the heck.
+        return value
 
 
 class ContextSetting(Setting):
@@ -705,6 +1045,14 @@ class Context:
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
+    def __str__(self):
+        return f"{_cname(self)}(values={self.values})"
+
+
+if not hasattr(Context, "__annotations__"):
+    Context.__annotations__ = {}
+Context.__annotations__[VERSION_KEY] = Optional[int]
+
 
 class ContextHandler(SettingsHandler):
     """Base class for setting handlers that can handle contexts.
@@ -718,31 +1066,33 @@ class ContextHandler(SettingsHandler):
 
     MAX_SAVED_CONTEXTS = 50
 
+    ContextType = Context
+
     def __init__(self):
         super().__init__()
         self.global_contexts = []
-        self.known_settings = {}
 
-    def initialize(self, instance, data=None):
+    def initialize(self, instance: "OWBaseWidget", data=None):
         """Initialize the widget: call the inherited initialization and
         add an attribute 'context_settings' to the widget. This method
         does not open a context."""
         instance.current_context = None
         super().initialize(instance, data)
         if data and "context_settings" in data:
-            instance.context_settings = data["context_settings"]
+            instance.context_settings = [
+                self.unpack_context(context)
+                for context in data["context_settings"]]
             self._migrate_contexts(instance.context_settings)
         else:
             instance.context_settings = []
 
-    def read_defaults_file(self, settings_file):
-        """Call the inherited method, then read global context from the
-           pickle."""
+    def read_defaults_file(self, settings_file: BinaryIO) -> None:
+        """Call the inherited method, then unpickle and migrate contexts"""
         super().read_defaults_file(settings_file)
         self.global_contexts = pickle.load(settings_file)
         self._migrate_contexts(self.global_contexts)
 
-    def _migrate_contexts(self, contexts):
+    def _migrate_contexts(self, contexts: List[Context]) -> None:
         i = 0
         while i < len(contexts):
             context = contexts[i]
@@ -757,31 +1107,30 @@ class ContextHandler(SettingsHandler):
             else:
                 i += 1
 
-    def write_defaults_file(self, settings_file):
+    def write_defaults_file(self, settings_file: BinaryIO) -> None:
         """Call the inherited method, then add global context to the pickle."""
         super().write_defaults_file(settings_file)
 
-        def add_version(context):
+        def with_version(context: Context):
             context = copy.copy(context)
             context.values = dict(context.values)
             context.values[VERSION_KEY] = self.widget_class.settings_version
             return context
 
-        pickle.dump([add_version(context) for context in self.global_contexts],
+        pickle.dump([with_version(context) for context in self.global_contexts],
                     settings_file, protocol=PICKLE_PROTOCOL)
 
-    def pack_data(self, widget):
+    def pack_data(self, widget: "OWBaseWidget") -> dict:
         """Call the inherited method, then add local contexts to the dict."""
         data = super().pack_data(widget)
         self.settings_from_widget(widget)
-        context_settings = [copy.copy(context) for context in
-                            widget.context_settings]
+        context_settings = list(map(self.pack_context, widget.context_settings))
         for context in context_settings:
-            context.values[VERSION_KEY] = self.widget_class.settings_version
+            context["values"][VERSION_KEY] = self.widget_class.settings_version
         data["context_settings"] = context_settings
         return data
 
-    def update_defaults(self, widget):
+    def update_defaults(self, widget: "OWBaseWidget"):
         """
         Reimplemented from SettingsHandler
 
@@ -808,11 +1157,11 @@ class ContextHandler(SettingsHandler):
         self._prepare_defaults(widget)
         self.write_defaults()
 
-    def new_context(self, *args):
+    def new_context(self, *args) -> Context:
         """Create a new context."""
-        return Context()
+        return self.ContextType()
 
-    def open_context(self, widget, *args):
+    def open_context(self, widget: "OWBaseWidget", *args) -> None:
         """Open a context by finding one and setting the widget data or
         creating one and fill with the data from the widget."""
         widget.current_context, is_new = \
@@ -822,7 +1171,7 @@ class ContextHandler(SettingsHandler):
         else:
             self.settings_to_widget(widget, *args)
 
-    def match(self, context, *args):
+    def match(self, context: Context, *args):
         """Return the degree to which the stored `context` matches the data
         passed in additional arguments).
         When match returns 0 (ContextHandler.NO_MATCH), the context will not
@@ -836,20 +1185,22 @@ class ContextHandler(SettingsHandler):
         """
         raise NotImplementedError
 
-    def find_or_create_context(self, widget, *args):
+    def find_or_create_context(self, widget: "OWBaseWidget", *args) \
+            -> Tuple[Context, bool]:
         """Find the best matching context or create a new one if nothing
         useful is found. The returned context is moved to or added to the top
         of the context list."""
 
         # First search the contexts that were already used in this widget instance
-        best_context, best_score = self.find_context(widget.context_settings, args, move_up=True)
+        best_context, best_score = self.find_context(
+            widget.context_settings, args, move_up=True)
         # If the exact data was used, reuse the context
         if best_score == self.PERFECT_MATCH:
             return best_context, False
 
         # Otherwise check if a better match is available in global_contexts
-        best_context, best_score = self.find_context(self.global_contexts, args,
-                                                     best_score, best_context)
+        best_context, best_score = self.find_context(
+            self.global_contexts, args, best_score, best_context)
         if best_context:
             context = self.clone_context(best_context, *args)
         else:
@@ -859,9 +1210,12 @@ class ContextHandler(SettingsHandler):
         self.add_context(widget.context_settings, context)
         return context, best_context is None
 
-    def find_context(self, known_contexts, args, best_score=0, best_context=None, move_up=False):
-        """Search the given list of contexts and return the context
-         which best matches the given args.
+    def find_context(self, known_contexts: List[Context], args,
+                     best_score=0, best_context: Optional[Context] = None,
+                     move_up=False) -> Tuple[Optional[Context], int]:
+        """
+        Search the given list of contexts and return the context that
+        best matches the given args.
 
         best_score and best_context can be used to provide base_values.
         """
@@ -878,16 +1232,16 @@ class ContextHandler(SettingsHandler):
         return best_context, best_score
 
     @staticmethod
-    def move_context_up(contexts, index):
+    def move_context_up(contexts: List[Context], index: int) -> None:
         """Move the context to the top of the list"""
         contexts.insert(0, contexts.pop(index))
 
-    def add_context(self, contexts, setting):
+    def add_context(self, contexts: List[Context], setting: Context):
         """Add the context to the top of the list."""
         contexts.insert(0, setting)
         del contexts[self.MAX_SAVED_CONTEXTS:]
 
-    def clone_context(self, old_context, *args):
+    def clone_context(self, old_context: Context, *args) -> Context:
         """Construct a copy of the context settings suitable for the context
         described by additional arguments. The method is called by
         find_or_create_context with the same arguments. A class that overloads
@@ -905,10 +1259,10 @@ class ContextHandler(SettingsHandler):
         return context
 
     @staticmethod
-    def filter_value(setting, data, *args):
+    def filter_value(setting: Context, data: dict, *args) -> None:
         """Remove values related to setting that are invalid given args."""
 
-    def close_context(self, widget):
+    def close_context(self, widget: "OWBaseWidget") -> None:
         """Close the context by calling :obj:`settings_from_widget` to write
         any relevant widget settings to the context."""
         if widget.current_context is None:
@@ -917,10 +1271,8 @@ class ContextHandler(SettingsHandler):
         self.settings_from_widget(widget)
         widget.current_context = None
 
-    def settings_to_widget(self, widget, *args):
-        """Apply context settings stored in currently opened context
-        to the widget.
-        """
+    def settings_to_widget(self, widget: "OWBaseWidget", *args) -> None:
+        """Apply context settings from currently opened context to the widget"""
         context = widget.current_context
         if context is None:
             return
@@ -929,12 +1281,15 @@ class ContextHandler(SettingsHandler):
 
         for setting, data, instance in \
                 self.provider.traverse_settings(data=context.values, instance=widget):
-            if not isinstance(setting, ContextSetting) or setting.name not in data:
-                continue
-            value = self.decode_setting(setting, data[setting.name], *args)
-            _apply_setting(setting, instance, value)
+            if isinstance(setting, ContextSetting) and setting.name in data:
+                value = data[setting.name]
+                if setting.type is None:
+                    value = self.decode_setting(setting, value, *args)
+                else:
+                    value = self.unpack_value(value, setting.type, *args)
+                self._apply_setting(setting, instance, value)
 
-    def settings_from_widget(self, widget, *args):
+    def settings_from_widget(self, widget: "OWBaseWidget", *args) -> None:
         """Update the current context with the setting values from the widget.
         """
 
@@ -944,43 +1299,66 @@ class ContextHandler(SettingsHandler):
 
         widget.storeSpecificSettings()
 
-        def packer(setting, instance):
-            if isinstance(setting, ContextSetting) and hasattr(instance, setting.name):
-                value = getattr(instance, setting.name)
-                yield setting.name, self.encode_setting(context, setting, value)
+        def packer(setting: Setting, component: OWComponent, handler: ContextHandler):
+            if isinstance(setting, ContextSetting) \
+                    and hasattr(component, setting.name):
+                value = getattr(component, setting.name)
+                if setting.type is None \
+                        or not handler.is_allowed_type(setting.type) \
+                        or handler.check_warn_type(value, setting, component):
+                    # old-style, untyped enconding
+                    value = self.encode_setting(context, setting, value)
+                else:
+                    value = self.pack_value(value, setting.type)
+                yield setting.name, value
 
         context.values = self.provider.pack(widget, packer=packer)
 
-    def fast_save(self, widget, name, value):
-        """Update value of `name` setting in the current context to `value`
-        """
-        setting = self.known_settings.get(name)
-        if isinstance(setting, ContextSetting):
-            context = widget.current_context
-            if setting.schema_only or context is None:
-                return
-
-            value = self.encode_setting(context, setting, value)
-            self.update_packed_data(context.values, name, value)
-        else:
-            super().fast_save(widget, name, value)
-
     @staticmethod
-    def update_packed_data(data, name, value):
+    def update_packed_data(data: dict, name: str, value) -> None:
         """Updates setting value stored in data dict"""
-
         *prefixes, name = name.split('.')
         for prefix in prefixes:
             data = data.setdefault(prefix, {})
         data[name] = value
 
-    def encode_setting(self, context, setting, value):
+    def encode_setting(self,
+                       context: Context, setting: Setting, value: _T) -> _T:
         """Encode value to be stored in settings dict"""
         return copy.copy(value)
 
-    def decode_setting(self, setting, value, *args):
+    def decode_setting(self, setting: Setting, value, *args):
         """Decode settings value from the setting dict format"""
         return value
+
+    @classmethod
+    def pack_context(cls, context: Context):
+        ctx_dict = context.__dict__.copy()
+        annotations = getattr(cls.ContextType, "__annotations__", {})
+        for name, tp in annotations.items():
+            if name not in ctx_dict:
+                warnings.warn(f"{_cname(cls.ContextType)}.{name} is not set.")
+                continue
+            value = ctx_dict[name]
+            if cls.check_warn_pure_type(value, tp, f"{_cname(context)}.{name}"):
+                continue
+            ctx_dict[name] = cls.pack_value(value, tp)
+        for name in ctx_dict:
+            if name not in "values" and name not in annotations:
+                warnings.warn(
+                    f"{_cname(cls.ContextType)}.{name} must be annotated")
+        return ctx_dict
+
+    @classmethod
+    def unpack_context(cls, context: Union[dict, Context]):
+        if isinstance(context, Context):
+            return context
+
+        annotations = getattr(cls.ContextType, "__annotations__", {})
+        for name, type_ in annotations.items():
+            if name in context and cls.is_allowed_type(type_):
+                context[name] = cls.unpack_value(context[name], type_)
+        return Context(**context)
 
 
 class IncompatibleContext(Exception):
@@ -1011,7 +1389,8 @@ class SettingsPrinter(pprint.PrettyPrinter):
         stream.write(")")
 
 
-def rename_setting(settings, old_name, new_name):
+def rename_setting(settings: Union[Context, dict],
+                   old_name: str, new_name: str) -> None:
     """
     Rename setting from `old_name` to `new_name`. Used in migrations.
 
@@ -1021,3 +1400,6 @@ def rename_setting(settings, old_name, new_name):
         rename_setting(settings.values, old_name, new_name)
     else:
         settings[new_name] = settings.pop(old_name)
+
+
+_apply_setting = SettingsHandler._apply_setting  # backward compatibility

@@ -133,20 +133,20 @@ class SettingHandlerTestCase(WidgetTest):
 
         # No data
         handler.initialize(widget)
-        provider.initialize.assert_called_once_with(widget, {'default': 42,
-                                                             'setting': 1})
+        provider.initialize.assert_called_once_with(
+            widget, {'default': 42, 'setting': 1}, handler)
 
         # Dictionary data
         reset_provider()
         handler.initialize(widget, {'setting': 5})
-        provider.initialize.assert_called_once_with(widget, {'default': 42,
-                                                             'setting': 5})
+        provider.initialize.assert_called_once_with(
+            widget, {'default': 42, 'setting': 5}, handler)
 
         # Pickled data
         reset_provider()
         handler.initialize(widget, pickle.dumps({'setting': 5}))
-        provider.initialize.assert_called_once_with(widget, {'default': 42,
-                                                             'setting': 5})
+        provider.initialize.assert_called_once_with(
+            widget, {'default': 42, 'setting': 5}, handler)
 
     def test_initialize_component(self):
         handler = SettingsHandler()
@@ -159,17 +159,19 @@ class SettingHandlerTestCase(WidgetTest):
 
         # No data
         handler.initialize(widget)
-        provider.initialize.assert_called_once_with(widget, None)
+        provider.initialize.assert_called_once_with(widget, None, handler)
 
         # Dictionary data
         provider.reset_mock()
         handler.initialize(widget, {'setting': 5})
-        provider.initialize.assert_called_once_with(widget, {'setting': 5})
+        provider.initialize.assert_called_once_with(
+            widget, {'setting': 5}, handler)
 
         # Pickled data
         provider.reset_mock()
         handler.initialize(widget, pickle.dumps({'setting': 5}))
-        provider.initialize.assert_called_once_with(widget, {'setting': 5})
+        provider.initialize.assert_called_once_with(
+            widget, {'setting': 5}, handler)
 
     def test_schema_only_settings(self):
         handler = SettingsHandler()

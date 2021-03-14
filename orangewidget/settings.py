@@ -304,10 +304,7 @@ class SettingProvider:
                 value.name = name
                 self.providers[name] = value
 
-    def initialize(self,
-                   component: OWComponent,
-                   data: Optional[dict] = None,
-                   handler: Optional["SettingsHandler"] = None) \
+    def initialize(self, component: OWComponent, data: Optional[dict] = None) \
             -> None:
         """
         Initialize instance settings to given data or to defaults.
@@ -318,24 +315,14 @@ class SettingProvider:
         Args:
             component (OWComponent): widget or component to initialize
             data (dict or None): data used to override the defaults
-            handler (SettingsHandler): settings handler; may be omitted if
-                component is a widget or if there is neither data nor
-                self.initialization_data.
         """
-        if handler is None and hasattr(component, "settingsHandler"):
-            handler = component.settingsHandler
-
         if data is None:
             data = self.initialization_data
 
         for name, setting in self.settings.items():
-            if data is not None and name in data:
-                assert handler is not None
-                value = handler.unpack_value(data[name], setting.type)
-            else:
-                value = setting.default
-                if not isinstance(value, _IMMUTABLES):
-                    value = copy.copy(value)
+            value = data.get(name, setting.default)
+            if not isinstance(value, _IMMUTABLES):
+                value = copy.copy(value)
             setattr(component, name, value)
 
         for name, provider in self.providers.items():
@@ -346,7 +333,7 @@ class SettingProvider:
             if member is None or isinstance(member, SettingProvider):
                 provider.store_initialization_data(data[name])
             else:
-                provider.initialize(member, data[name], handler)
+                provider.initialize(member, data[name])
 
     def reset_to_original(self, instance):
         self.initialize(instance)
@@ -667,7 +654,7 @@ class SettingsHandler:
         if provider is self.provider:
             data = self._add_defaults(data)
 
-        provider.initialize(component, data, self)
+        provider.initialize(component, data)
 
     def reset_to_original(self, widget: "OWBaseWidget") -> None:
         provider = self._select_provider(widget)

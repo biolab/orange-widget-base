@@ -133,20 +133,20 @@ class SettingHandlerTestCase(WidgetTest):
 
         # No data
         handler.initialize(widget)
-        provider.initialize.assert_called_once_with(
-            widget, {'default': 42, 'setting': 1}, handler)
+        provider.initialize.assert_called_once_with(widget, {'default': 42,
+                                                             'setting': 1})
 
         # Dictionary data
         reset_provider()
         handler.initialize(widget, {'setting': 5})
-        provider.initialize.assert_called_once_with(
-            widget, {'default': 42, 'setting': 5}, handler)
+        provider.initialize.assert_called_once_with(widget, {'default': 42,
+                                                             'setting': 5})
 
         # Pickled data
         reset_provider()
         handler.initialize(widget, pickle.dumps({'setting': 5}))
-        provider.initialize.assert_called_once_with(
-            widget, {'default': 42, 'setting': 5}, handler)
+        provider.initialize.assert_called_once_with(widget, {'default': 42,
+                                                             'setting': 5})
 
     def test_initialize_component(self):
         handler = SettingsHandler()
@@ -159,19 +159,17 @@ class SettingHandlerTestCase(WidgetTest):
 
         # No data
         handler.initialize(widget)
-        provider.initialize.assert_called_once_with(widget, None, handler)
+        provider.initialize.assert_called_once_with(widget, None)
 
         # Dictionary data
         provider.reset_mock()
         handler.initialize(widget, {'setting': 5})
-        provider.initialize.assert_called_once_with(
-            widget, {'setting': 5}, handler)
+        provider.initialize.assert_called_once_with(widget, {'setting': 5})
 
         # Pickled data
         provider.reset_mock()
         handler.initialize(widget, pickle.dumps({'setting': 5}))
-        provider.initialize.assert_called_once_with(
-            widget, {'setting': 5}, handler)
+        provider.initialize.assert_called_once_with(widget, {'setting': 5})
 
     def test_schema_only_settings(self):
         handler = SettingsHandler()

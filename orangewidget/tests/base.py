@@ -322,7 +322,7 @@ class WidgetTest(GuiTest):
     def reset_default_settings(widget):
         """Reset default setting values for widget
 
-        Discards settings read from disk
+        Discards settings read from disk and changes stored by fast_save
 
         Parameters
         ----------

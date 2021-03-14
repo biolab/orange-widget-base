@@ -1,12 +1,5 @@
 import unittest
-import warnings
-from typing import Dict, List, Set
-from unittest.mock import Mock
-
-from orangewidget.settings import Setting, SettingProvider, _apply_setting
-from orangewidget.tests.base import WidgetTest
-from orangewidget.tests.utils import remove_base_settings
-from orangewidget.widget import OWBaseWidget, OWComponent
+from orangewidget.settings import Setting, SettingProvider
 
 SHOW_ZOOM_TOOLBAR = "show_zoom_toolbar"
 SHOW_GRAPH = "show_graph"
@@ -21,10 +14,10 @@ A_SET = "a_set"
 A_DICT = "a_dict"
 
 
-class SettingProviderTestCase(WidgetTest):
+class SettingProviderTestCase(unittest.TestCase):
     def setUp(self):
         global default_provider
-        default_provider = Widget.settingsHandler.provider
+        default_provider = SettingProvider(Widget)
 
     def tearDown(self):
         default_provider.settings[SHOW_GRAPH].default = True
@@ -88,7 +81,7 @@ class SettingProviderTestCase(WidgetTest):
         })
 
         self.assertFalse(hasattr(widget.graph, SHOW_Y_AXIS))
-        widget.graph = Graph(widget)
+        widget.graph = Graph()
         self.assertEqual(widget.graph.show_y_axis, False)
 
     def test_get_provider(self):
@@ -110,7 +103,6 @@ class SettingProviderTestCase(WidgetTest):
         widget.graph.show_y_axis = False
 
         packed_settings = default_provider.pack(widget)
-        remove_base_settings(packed_settings)
 
         self.assertEqual(packed_settings, {
             SHOW_GRAPH: False,
@@ -120,7 +112,7 @@ class SettingProviderTestCase(WidgetTest):
                 SHOW_X_AXIS: True,
                 SHOW_Y_AXIS: False,
                 A_LIST: [],
-                A_SET: [1, 2, 3],
+                A_SET: {1, 2, 3},
                 A_DICT: {1: 2, 3: 4}
             },
             ZOOM_TOOLBAR: {
@@ -165,13 +157,12 @@ class SettingProviderTestCase(WidgetTest):
         self.assertEqual(a_dict, {6: 7})
 
     def test_traverse_settings_works_without_instance_or_data(self):
-        settings = {}
+        settings = set()
 
         for setting, data, _ in default_provider.traverse_settings():
-            settings[setting.name] = None
-        remove_base_settings(settings)
+            settings.add(setting.name)
 
-        self.assertEqual(set(settings), {
+        self.assertEqual(settings, {
             SHOW_ZOOM_TOOLBAR, SHOW_GRAPH,
             SHOW_LABELS, SHOW_X_AXIS, SHOW_Y_AXIS, A_LIST, A_SET, A_DICT,
             ALLOW_ZOOMING})
@@ -188,8 +179,6 @@ class SettingProviderTestCase(WidgetTest):
 
         for setting, data, _ in default_provider.traverse_settings(all_data):
             settings[setting.name] = data
-        settings.pop("savedWidgetGeometry")
-        settings.pop("controlAreaVisible")
 
         self.assertEqual(
             settings,
@@ -213,7 +202,6 @@ class SettingProviderTestCase(WidgetTest):
 
         for setting, data, _ in default_provider.traverse_settings(all_data):
             settings[setting.name] = data
-        remove_base_settings(settings)
 
         self.assertEqual(
             settings,
@@ -237,7 +225,6 @@ class SettingProviderTestCase(WidgetTest):
         for setting, _, instance in \
                 default_provider.traverse_settings(instance=widget):
             settings[setting.name] = instance
-        remove_base_settings(settings)
 
         self.assertEqual(
             {
@@ -262,7 +249,6 @@ class SettingProviderTestCase(WidgetTest):
         for setting, _, instance in \
                 default_provider.traverse_settings(instance=widget):
             settings[setting.name] = instance
-        remove_base_settings(settings)
 
         self.assertEqual(
             settings,
@@ -288,49 +274,33 @@ class SettingProviderTestCase(WidgetTest):
                 self.assertEqual(provider.settings[name].default, value)
 
 
-class TestUtils(unittest.TestCase):
-    def test_apply_settings_type_warnings(self):
-        inst = Mock()
-
-        # Warn about wrong type, but set it, don't interfere
-        with self.assertWarns(UserWarning):
-            _apply_setting(Setting(2, name="a"), inst, 5.4)
-        self.assertEqual(inst.a, 5.4)
-
-        # Warn about non-nullable set to None, but don't interfere
-        with self.assertWarns(UserWarning):
-            _apply_setting(Setting(2, name="b"), inst, None)
-            self.assertIsNone(inst.b)
-
-        with warnings.catch_warnings() as w:
-            warnings.simplefilter("always")
-
-            _apply_setting(Setting(2, name="b", nullable=True), inst, None)
-            self.assertIsNone(inst.b)
-            self.assertFalse(w)
-
-
 def initialize_settings(instance):
     """This is usually done in Widget's new,
     but we avoid all that complications for tests."""
     provider = default_provider.get_provider(instance.__class__)
     if provider:
         provider.initialize(instance)
-
 default_provider = None
 """:type: SettingProvider"""
 
 
-class BaseGraph(OWComponent):
+class BaseGraph:
     show_labels = Setting(True)
+
+    def __init__(self):
+        initialize_settings(self)
 
 
 class Graph(BaseGraph):
     show_x_axis = Setting(True)
     show_y_axis = Setting(True)
-    a_list: List[int] = Setting([])
-    a_set: Set[int] = Setting({1, 2, 3})
-    a_dict: Dict[int, int] = Setting({1: 2, 3: 4})
+    a_list = Setting([])
+    a_set = Setting({1, 2, 3})
+    a_dict = Setting({1: 2, 3: 4})
+
+    def __init__(self):
+        super().__init__()
+        initialize_settings(self)
 
 
 class ExtendedGraph(Graph):
@@ -344,19 +314,19 @@ class ZoomToolbar:
         initialize_settings(self)
 
 
-class BaseWidget(OWBaseWidget, openclass=True):
+class BaseWidget:
+    settingsHandler = None
+
     show_graph = Setting(True)
 
     graph = SettingProvider(Graph)
 
     def __init__(self):
-        super().__init__()
-        self.graph = Graph(self)
+        initialize_settings(self)
+        self.graph = Graph()
 
 
 class Widget(BaseWidget):
-    name = "foo"
-
     show_zoom_toolbar = Setting(True)
 
     zoom_toolbar = SettingProvider(ZoomToolbar)

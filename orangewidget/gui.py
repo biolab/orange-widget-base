@@ -594,7 +594,8 @@ class SpinBoxMixin:
             self.cfunc()
 
     def eventFilter(self, obj, event):
-        if not (isinstance(obj, SpinBoxMixin) or isinstance(obj, QLineEdit)):
+        if not self.isEnabled() or \
+                not (isinstance(obj, SpinBoxMixin) or isinstance(obj, QLineEdit)):
             return super().eventFilter(obj, event)
 
         cursor = Qt.SizeVerCursor if self.verticalDirection else Qt.SizeHorCursor

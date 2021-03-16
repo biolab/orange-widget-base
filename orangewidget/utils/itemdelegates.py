@@ -11,7 +11,7 @@ import numpy as np
 
 from AnyQt.QtCore import (
     Qt, QObject, QAbstractItemModel, QModelIndex, QPersistentModelIndex, Slot,
-    QLocale, QRect, QPointF,
+    QLocale, QRect, QPointF, QSize, QLineF,
 )
 from AnyQt.QtGui import (
     QFont, QFontMetrics, QPalette, QColor, QBrush, QIcon, QPixmap, QImage,
@@ -488,3 +488,108 @@ class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
             pen = QPen(palette.color(cgroup, role))
             self.__pen_lru_cache[key] = pen
             return pen
+
+
+class BarItemDataDelegate(DataDelegate):
+    """
+    An delegate drawing a horizontal bar below its text.
+
+    Can be used to visualise numerical column distribution.
+
+    Parameters
+    ----------
+    parent: Optional[QObject]
+        Parent object
+    color: QColor
+        The default color for the bar. If not set then the palette's
+        foreground role is used.
+    penWidth: int
+        The bar pen width.
+    barFillRatioRole: int
+        The item model role used to query the bar fill ratio (see
+        :method:`barFillRatioData`)
+    barColorRole: int
+        The item model role used to query the bar color.
+    """
+    __slots__ = (
+        "color", "penWidth", "barFillRatioRole", "barColorRole",
+    )
+
+    def __init__(
+            self, parent: Optional[QObject] = None, color=QColor(), penWidth=5,
+            barFillRatioRole=Qt.UserRole + 1, barColorRole=Qt.UserRole + 2,
+            **kwargs
+    ):
+        super().__init__(parent, **kwargs)
+        self.color = color
+        self.penWidth = penWidth
+        self.barFillRatioRole = barFillRatioRole
+        self.barColorRole = barColorRole
+
+    def barFillRatioData(self, index: QModelIndex) -> Optional[float]:
+        """
+        Return a number between 0.0 and 1.0 indicating the bar fill ratio.
+
+        The default implementation queries the model for `barFillRatioRole`
+        """
+        return cast_(float, self.cachedData(index, self.barFillRatioRole))
+
+    def barColorData(self, index: QModelIndex) -> Optional[QColor]:
+        """
+        Return the color for the bar.
+
+        The default implementation queries the model for `barColorRole`
+        """
+        return cast_(QColor, self.cachedData(index, self.barColorRole))
+
+    def sizeHint(
+            self, option: QStyleOptionViewItem, index: QModelIndex
+    ) -> QSize:
+        sh = super().sizeHint(option, index)
+        pw, vmargin = self.penWidth, 1
+        sh.setHeight(sh.height() + pw + vmargin)
+        return sh
+
+    def paint(
+            self, painter: QPainter, option: QStyleOptionViewItem,
+            index: QModelIndex
+    ) -> None:
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        widget = option.widget
+        style = QApplication.style() if widget is None else widget.style()
+        self.__style = style
+        text = opt.text
+        opt.text = ""
+        style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
+
+        textrect = style.subElementRect(
+            QStyle.SE_ItemViewItemText, opt, widget)
+
+        ratio = self.barFillRatioData(index)
+        if ratio is not None and 0. <= ratio <= 1.:
+            color = self.barColorData(index)
+            if color is None:
+                color = self.color
+            if not color.isValid():
+                color = opt.palette.color(QPalette.Foreground)
+            rect = option.rect
+            pw = self.penWidth
+            hmargin = 3 + pw / 2  # + half pen width for the round line cap
+            vmargin = 1
+            textoffset = pw + vmargin * 2
+            baseline = rect.bottom() - textoffset / 2
+            width = (rect.width() - 2 * hmargin) * ratio
+            painter.save()
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setPen(QPen(color, pw, Qt.SolidLine, Qt.RoundCap))
+            line = QLineF(
+                 rect.left() + hmargin, baseline,
+                 rect.left() + hmargin + width, baseline
+            )
+            painter.drawLine(line)
+            painter.restore()
+            textrect.adjust(0, 0, 0, -textoffset)
+
+        opt.text = text
+        self.drawViewItemText(style, painter, opt, textrect)

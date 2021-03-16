@@ -11,7 +11,8 @@ from AnyQt.QtWidgets import QStyleOptionViewItem, QTableView
 from orangecanvas.gui.svgiconengine import SvgIconEngine
 from orangewidget.tests.base import GuiTest
 from orangewidget.utils.itemdelegates import ModelItemCache, \
-    CachedDataItemDelegate, StyledItemDelegate, DataDelegate
+    CachedDataItemDelegate, StyledItemDelegate, DataDelegate, \
+    BarItemDataDelegate
 
 
 def create_model(rows, columns):
@@ -179,3 +180,51 @@ class TestDataDelegate(GuiTest):
                          Qt.TextAlignmentRole: Qt.AlignHCenter | Qt.AlignVCenter})
         paint_with_data({Qt.DisplayRole: "AA",
                          Qt.TextAlignmentRole: Qt.AlignRight | Qt.AlignBottom})
+
+
+class TestBarItemDataDelegate(GuiTest):
+    def setUp(self) -> None:
+        super().setUp()
+        self.view = QTableView()
+        self.model = create_model(5, 2)
+        self.delegate = BarItemDataDelegate(self.view)
+        self.view.setItemDelegate(self.delegate)
+
+    def tearDown(self) -> None:
+        self.view.deleteLater()
+        self.view = None
+        self.model = None
+        super().tearDown()
+
+    def test_size_hint(self):
+        model = self.model
+        index = model.index(0, 0)
+        delegate = self.delegate
+        model.setData(index, 0.5, delegate.barFillRatioRole)
+        sh1 = delegate.sizeHint(self.view.viewOptions(), index)
+        delegate.penWidth += 2
+        sh2 = delegate.sizeHint(self.view.viewOptions(), index)
+        self.assertGreater(sh2.height(), sh1.height())
+
+    def test_paint(self):
+        model = self.model
+        index = model.index(0, 0)
+        delegate = self.delegate
+        model.setData(index, 0.5, delegate.barFillRatioRole)
+
+        def paint_with_data(data):
+            model.setItemData(index, data)
+            opt = self.view.viewOptions()
+            opt.rect = QRect(QPoint(0, 0), delegate.sizeHint(opt, index))
+            delegate.initStyleOption(opt, index)
+            img = QImage(opt.rect.size(), QImage.Format_ARGB32_Premultiplied)
+            p = QPainter(img)
+            try:
+                delegate.paint(p, opt, index)
+            finally:
+                p.end()
+
+        paint_with_data({delegate.barFillRatioRole: 0.2,
+                         delegate.barColorRole: QColor(Qt.magenta)})
+        paint_with_data({delegate.barFillRatioRole: None,
+                         delegate.barColorRole: None})

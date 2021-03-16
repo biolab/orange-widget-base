@@ -513,6 +513,7 @@ class BarItemDataDelegate(DataDelegate):
     """
     __slots__ = (
         "color", "penWidth", "barFillRatioRole", "barColorRole",
+        "__line", "__pen"
     )
 
     def __init__(
@@ -525,6 +526,9 @@ class BarItemDataDelegate(DataDelegate):
         self.penWidth = penWidth
         self.barFillRatioRole = barFillRatioRole
         self.barColorRole = barColorRole
+        # Line and pen instances reused
+        self.__line = QLineF()
+        self.__pen = QPen(color, penWidth, Qt.SolidLine, Qt.RoundCap)
 
     def barFillRatioData(self, index: QModelIndex) -> Optional[float]:
         """
@@ -582,11 +586,13 @@ class BarItemDataDelegate(DataDelegate):
             width = (rect.width() - 2 * hmargin) * ratio
             painter.save()
             painter.setRenderHint(QPainter.Antialiasing)
-            painter.setPen(QPen(color, pw, Qt.SolidLine, Qt.RoundCap))
-            line = QLineF(
-                 rect.left() + hmargin, baseline,
-                 rect.left() + hmargin + width, baseline
-            )
+            pen = self.__pen
+            pen.setColor(color)
+            pen.setWidth(pw)
+            painter.setPen(pen)
+            line = self.__line
+            left = rect.left() + hmargin
+            line.setLine(left, baseline, left + width, baseline)
             painter.drawLine(line)
             painter.restore()
             textrect.adjust(0, 0, 0, -textoffset)

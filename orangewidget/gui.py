@@ -185,8 +185,8 @@ class OWComponent:
                     callback(value)
 
 
-def miscellanea(control, box, parent,
-                addToLayout=True, stretch=0, sizePolicy=None, addSpace=None,
+def miscellanea(control, box, parent, *,
+                addToLayout=True, stretch=0, sizePolicy=None,
                 disabled=False, tooltip=None, disabledBy=None,
                 addSpaceBefore=False, **kwargs):
     """
@@ -221,8 +221,8 @@ def miscellanea(control, box, parent,
     :param parent: the parent into whose layout the box or the control will be
         inserted
     :type parent: QWidget
-    :param addSpace: the amount of space to add after the widget
-    :type addSpace: bool or int
+    :param addSpaceBefore: the amount of space to add before the widget
+    :type addSpaceBefore: bool or int
     :param disabled: If set to `True`, the widget is initially disabled
     :type disabled: bool
     :param addToLayout: If set to `False` the widget is not added to the layout
@@ -237,9 +237,10 @@ def miscellanea(control, box, parent,
     :param sizePolicy: the size policy for the box or the control
     :type sizePolicy: QSizePolicy
     """
-    if addSpace is not None:
+    if 'addSpace' in kwargs:
         warnings.warn("'addSpace' has been deprecated. Use gui.separator instead.",
                       DeprecationWarning, stacklevel=3)
+        kwargs.pop('addSpace')
     for prop, val in kwargs.items():
         method = getattr(control, "set" + prop[0].upper() + prop[1:])
         if isinstance(val, tuple):

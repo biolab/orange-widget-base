@@ -185,7 +185,7 @@ class OWComponent:
                     callback(value)
 
 
-def miscellanea(control, box, parent,
+def miscellanea(control, box, parent, *,
                 addToLayout=True, stretch=0, sizePolicy=None,
                 disabled=False, tooltip=None, disabledBy=None,
                 addSpaceBefore=False, **kwargs):

@@ -159,6 +159,19 @@ _QStyleOptionViewItem_HasCheckIndicator = int(QStyleOptionViewItem.HasCheckIndic
 _QStyleOptionViewItem_HasDecoration = int(QStyleOptionViewItem.HasDecoration)
 
 
+class _AlignmentFlagsCache(dict):
+    # A cached int -> Qt.Alignment cache. Used to avoid temporary Qt.Alignment
+    # flags object (de)allocation.
+    def __missing__(self, key: int) -> Qt.Alignment:
+        a = Qt.Alignment(key)
+        self.setdefault(key, a)
+        return a
+
+
+_AlignmentCache: Mapping[int, Qt.Alignment] = _AlignmentFlagsCache()
+_AlignmentMask = int(Qt.AlignHorizontal_Mask | Qt.AlignVertical_Mask)
+
+
 def init_style_option(
         delegate: QStyledItemDelegate,
         option: QStyleOptionViewItem,
@@ -203,7 +216,8 @@ def init_style_option(
         value = data.get(Qt.TextAlignmentRole)
         alignment = cast_(int, value)
         if alignment is not None:
-            option.displayAlignment = Qt.Alignment(alignment)
+            alignment = alignment & _AlignmentMask
+            option.displayAlignment = _AlignmentCache[alignment]
     if Qt.CheckStateRole in roles:
         state = data.get(Qt.CheckStateRole)
         if state is not None:

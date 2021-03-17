@@ -94,6 +94,7 @@ class WidgetTestCase(WidgetTest):
         w = TestWidget2()
         w.showEvent(QShowEvent())
         QTest.mousePress(w, Qt.LeftButton, Qt.NoModifier, QPoint(1, 1))
+        _ = w.sizeHint()
 
     def test_store_restore_layout_geom(self):
         class Widget(OWBaseWidget):

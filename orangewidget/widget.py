@@ -973,7 +973,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             self.savedWidgetGeometry = bytes(self.saveGeometry())
 
     def sizeHint(self):
-        if self.mainArea_width_height_ratio is None:
+        if not self.want_basic_layout \
+                or self.mainArea_width_height_ratio is None:
             return super().sizeHint()
 
         # Super sizeHint with scroll_area isn't calculated right (slightly too small on macOS)

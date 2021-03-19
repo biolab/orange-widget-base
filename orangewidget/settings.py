@@ -187,16 +187,20 @@ def _apply_setting(setting: Setting, instance: OWComponent, value: Any):
     If old and new values are of the same type, and the type is either a list
     or has methods `clear` and `update`, setting is updated in place. Otherwise
     the function calls `setattr`.
+
+    Even if the target is update this way, call setattr (effectively calling
+    instance.target = instance.target) to trigger any automatic updates related
+    to this attribute).
     """
     target = getattr(instance, setting.name, None)
     if type(target) is type(value):
         if isinstance(value, list):
             target[:] = value
-            return
+            value = target
         elif hasattr(value, "clear") and hasattr(value, "update"):
             target.clear()
             target.update(value)
-            return
+            value = target
     setattr(instance, setting.name, value)
 
 

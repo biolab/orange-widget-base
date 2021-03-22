@@ -242,15 +242,33 @@ class MultiInput(Input):
         self.filter_none = filter_none
         self.closing_sentinel = Closed
 
+    def __call__(self, method):
+        def summarize_wrapper(widget, index, value):
+            widget.set_partial_input_summary(
+                self.name, summarize(value), id=index)
+            method(widget, index, value)
+        _ = super().__call__(method)
+        return summarize_wrapper if self.auto_summary else method
+
     def insert(self, method):
         """Register the method as the insert handler"""
+        def summarize_wrapper(widget, index, value):
+            self._insert_summary_slot(widget, index)
+            widget.set_partial_input_summary(
+                self.name, summarize(value), id=index)
+            method(widget, index, value)
         self.insert_handler = method.__name__
-        return method
+        return summarize_wrapper if self.auto_summary else method
 
     def remove(self, method):
         """"Register the method as the remove handler"""
+        def summarize_wrapper(widget, index):
+            self._remove_summary_slot(widget, index)
+            widget.set_partial_input_summary(
+                self.name, summarize(None), id=id)
+            method(widget, index)
         self.remove_handler = method.__name__
-        return method
+        return summarize_wrapper if self.auto_summary else method
 
     def bound_signal(self, widget):
         if self.insert_handler is None:
@@ -258,6 +276,20 @@ class MultiInput(Input):
         if self.remove_handler is None:
             raise RuntimeError('remove_handler is not set')
         return super().bound_signal(widget)
+
+    def _insert_summary_slot(self, widget, index):
+        summaries = widget.input_summaries[self.name]
+        values = list(summaries.values())
+        values.insert(index, None)
+        summaries = {i: v for i, v in enumerate(values)}  # renumerate
+        widget.input_summaries[self.name] = summaries
+
+    def _remove_summary_slot(self, widget, index):
+        summaries = widget.input_summaries[self.name]
+        values = list(summaries.values())
+        del values[index]
+        summaries = {i: v for i, v in enumerate(values)}  # renumerate
+        widget.input_summaries[self.name] = summaries
 
 
 _not_set = object()

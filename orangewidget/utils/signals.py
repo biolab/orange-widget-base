@@ -3,7 +3,10 @@ import itertools
 import warnings
 from functools import singledispatch
 import inspect
-from typing import NamedTuple, Union, Optional
+from typing import (
+    NamedTuple, Union, Optional, Iterable, Dict, Tuple, Any, Sequence,
+    Callable
+)
 
 from AnyQt.QtCore import Qt
 
@@ -66,6 +69,15 @@ def can_summarize(type_, name):
                 + instr, UserWarning)
             return False
     return True
+
+
+Closed = type(
+    "Closed", (object,), {
+        "__doc__": "Explicit connection closing sentinel.",
+        "__repr__": lambda self: "Closed",
+        "__str__": lambda self: "Closed",
+    }
+)()
 
 
 class _Signal:
@@ -143,13 +155,16 @@ class Input(InputSignal, _Signal):
         if changed to `False` (default is `True`) the signal is excluded from
         auto summary
     """
+    Closed = Closed
+
     def __init__(self, name, type, id=None, doc=None, replaces=None, *,
                  multiple=False, default=False, explicit=False,
-                 auto_summary=True):
+                 auto_summary=True, closing_sentinel=None):
         flags = self.get_flags(multiple, default, explicit, False)
         super().__init__(name, type, "", flags, id, doc, replaces or [])
         self.auto_summary = auto_summary and can_summarize(type, name)
         self._seq_id = next(_counter)
+        self.closing_sentinel = closing_sentinel
 
     def __call__(self, method):
         """
@@ -176,6 +191,119 @@ class Input(InputSignal, _Signal):
                              format(self.name, self.handler))
         self.handler = method.__name__
         return summarize_wrapper if self.auto_summary else method
+
+
+class MultiInput(Input):
+    """
+    A special multiple input descriptor.
+
+    This type of input has explicit set/insert/remove interface to maintain
+    fully ordered sequence input. This should be preferred to the
+    plain `Input(..., multiple=True)` descriptor.
+
+    This input type must register three methods in the widget implementation
+    class corresponding to the insert, set/update and remove input commands::
+
+        class Inputs:
+            values = MultiInput("Values", object)
+        ...
+        @Inputs.values
+        def set_value(self, index: int, value: object):
+            "Set/update the value at index"
+            ...
+        @Inputs.values.insert
+        def insert_value(self, index: int, value: object):
+            "Insert value at specified index"
+            ...
+        @Inputs.values.remove
+        def remove_value(self, index: int):
+            "Remove value at index"
+            ...
+
+    Parameters
+    ----------
+    filter_none: bool
+        If `True` any `None` values sent by workflow execution
+        are implicitly converted to 'remove' notifications. When the value
+        again changes to non-None the input is re-inserted into its proper
+        position.
+
+
+    .. versionadded:: 4.13.0
+    """
+    insert_handler: str = None
+    remove_handler: str = None
+
+    def __init__(self, *args, filter_none=False, **kwargs):
+        multiple = kwargs.pop("multiple", True)
+        if not multiple:
+            raise ValueError("multiple cannot be set to False")
+        super().__init__(*args, multiple=True, **kwargs)
+        self.filter_none = filter_none
+        self.closing_sentinel = Closed
+
+    def __call__(self, method):
+        def summarize_wrapper(widget, index, value):
+            widget.set_partial_input_summary(
+                self.name, summarize(value), id=index)
+            method(widget, index, value)
+        _ = super().__call__(method)
+        return summarize_wrapper if self.auto_summary else method
+
+    def insert(self, method):
+        """Register the method as the insert handler"""
+        def summarize_wrapper(widget, index, value):
+            self._insert_summary_slot(widget, index)
+            widget.set_partial_input_summary(
+                self.name, summarize(value), id=index)
+            method(widget, index, value)
+        self.insert_handler = method.__name__
+        return summarize_wrapper if self.auto_summary else method
+
+    def remove(self, method):
+        """"Register the method as the remove handler"""
+        def summarize_wrapper(widget, index):
+            self._remove_summary_slot(widget, index)
+            widget.set_partial_input_summary(
+                self.name, summarize(None), id=id)
+            method(widget, index)
+        self.remove_handler = method.__name__
+        return summarize_wrapper if self.auto_summary else method
+
+    def bound_signal(self, widget):
+        if self.insert_handler is None:
+            raise RuntimeError('insert_handler is not set')
+        if self.remove_handler is None:
+            raise RuntimeError('remove_handler is not set')
+        return super().bound_signal(widget)
+
+    def _insert_summary_slot(self, widget, index):
+        summaries = widget.input_summaries[self.name]
+        values = list(summaries.values())
+        values.insert(index, None)
+        summaries = {i: v for i, v in enumerate(values)}  # renumerate
+        widget.input_summaries[self.name] = summaries
+
+    def _remove_summary_slot(self, widget, index):
+        summaries = widget.input_summaries[self.name]
+        values = list(summaries.values())
+        del values[index]
+        summaries = {i: v for i, v in enumerate(values)}  # renumerate
+        widget.input_summaries[self.name] = summaries
+
+
+_not_set = object()
+
+
+def _parse_call_id_arg(id=_not_set):
+    if id is _not_set:
+        return None
+    else:
+        warnings.warn(
+            "`id` parameter is deprecated and will be removed in the "
+            "future", FutureWarning, stacklevel=3,
+        )
+        return id
 
 
 class Output(OutputSignal, _Signal):
@@ -229,12 +357,17 @@ class Output(OutputSignal, _Signal):
         self.widget = None
         self._seq_id = next(_counter)
 
-    def send(self, value, id=None):
+    def send(self, value, *args, **kwargs):
         """Emit the signal through signal manager."""
         assert self.widget is not None
+        id = _parse_call_id_arg(*args, **kwargs)
         signal_manager = self.widget.signalManager
         if signal_manager is not None:
-            signal_manager.send(self.widget, self.name, value, id)
+            if id is not None:
+                extra_args = (id,)
+            else:
+                extra_args = ()
+            signal_manager.send(self.widget, self.name, value, *extra_args)
         if self.auto_summary:
             self.widget.set_partial_output_summary(
                 self.name, summarize(value), id=id)
@@ -271,18 +404,24 @@ class WidgetSignalsMixin:
                     summaries[signal.name] = {}
             setattr(self, direction, bound_signals)
 
-    def send(self, signalName, value, id=None):
+    def send(self, signalName, value, *args, **kwargs):
         """
         Send a `value` on the `signalName` widget output.
 
         An output with `signalName` must be defined in the class ``outputs``
         list.
         """
+        id = _parse_call_id_arg(*args, **kwargs)
         if not any(s.name == signalName for s in self.outputs):
             raise ValueError('{} is not a valid output signal for widget {}'.format(
                 signalName, self.name))
+
         if self.signalManager is not None:
-            self.signalManager.send(self, signalName, value, id)
+            if id is not None:
+                extra_args = (id,)
+            else:
+                extra_args = ()
+            self.signalManager.send(self, signalName, value, *extra_args)
 
     def handleNewSignals(self):
         """
@@ -425,5 +564,158 @@ class WidgetSignalsMixin:
             setter(summary)
 
 
-class AttributeList(list):
-    """Signal type for lists of attributes (variables)"""
+def get_input_meta(widget: WidgetSignalsMixin, name: str) -> Optional[Input]:
+    """
+    Return the named input meta description from widget (if it exists).
+    """
+    def as_input(obj):
+        if isinstance(obj, Input):
+            return obj
+        elif isinstance(obj, InputSignal):
+            rval = Input(obj.name, obj.type, obj.id, obj.doc, obj.replaces,
+                         multiple=not obj.single, default=obj.default,
+                         explicit=obj.explicit)
+            rval.handler = obj.handler
+            return rval
+        elif isinstance(obj, tuple):
+            return as_input(InputSignal(*obj))
+        else:
+            raise TypeError
+
+    inputs: Iterable[Input] = map(as_input, widget.get_signals("inputs"))
+    for input_ in inputs:
+        if input_.name == name:
+            return input_
+    return None
+
+
+def get_widget_inputs(
+        widget: WidgetSignalsMixin
+) -> Dict[str, Sequence[Tuple[Any, Any]]]:
+    state: Dict[str, Sequence[Tuple[Any, Any]]]
+    state = widget.__dict__.setdefault(
+        "_WidgetSignalsMixin__input_state", {}
+    )
+    return state
+
+
+@singledispatch
+def notify_input_helper(
+        input: Input, widget: WidgetSignalsMixin, obj, key=None, index=-1
+) -> None:
+    """
+    Set the input to the `widget` in a way appropriate for the `input` type.
+    """
+    raise NotImplementedError
+
+
+@notify_input_helper.register(Input)
+def set_input_helper(
+        input: Input, widget: WidgetSignalsMixin, obj, key=None, index=-1
+):
+    handler = getattr(widget, input.handler)
+    if input.single:
+        args = (obj,)
+    else:
+        args = (obj, key)
+    handler(*args)
+
+
+@notify_input_helper.register(MultiInput)
+def set_multi_input_helper(
+        input: MultiInput, widget: WidgetSignalsMixin, obj, key=None, index=-1,
+):
+    """
+    Set/update widget's input for a `MultiInput` input to obj.
+
+    `key` must be a unique for an input slot to update.
+    `index` defines the position where a new input (key that did not
+    previously exist) is inserted. The default -1 indicates that the
+    new input should be appended to the end. An input is removed by using
+    inout.closing_sentinel as the obj.
+    """
+    inputs_ = get_widget_inputs(widget)
+    inputs = list(inputs_.setdefault(input.name, ()))
+    filter_none = input.filter_none
+
+    signal_old = None
+    key_to_pos = {key: i for i, (key, _) in enumerate(inputs)}
+    update = key in key_to_pos
+    new = key not in key_to_pos
+    remove = obj is input.closing_sentinel
+    if new:
+        if not 0 <= index < len(inputs):
+            index = len(inputs)
+    else:
+        index = key_to_pos.get(key)
+        assert index is not None
+
+    if new:
+        inputs.insert(index, (key, obj))
+    elif remove:
+        signal_old = inputs.pop(index)
+    else:
+        signal_old = inputs[index]
+        inputs[index] = (key, obj)
+
+    inputs_[input.name] = tuple(inputs)
+
+    if filter_none:
+        def filter_f(obj):
+            return obj is None
+    else:
+        filter_f = None
+
+    def local_index(
+            key: Any, inputs: Sequence[Tuple[Any, Any]],
+            filter: Optional[Callable[[Any], bool]] = None,
+    ) -> Optional[int]:
+        i = 0
+        for k, obj in inputs:
+            if key == k:
+                return i
+            elif filter is not None:
+                i += int(not filter(obj))
+            else:
+                i += 1
+        return None
+
+    if filter_none:
+        # normalize signal.value is None to Close signal.
+        filtered = filter_f(obj)
+        if new and filtered:
+            # insert in inputs only (done above)
+            return
+        elif remove:
+            if filter_f(signal_old[1]):
+                # was already removed, only remove from inputs (done above)
+                return
+        elif update and filtered:
+            if filter_f(signal_old[1]):
+                # did not change; remains filtered
+                return
+            else:
+                # remove it
+                remove = True
+                new = False
+                index = local_index(key, inputs, filter_f)
+                assert index is not None
+
+        if signal_old is not None and filter_f(signal_old[1]) and not filtered:
+            # update with non-none value, substitute as new signal
+            new = True
+            remove = False
+            index = local_index(key, inputs, filter_f)
+
+    if new:
+        handler = input.insert_handler
+        args = (index, obj)
+    elif remove:
+        handler = input.remove_handler
+        args = (index, )
+    else:
+        handler = input.handler
+        args = (index, obj)
+    assert index is not None
+    handler = getattr(widget, handler)
+    handler(*args)

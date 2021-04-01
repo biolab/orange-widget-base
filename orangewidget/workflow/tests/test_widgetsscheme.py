@@ -9,7 +9,7 @@ from AnyQt.QtCore import QTimer
 from AnyQt.QtWidgets import QAction
 from AnyQt.QtTest import QSignalSpy
 
-from orangecanvas.registry import WidgetRegistry, WidgetDescription
+from orangecanvas.registry import WidgetDescription
 from orangecanvas.scheme import SchemeNode
 from orangewidget.report.owreport import OWReport
 from orangewidget.settings import Setting
@@ -55,7 +55,38 @@ class Adder(widget.OWBaseWidget, openclass=True):
         self.Outputs.out.send(out)
 
 
-class AdderAync(Adder):
+class MakeList(widget.OWBaseWidget, openclass=True):
+    name = "List"
+
+    seq = ()
+
+    class Inputs:
+        element = widget.MultiInput("Element", object)
+
+    class Outputs:
+        out = widget.Output("List", list)
+
+    def __init__(self):
+        super().__init__()
+        self.inputs = []
+
+    @Inputs.element
+    def set_element(self, index, el):
+        self.inputs[index] = el
+
+    @Inputs.element.insert
+    def insert_element(self, index, el):
+        self.inputs.insert(index, el)
+
+    @Inputs.element.remove
+    def remove_element(self, index):
+        self.inputs.pop(index)
+
+    def handleNewSignals(self):
+        self.Outputs.out.send(list(self.inputs))
+
+
+class AdderAsync(Adder):
     def handleNewSignals(self):
         self.setBlocking(True)
         QTimer.singleShot(10, self.do_send)
@@ -73,7 +104,7 @@ class Show(widget.OWBaseWidget):
     name = "Show"
 
     class Inputs:
-        X = widget.Input("X", int)
+        X = widget.Input("X", object)
 
     x = None
 
@@ -85,13 +116,16 @@ class Show(widget.OWBaseWidget):
         print(self.x)
 
 
-def registry():
-    reg = WidgetRegistry()
-    reg.register_widget(WidgetDescription(**Number.get_widget_description()))
-    reg.register_widget(WidgetDescription(**Adder.get_widget_description()))
-    reg.register_widget(WidgetDescription(**AdderAync.get_widget_description()))
-    reg.register_widget(WidgetDescription(**Show.get_widget_description()))
-    return reg
+class OldStyleShow(widget.OWBaseWidget):
+    name = "Show"
+    inputs = [("X", object, "set_x")]
+    x = None
+
+    def set_x(self, x):
+        self.x = x
+
+    def handleNewSignals(self):
+        print(self.x)
 
 
 def widget_description(class_):
@@ -100,7 +134,6 @@ def widget_description(class_):
 
 
 def create_workflow():
-    # reg = registry()
     model = WidgetsScheme()
     w1_node = model.new_node(widget_description(Number))
     w1 = model.widget_for_node(w1_node)
@@ -129,6 +162,38 @@ def create_workflow():
         w1=w1, w2=w2, add=add, show=show,
         w1_node=w1_node, w2_node=w2_node, add_node=add_node,
         show_node=show_node
+    )
+
+
+def create_workflow_2():
+    model = WidgetsScheme()
+    w1_node = model.new_node(widget_description(Number))
+    w1 = model.widget_for_node(w1_node)
+    w2_node = model.new_node(widget_description(Number))
+    w2 = model.widget_for_node(w2_node)
+    list_node = model.new_node(widget_description(MakeList))
+    list_ = model.widget_for_node(list_node)
+    show_node = model.new_node(widget_description(Show))
+    show = model.widget_for_node(show_node)
+
+    model.new_link(w1_node, "X", list_node, "Element")
+    model.new_link(w2_node, "X", list_node, "Element")
+    model.new_link(list_node, "List", show_node, "X")
+
+    class Items(SimpleNamespace):
+        w1_node: SchemeNode
+        w2_node: SchemeNode
+        list_node: SchemeNode
+        show_node: SchemeNode
+        w1: Number
+        w2: Number
+        list_: MakeList
+        show: Show
+
+    return model, Items(
+        w1=w1, w2=w2, w1_node=w1_node, w2_node=w2_node,
+        show=show, show_node=show_node,
+        list_node=list_node, list_=list_
     )
 
 
@@ -318,3 +383,120 @@ class TestSignalManager(GuiTest):
         spy = QSignalSpy(sm.processingStarted[SchemeNode])
         assert spy.wait()
         self.assertSequenceEqual(spy, [[widgets.add_node]])
+
+    def test_multi_input(self):
+        model, widgets = create_workflow_2()
+        w1, w2 = widgets.w1, widgets.w2
+        sm = model.signal_manager
+        spy = QSignalSpy(widgets.list_node.state_changed)
+        show_link = model.find_links(
+            widgets.list_node, sink_node=widgets.show_node)[0]
+
+        def show_link_contents():
+            return next(iter(sm.link_contents(show_link).values()))
+
+        def check_inputs(expected: list):
+            if widgets.list_node.state() & SchemeNode.Pending:
+                self.assertTrue(spy.wait())
+            self.assertEqual(show_link_contents(), expected)
+
+        w1.Outputs.out.send(42)
+        w2.Outputs.out.send(-42)
+        check_inputs([42, -42])
+
+        w1.Outputs.out.send(None)
+        check_inputs([None, -42])
+
+        w1.Outputs.out.send(1)
+        check_inputs([1, -42])
+
+        link = model.find_links(widgets.w1_node, None, widgets.list_node, None)[0]
+        model.remove_link(link)
+        check_inputs([-42])
+
+        model.insert_link(0, link)
+        w1.Outputs.out.send(None)
+        check_inputs([None, -42])
+
+    @unittest.mock.patch.object(MakeList.Inputs.element, "filter_none", True)
+    def test_multi_input_filter_none(self):
+        # Test MultiInput.filter_none
+        model, widgets = create_workflow_2()
+        w1, w2, list_ = widgets.w1, widgets.w2, widgets.list_
+        spy = QSignalSpy(widgets.list_node.state_changed)
+        w1.Outputs.out.send(42)
+        w2.Outputs.out.send(None)
+
+        def check_inputs(expected: list):
+            if widgets.list_node.state() & SchemeNode.Pending:
+                self.assertTrue(spy.wait())
+            self.assertEqual(list_.inputs, expected)
+
+        w1.Outputs.out.send(None)
+        w2.Outputs.out.send(-42)
+        check_inputs([-42])
+
+        w1.Outputs.out.send(42)
+        check_inputs([42, -42])
+
+        w1.Outputs.out.send(None)
+        check_inputs([-42])
+        w2.Outputs.out.send(None)
+        check_inputs([])
+
+        w2.Outputs.out.send(2)
+        check_inputs([2])
+
+        w1.Outputs.out.send(1)
+        check_inputs([1, 2])
+
+        w2.Outputs.out.send(None)
+        check_inputs([1])
+
+        w2.Outputs.out.send(2)
+        check_inputs([1, 2])
+
+        l1= model.find_links(widgets.w1_node, None, widgets.list_node, None)[0]
+        model.remove_link(l1)
+        check_inputs([2])
+
+        model.insert_link(0, l1)
+        check_inputs([1, 2])
+
+        l2 = model.find_links(widgets.w2_node, None, widgets.list_node, None)[0]
+        model.remove_link(l2)
+        check_inputs([1])
+
+        model.insert_link(1, l2)
+        check_inputs([1, 2])
+
+        model.remove_link(l1)
+        check_inputs([2])
+
+        model.insert_link(0, l1)
+        w1.Outputs.out.send(None)
+        check_inputs([2])
+        w1.Outputs.out.send(None)
+        check_inputs([2])
+
+        model.remove_link(l1)
+        model.insert_link(0, l1)
+        check_inputs([2])
+
+        w1.Outputs.out.send(1)
+        check_inputs([1, 2])
+
+        w1.Outputs.out.send(None)
+        check_inputs([2])
+        model.remove_link(l1)
+        check_inputs([2])
+
+    def test_old_style_input(self):
+        model, widgets = create_workflow()
+        show_node = model.new_node(widget_description(OldStyleShow))
+        show = model.widget_for_node(show_node)
+        model.new_link(widgets.w1_node, "X", show_node, "X")
+        widgets.w1.Outputs.out.send(1)
+        spy = QSignalSpy(show_node.state_changed)
+        spy.wait()
+        self.assertEqual(show.x, 1)

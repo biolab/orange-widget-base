@@ -29,7 +29,7 @@ from orangewidget.utils.messages import (
     WidgetMessagesMixin, UnboundMsg, MessagesWidget
 )
 from orangewidget.utils.signals import (
-    WidgetSignalsMixin, Input, Output, AttributeList,
+    WidgetSignalsMixin, Input, Output, MultiInput,
     InputSignal, OutputSignal,
     Default, NonDefault, Single, Multiple, Dynamic, Explicit
 )  # pylint: disable=unused-import
@@ -42,8 +42,8 @@ Msg = UnboundMsg
 
 
 __all__ = [
-    "OWBaseWidget", "Input", "Output", "AttributeList", "Message", "Msg",
-    "StateInfo",
+    "OWBaseWidget", "Input", "Output", "MultiInput",
+    "Message", "Msg", "StateInfo",
 ]
 
 
@@ -254,9 +254,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     # Private Interface
     # -------------------------------------------------------------------------
 
-    # Global widget count
-    widget_id = 0
-
     # Custom widget id, kept for backward compatibility
     id = None
 
@@ -306,9 +303,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
         self.graphButton = None
         self.report_button = None
-
-        OWBaseWidget.widget_id += 1
-        self.widget_id = OWBaseWidget.widget_id
 
         captionTitle = self.name if captionTitle is None else captionTitle
 

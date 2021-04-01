@@ -23,11 +23,13 @@ import logging
 import enum
 import types
 import warnings
+from functools import singledispatch
+from itertools import count
 
 from urllib.parse import urlencode
 from weakref import finalize
 
-from typing import Optional, Dict, Any, List, overload
+from typing import Optional, Dict, Any, List, Mapping, overload
 
 from AnyQt.QtWidgets import QWidget, QAction
 from AnyQt.QtGui import QWhatsThisClickedEvent
@@ -45,10 +47,12 @@ from orangecanvas.scheme.node import UserMessage
 from orangecanvas.scheme.widgetmanager import WidgetManager as _WidgetManager
 from orangecanvas.utils import name_lookup
 from orangecanvas.resources import icon_loader
+from orangewidget.utils.signals import get_input_meta, notify_input_helper
 
-from orangewidget.widget import OWBaseWidget
+from orangewidget.widget import OWBaseWidget, Input
 from orangewidget.report.owreport import OWReport
 from orangewidget.settings import SettingsPrinter
+from orangewidget.workflow.utils import index_of, WeakKeyDefaultDict
 
 log = logging.getLogger(__name__)
 
@@ -707,8 +711,8 @@ class WidgetsSignalManager(SignalManager):
     def __init__(self, scheme, **kwargs):
         super().__init__(scheme, **kwargs)
 
-    def send(self, widget, channelname, value, signal_id):
-        # type: (OWBaseWidget, str, Any, Any) -> None
+    def send(self, widget, channelname, value, *args, **kwargs):
+        # type: (OWBaseWidget, str, Any, Any, Any, Any) -> None
         """
         send method compatible with OWBaseWidget.
         """
@@ -728,12 +732,22 @@ class WidgetsSignalManager(SignalManager):
                       channelname, node.description.name)
             return
 
-        # Expand the signal_id with the unique widget id and the
-        # channel name. This is needed for OWBaseWidget's input
-        # handlers with Multiple flag.
-        signal_id = (widget.widget_id, channelname, signal_id)
+        # parse deprecated id parameter from *args, **kwargs.
+        _not_set = object()
 
-        super().send(node, channel, value, signal_id)
+        def _parse_call_signal_id(signal_id=_not_set):
+            if signal_id is _not_set:
+                return None
+            else:
+                warnings.warn(
+                    "'signal_id' parameter is deprecated",
+                    DeprecationWarning, stacklevel=3)
+                return signal_id
+        signal_id = _parse_call_signal_id(*args, **kwargs)
+        if signal_id is not None:
+            super().send(node, channel, value, signal_id)  # type: ignore
+        else:
+            super().send(node, channel, value)
 
     @overload
     def invalidate(self, widget: OWBaseWidget, channel: str) -> None: ...
@@ -802,38 +816,108 @@ class WidgetsSignalManager(SignalManager):
         """
         Process new signals for the OWBaseWidget.
         """
-        app = QCoreApplication.instance()
-        try:
-            app.setOverrideCursor(Qt.WaitCursor)
-            for signal in signals:
-                link = signal.link
-                value = signal.value
-                handler = link.sink_channel.handler
-                if handler.startswith("self."):
-                    handler = handler.split(".", 1)[1]
+        workflow = self.workflow()
+        process_signals_for_widget(widget, signals, workflow)
 
-                handler = getattr(widget, handler)
 
-                if link.sink_channel.single:
-                    args = (value,)
-                else:
-                    args = (value, signal.id)
+__NODE_ID: Mapping[SchemeNode, int] = WeakKeyDefaultDict(count().__next__)
 
-                log.debug("Process signals: calling %s.%s (from %s with id:%s)",
-                          type(widget).__name__, handler.__name__, link, signal.id)
 
-                try:
-                    handler(*args)
-                except Exception:
-                    log.exception("Error calling '%s' of '%s'",
-                                  handler.__name__, node.title)
-                    raise
+@singledispatch
+def process_signal_input(
+        input: Input,
+        widget: OWBaseWidget,
+        signal: Signal,
+        workflow: WidgetsScheme
+) -> None:
+    """
+    Deliver the `signal` from the workflow to the widget.
 
-            try:
-                widget.handleNewSignals()
-            except Exception:
-                log.exception("Error calling 'handleNewSignals()' of '%s'",
-                              node.title)
-                raise
-        finally:
-            app.restoreOverrideCursor()
+    This is a generic handler. The default handles `Input` and `MultiInput`
+    inputs.
+    """
+    raise NotImplementedError
+
+
+@process_signal_input.register(Input)
+def process_signal_input_default(
+        input: Input, widget: OWBaseWidget, signal: Signal,
+        workflow: WidgetsScheme
+):
+    """
+    """
+    inputs = get_widget_input_signals(widget)
+    link = signal.link
+    index = signal.index
+    value = signal.value
+
+    index_existing = index_of(inputs, signal, eq=same_input_slot)
+    if index < 0 and index_existing is not None:
+        index = index_existing
+    elif index_existing is not None:
+        index = index_existing
+
+    # 'input local' index i.e. which connection to the same (multiple) input.
+    index_local = index_of(
+        (s.link for s in inputs if s.channel.name == input.name),
+        signal.link,
+    )
+    if isinstance(signal, Signal.New):
+        if not 0 <= index < len(inputs):
+            index = len(inputs)
+        inputs.insert(index, signal)
+        index_local = index_of(
+            (s.link for s in inputs if s.channel.name == input.name),
+            signal.link,
+        )
+    elif isinstance(signal, Signal.Close):
+        old = inputs.pop(index)
+        assert old.link == signal.link
+        value = input.closing_sentinel
+    else:
+        assert inputs[index].link == signal.link
+        inputs[index] = signal
+
+    wid = __NODE_ID[link.source_node]
+    # historical key format: widget_id, output name and the id passed to send
+    key = (wid, link.source_channel.name, signal.id)
+    notify_input_helper(
+        input, widget, value, key=key, index=index_local
+    )
+
+
+def get_widget_input_signals(widget: OWBaseWidget) -> List[Signal]:
+    inputs: List[Signal]
+    inputs = widget.__dict__.setdefault(
+        "_OWBaseWidget__process_signal_input", []
+    )
+    return inputs
+
+
+def same_input_slot(s1: Signal, s2: Signal) -> bool:
+    return s1.link == s2.link
+
+
+@singledispatch
+def handle_new_signals(widget, workflow: WidgetsScheme):
+    """
+    Invoked by the workflow signal propagation manager after all
+    input signal update handlers have been called.
+
+    The default implementation for OWBaseWidget calls
+    `OWBaseWidget.handleNewSignals`
+    """
+    widget.handleNewSignals()
+
+
+@singledispatch
+def process_signals_for_widget(widget, signals, workflow):
+    # type: (OWBaseWidget, List[Signal], WidgetsScheme) -> None
+    """
+    Process new signals for the OWBaseWidget.
+    """
+    for signal in signals:
+        input_meta = get_input_meta(widget, signal.channel.name)
+        process_signal_input(input_meta, widget, signal, workflow)
+
+    handle_new_signals(widget, workflow)

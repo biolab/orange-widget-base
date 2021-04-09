@@ -14,7 +14,8 @@ from AnyQt.QtTest import QSignalSpy, QTest
 from orangewidget.gui import OWComponent
 from orangewidget.settings import Setting, SettingProvider
 from orangewidget.tests.base import WidgetTest
-from orangewidget.widget import OWBaseWidget, Msg, StateInfo
+from orangewidget.utils.signals import summarize, PartialSummary
+from orangewidget.widget import OWBaseWidget, Msg, StateInfo, Input, Output
 from orangewidget.utils.messagewidget import MessagesWidget
 
 
@@ -482,6 +483,114 @@ class WidgetTestInfoSummary(WidgetTest):
         self.assertEqual(StateInfo.format_number(1_234_567), "1.23M")
         self.assertEqual(StateInfo.format_number(999_999), "1M")
         self.assertEqual(StateInfo.format_number(1_000_000), "1M")
+
+
+class SignalTypeA:
+    pass
+
+
+class SignalTypeB:
+    pass
+
+
+@summarize.register(SignalTypeA)
+def summarize(_: SignalTypeA):
+    return PartialSummary("foo", "bar")
+
+
+class AutoSummarizeTest(WidgetTest):
+    @patch("orangewidget.widget.OWBaseWidget._check_input_handlers")
+    def test_auto_summarize_default(self, _):
+            class TestWidget(OWBaseWidget):
+                name = "tw"
+
+                class Inputs(OWBaseWidget.Inputs):
+                    inputA1 = Input("a1", SignalTypeA)
+                    inputA2 = Input("a2", SignalTypeA, auto_summary=True)
+                    inputA3 = Input("a3", SignalTypeA, auto_summary=False)
+
+                class Outputs(OWBaseWidget.Inputs):
+                    outputA1 = Output("a", SignalTypeA)
+                    outputA2 = Output("a", SignalTypeA, auto_summary=True)
+                    outputA3 = Output("a", SignalTypeA, auto_summary=False)
+
+            self.assertTrue(TestWidget.Inputs.inputA1.auto_summary)
+            self.assertTrue(TestWidget.Inputs.inputA2.auto_summary)
+            self.assertFalse(TestWidget.Inputs.inputA3.auto_summary)
+
+            self.assertTrue(TestWidget.Outputs.outputA1.auto_summary)
+            self.assertTrue(TestWidget.Outputs.outputA2.auto_summary)
+            self.assertFalse(TestWidget.Outputs.outputA3.auto_summary)
+
+    @patch("orangewidget.widget.OWBaseWidget._check_input_handlers")
+    def test_warning_no_summarizer(self, _):
+        with self.assertWarns(UserWarning):
+            class TestWidget(OWBaseWidget):
+                name = "tw"
+
+                class Inputs(OWBaseWidget.Inputs):
+                    inputB = Input("b", SignalTypeB)
+
+            self.assertFalse(TestWidget.Inputs.inputB.auto_summary)
+
+        with self.assertWarns(UserWarning):
+            class TestWidget(OWBaseWidget):
+                name = "tw"
+
+                class Outputs(OWBaseWidget.Inputs):
+                    outputB = Output("b", SignalTypeB)
+
+            self.assertFalse(TestWidget.Outputs.outputB.auto_summary)
+
+        with patch("warnings.warn") as warn:
+            class TestWidget(OWBaseWidget):
+                name = "tw"
+
+                class Inputs(OWBaseWidget.Inputs):
+                    inputB = Input("b", SignalTypeB, auto_summary=True)
+
+                class Outputs(OWBaseWidget.Inputs):
+                    outputB = Output("b", SignalTypeB, auto_summary=False)
+
+            warn.assert_not_called()
+            self.assertTrue(TestWidget.Inputs.inputB.auto_summary)
+            self.assertFalse(TestWidget.Outputs.outputB.auto_summary)
+
+    @patch("orangewidget.widget.OWBaseWidget._check_input_handlers")
+    def test_signal_as_qualified_name(self, _):
+        with self.assertWarns(UserWarning):
+            class TestWidget(OWBaseWidget):
+                name = "tw"
+
+                class Inputs(OWBaseWidget.Inputs):
+                    inputA = Input(
+                        "a", "orangewidget.tests.test_widget.SignalTypeA")
+
+            self.assertFalse(TestWidget.Inputs.inputA.auto_summary)
+
+        with patch("warnings.warn") as warn:
+            class TestWidget(OWBaseWidget):
+                name = "tw"
+
+                class Inputs(OWBaseWidget.Inputs):
+                    inputA = Input(
+                        "a", "orangewidget.tests.test_widget.SignalTypeA",
+                        auto_summary=False)
+
+            warn.assert_not_called()
+            self.assertFalse(TestWidget.Inputs.inputA.auto_summary)
+
+        with patch("warnings.warn") as warn:
+            class TestWidget(OWBaseWidget):
+                name = "tw"
+
+                class Inputs(OWBaseWidget.Inputs):
+                    inputA = Input(
+                        "a", "orangewidget.tests.test_widget.SignalTypeA",
+                        auto_summary=True)
+
+            warn.assert_not_called()
+            self.assertTrue(TestWidget.Inputs.inputA.auto_summary)
 
 
 if __name__ == "__main__":

@@ -32,6 +32,14 @@ def base_summarize(_) -> PartialSummary:
 
 
 summarize = singledispatch(base_summarize)
+summarize.__doc__ = """
+Function for summarizing the input or output data.
+
+The function must be decorated with `@summarize.register`. It accepts an
+argument of arbitrary type and returns a `PartialSummary`, which is a tuple
+consisting of two strings: a short summary (usually a number) and details.
+"""
+
 
 SUMMARY_STYLE = """
 <style>
@@ -52,18 +60,20 @@ SUMMARY_STYLE = """
 """
 
 
-def can_summarize(type_, name):
+def can_summarize(type_, name, explicit):
+    if explicit is not None:
+        return explicit
     if not isinstance(type_, tuple):
         type_ = (type_, )
-    instr = f"To silence this warning, set auto_sumarize of '{name}' to False."
+    instr = f"To silence this warning, set auto_summary of '{name}' to False."
     for a_type in type_:
-        try:
-            summarizer = summarize.dispatch(a_type)
-        except TypeError:
-            warnings.warn(f"{a_type.__name__} cannot be summarized. {instr}",
-                          UserWarning)
+        if isinstance(a_type, str):
+            warnings.warn(
+                f"Output is specified with qualified name ({a_type}). "
+                "To enable auto summary, set auto_summary to True. "
+                + instr, UserWarning)
             return False
-        if summarizer is base_summarize:
+        if summarize.dispatch(a_type) is base_summarize:
             warnings.warn(
                 f"register 'summarize' function for type {a_type.__name__}. "
                 + instr, UserWarning)
@@ -152,17 +162,21 @@ class Input(InputSignal, _Signal):
         if set, this signal is only used when it is the only option or when
         explicitly connected in the dialog (default: `False`)
     auto_summary (bool, optional):
-        if changed to `False` (default is `True`) the signal is excluded from
-        auto summary
+        by default, the input is reflected in widget's summary for all types
+        with registered `summarize` function. This can be overridden by
+        explicitly setting `auto_summary` to `False` or `True`. Explicitly
+        setting this argument will also silence warnings for types without
+        the summary function and for types defined with a fully qualified
+        string instead of an actual type object.
     """
     Closed = Closed
 
     def __init__(self, name, type, id=None, doc=None, replaces=None, *,
                  multiple=False, default=False, explicit=False,
-                 auto_summary=True, closing_sentinel=None):
+                 auto_summary=None, closing_sentinel=None):
         flags = self.get_flags(multiple, default, explicit, False)
         super().__init__(name, type, "", flags, id, doc, replaces or [])
-        self.auto_summary = auto_summary and can_summarize(type, name)
+        self.auto_summary = can_summarize(type, name, auto_summary)
         self._seq_id = next(_counter)
         self.closing_sentinel = closing_sentinel
 
@@ -345,15 +359,19 @@ class Output(OutputSignal, _Signal):
         signal which can accept a subtype of the declared output type
         (default: `True`)
     auto_summary (bool, optional):
-        if changed to `False` (default is `True`) the signal is excluded from
-        auto summary
+        by default, the output is reflected in widget's summary for all types
+        with registered `summarize` function. This can be overridden by
+        explicitly setting `auto_summary` to `False` or `True`. Explicitly
+        setting this argument will also silence warnings for types without
+        the summary function and for types defined with a fully qualified
+        string instead of an actual type object.
     """
     def __init__(self, name, type, id=None, doc=None, replaces=None, *,
                  default=False, explicit=False, dynamic=True,
-                 auto_summary=True):
+                 auto_summary=None):
         flags = self.get_flags(False, default, explicit, dynamic)
         super().__init__(name, type, flags, id, doc, replaces or [])
-        self.auto_summary = auto_summary and can_summarize(type, name)
+        self.auto_summary = can_summarize(type, name, auto_summary)
         self.widget = None
         self._seq_id = next(_counter)
 

@@ -99,6 +99,8 @@ class WidgetsScheme(Scheme):
             if settings != node.properties:
                 node.properties = settings
                 changed = True
+        if changed:
+            self.node_properties_changed.emit()
         log.debug("Scheme node properties sync (changed: %s)", changed)
         return changed
 
@@ -436,6 +438,9 @@ class OWWidgetManager(_WidgetManager):
         )
         # Advertised state for the workflow execution semantics.
         widget.widgetStateChanged.connect(self.__on_widget_state_changed)
+
+        # Sync node properties upon Setting change
+        widget.settingChanged.connect(self.__scheme.sync_node_properties)
 
         # Install a help shortcut on the widget
         help_action = widget.findChild(QAction, "action-help")

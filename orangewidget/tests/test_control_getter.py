@@ -1,5 +1,7 @@
 # Test methods with long descriptive names can omit docstrings
 # pylint: disable=missing-docstring
+from AnyQt.QtCore import QObject
+
 from orangewidget import gui
 from orangewidget.gui import OWComponent
 from orangewidget.settings import SettingProvider
@@ -7,7 +9,7 @@ from orangewidget.tests.base import WidgetTest
 from orangewidget.widget import OWBaseWidget
 
 
-class DummyComponent(OWComponent):
+class DummyComponent(QObject, OWComponent):
     foo = True
 
 

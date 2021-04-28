@@ -919,6 +919,8 @@ def checkBox(widget, master, value, label, box=None,
     else:
         b = widget
     if stateWhenDisabled is not None:
+        if isinstance(stateWhenDisabled, bool):
+            stateWhenDisabled = Qt.Checked if stateWhenDisabled else Qt.Unchecked
         cbox = CheckBoxWithDisabledState(label, b, stateWhenDisabled)
         cbox.clicked.connect(cbox._storeTrueState)
     else:

@@ -125,7 +125,7 @@ class WidgetPreview:
 
     def tear_down(self):
         """Save settings and delete the widget."""
-        import sip
+        from AnyQt import sip
         self.widget.saveSettings()
         self.widget.onDeleteWidget()
         sip.delete(self.widget)  #: pylint: disable=c-extension-no-member

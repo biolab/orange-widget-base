@@ -19,12 +19,12 @@ from urllib.parse import urljoin
 from urllib.request import pathname2url
 
 import numpy as np
-import sip
 
 from AnyQt.QtCore import Qt, QObject, QFile, QTimer, QUrl, QSize, QEventLoop, \
     pyqtProperty, pyqtSlot, pyqtSignal
 from AnyQt.QtGui import QColor
 from AnyQt.QtWidgets import QSizePolicy, QWidget, qApp
+from AnyQt import sip
 
 try:
     from AnyQt.QtWebKitWidgets import QWebView

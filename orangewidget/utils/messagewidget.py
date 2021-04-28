@@ -50,11 +50,11 @@ class Severity(enum.IntEnum):
     An enum defining a severity level.
     """
     #: General informative message.
-    Information = QMessageBox.Information
+    Information = 1  # == QMessageBox.Information
     #: A warning message severity.
-    Warning = QMessageBox.Warning
+    Warning = 2  # == QMessageBox.Warning
     #: An error message severity.
-    Error = QMessageBox.Critical
+    Error = 3  # == QMessageBox.Critical
 
 
 class Message(

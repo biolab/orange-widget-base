@@ -280,7 +280,8 @@ if QtCore.QT_VERSION >= 0x050C00:  # Qt 5.12+
             dpi = int(QApplication.primaryScreen().logicalDotsPerInch())
             buffer.setResolution(dpi)
             buffer.setPageMargins(QMarginsF(0, 0, 0, 0))
-            buffer.setPageSizeMM(QtCore.QSizeF(size.width(), size.height()) / dpi * 25.4)
+            pagesize = QtCore.QSizeF(size.width(), size.height()) / dpi * 25.4
+            buffer.setPageSize(QtGui.QPageSize(pagesize, QtGui.QPageSize.Millimeter))
             return buffer
 
         @staticmethod
@@ -326,7 +327,9 @@ else:
             else:
                 size = vbox.size()
             writer = QtGui.QPdfWriter(filename)
-            writer.setPageSizeMM(QtCore.QSizeF(size) * 0.282)
+            pagesize = QtGui.QPageSize(QtCore.QSizeF(size) * 0.282,
+                                       QtGui.QPageSize.Millimeter)
+            writer.setPageSize(pagesize)
             painter = QtGui.QPainter(writer)
             svgrend.render(painter)
             painter.end()

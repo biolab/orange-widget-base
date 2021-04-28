@@ -2,7 +2,7 @@ from pyqtgraph.exporters.Exporter import Exporter
 
 from AnyQt import QtCore
 from AnyQt.QtWidgets import QGraphicsItem, QApplication
-from AnyQt.QtGui import QPainter, QPdfWriter
+from AnyQt.QtGui import QPainter, QPdfWriter, QPageSize
 from AnyQt.QtCore import QMarginsF, Qt, QSizeF, QRectF
 
 
@@ -44,7 +44,9 @@ class PDFExporter(Exporter):
         dpi = int(QApplication.primaryScreen().logicalDotsPerInch())
         pw.setResolution(dpi)
         pw.setPageMargins(QMarginsF(0, 0, 0, 0))
-        pw.setPageSizeMM(QSizeF(self.getTargetRect().size()) / dpi * 25.4)
+        pw.setPageSize(
+            QPageSize(QSizeF(self.getTargetRect().size()) / dpi * 25.4,
+                      QPageSize.Millimeter))
         painter = QPainter(pw)
         try:
             self.setExportMode(True, {'antialias': True,

@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from AnyQt.QtCore import Qt, QRectF
 from AnyQt.QtGui import QFont, QBrush, QPixmap, QColor, QIcon
-from PyQt5.QtWidgets import QGraphicsScene
+from AnyQt.QtWidgets import QGraphicsScene
 
 from orangewidget.report.owreport import OWReport, HAVE_REPORT
 from orangewidget import gui

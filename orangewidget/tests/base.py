@@ -12,20 +12,20 @@ from contextlib import contextmanager, ExitStack
 from unittest.mock import Mock, patch
 from typing import List, Optional, TypeVar, Type
 
-import sip
-
 from AnyQt.QtCore import Qt, QObject, pyqtSignal, QElapsedTimer, pyqtSlot
 from AnyQt.QtTest import QTest, QSignalSpy
 from AnyQt.QtWidgets import (
     QApplication, QComboBox, QSpinBox, QDoubleSpinBox, QSlider
 )
+from AnyQt import sip
 
 from orangewidget.report.owreport import OWReport
 from orangewidget.settings import SettingsHandler
 from orangewidget.utils.signals import get_input_meta, notify_input_helper
 from orangewidget.widget import OWBaseWidget
 
-sip.setdestroyonexit(False)
+if hasattr(sip, "setdestroyonexit"):
+    sip.setdestroyonexit(False)
 
 app = None
 

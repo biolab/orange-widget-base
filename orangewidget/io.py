@@ -194,7 +194,7 @@ class SvgFormat(ImgFormat):
     @staticmethod
     def _get_buffer(size, filename):
         buffer = QtSvg.QSvgGenerator()
-        buffer.setResolution(QApplication.desktop().logicalDpiX())
+        buffer.setResolution(int(QApplication.primaryScreen().logicalDotsPerInch()))
         buffer.setFileName(filename)
         buffer.setViewBox(QtCore.QRectF(0, 0, size.width(), size.height()))
         return buffer
@@ -277,7 +277,7 @@ if QtCore.QT_VERSION >= 0x050C00:  # Qt 5.12+
         @staticmethod
         def _get_buffer(size, filename):
             buffer = QtGui.QPdfWriter(filename)
-            dpi = QApplication.desktop().logicalDpiX()
+            dpi = int(QApplication.primaryScreen().logicalDotsPerInch())
             buffer.setResolution(dpi)
             buffer.setPageMargins(QMarginsF(0, 0, 0, 0))
             buffer.setPageSizeMM(QtCore.QSizeF(size.width(), size.height()) / dpi * 25.4)

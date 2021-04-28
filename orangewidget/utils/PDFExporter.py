@@ -41,7 +41,7 @@ class PDFExporter(Exporter):
 
     def export(self, filename=None):
         pw = QPdfWriter(filename)
-        dpi = QApplication.desktop().logicalDpiX()
+        dpi = int(QApplication.primaryScreen().logicalDotsPerInch())
         pw.setResolution(dpi)
         pw.setPageMargins(QMarginsF(0, 0, 0, 0))
         pw.setPageSizeMM(QSizeF(self.getTargetRect().size()) / dpi * 25.4)

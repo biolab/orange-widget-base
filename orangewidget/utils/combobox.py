@@ -250,8 +250,7 @@ class ComboBoxSearch(QComboBox):
             QStyle.CC_ComboBox, opt, QStyle.SC_ComboBoxEditField, self
         )  # type: QRect
         self.__searchline.setGeometry(editrect)
-        desktop = QApplication.desktop()
-        screenrect = desktop.availableGeometry(self)  # type: QRect
+        screenrect = self.screen().availableGeometry()
 
         # get the height for the view
         listrect = QRect()

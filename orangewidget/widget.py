@@ -9,7 +9,7 @@ from math import log10
 from typing import Optional, Union, List
 
 from AnyQt.QtWidgets import (
-    QWidget, QDialog, QVBoxLayout, QSizePolicy, QApplication, QStyle,
+    QWidget, QDialog, QVBoxLayout, QSizePolicy, QStyle,
     QShortcut, QSplitter, QSplitterHandle, QPushButton, QStatusBar,
     QProgressBar, QAction, QFrame, QStyleOption, QWIDGETSIZE_MAX,
     QHBoxLayout)
@@ -889,7 +889,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             geom.x() + diffx, geom.y(), geom.width() + diffw, geom.height()
         )
         # bound/move by available geometry
-        bounds = QApplication.desktop().availableGeometry(self)
+        bounds = self.screen().availableGeometry()
         bounds = bounds.adjusted(
             framemargins.left(), framemargins.top(),
             -framemargins.right(), -framemargins.bottom()
@@ -939,7 +939,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
         if restored and not self.windowState() & \
                 (Qt.WindowMaximized | Qt.WindowFullScreen):
-            space = QApplication.desktop().availableGeometry(self)
+            space = self.screen().availableGeometry()
             frame, geometry = self.frameGeometry(), self.geometry()
 
             # Fix the widget size to fit inside the available space

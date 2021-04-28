@@ -121,7 +121,7 @@ class WidgetPreview:
         """Show the widget and start the :obj:`QApplication`'s main loop."""
         self.widget.show()
         self.widget.raise_()
-        return app.exec_()
+        return app.exec()
 
     def tear_down(self):
         """Save settings and delete the widget."""

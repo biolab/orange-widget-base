@@ -2721,7 +2721,7 @@ class VisibleHeaderSectionContextEventFilter(QtCore.QObject):
                                        max(view.sectionSizeHint(section), 10))
 
             action.toggled.connect(toogleHidden)
-        menu.exec_(event.globalPos())
+        menu.exec(event.globalPos())
         return True
 
 

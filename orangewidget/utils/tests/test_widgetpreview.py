@@ -28,12 +28,12 @@ class TestWidgetPreviewBase(unittest.TestCase):
 
         sys.exit = MagicMock()
         widgetpreview.QApplication = MagicMock(return_value=app)
-        app.exec_ = MagicMock()
+        app.exec = MagicMock()
 
     @classmethod
     def tearDownClass(cls):
         sys.exit = cls.orig_sys_exit
-        app.exec_ = cls.orig_app_exec
+        app.exec = cls.orig_app_exec
         widgetpreview.QApplication = cls.orig_qapplication
 
     def setUp(self):
@@ -60,21 +60,21 @@ class TestWidgetPreviewBase(unittest.TestCase):
         self.widgetClass = MockWidget
         sys.exit.reset_mock()
         widgetpreview.QApplication.reset_mock()
-        app.exec_.reset_mock()
+        app.exec.reset_mock()
 
 
 class TestWidgetPreview(TestWidgetPreviewBase):
     def test_widget_is_shown_and_ran(self):
         w = self.widgetClass
-        app.exec_.reset_mock()
+        app.exec.reset_mock()
 
         previewer = WidgetPreview(w)
 
         previewer.run()
         w.show.assert_called()
         w.show.reset_mock()
-        app.exec_.assert_called()
-        app.exec_.reset_mock()
+        app.exec.assert_called()
+        app.exec.reset_mock()
         w.saveSettings.assert_called()
         w.saveSettings.reset_mock()
         sys.exit.assert_called()
@@ -84,8 +84,8 @@ class TestWidgetPreview(TestWidgetPreviewBase):
         previewer.run(no_exit=True)
         w.show.assert_called()
         w.show.reset_mock()
-        app.exec_.assert_called()
-        app.exec_.reset_mock()
+        app.exec.assert_called()
+        app.exec.reset_mock()
         w.saveSettings.assert_not_called()
         sys.exit.assert_not_called()
         self.assertIsNotNone(previewer.widget)
@@ -93,14 +93,14 @@ class TestWidgetPreview(TestWidgetPreviewBase):
 
         previewer.run(no_exec=True, no_exit=True)
         w.show.assert_not_called()
-        app.exec_.assert_not_called()
+        app.exec.assert_not_called()
         w.saveSettings.assert_not_called()
         sys.exit.assert_not_called()
         self.assertIs(widget, previewer.widget)
 
         previewer.run(no_exec=True)
         w.show.assert_not_called()
-        app.exec_.assert_not_called()
+        app.exec.assert_not_called()
         w.saveSettings.assert_called()
         sys.exit.assert_called()
         self.assertIsNone(previewer.widget)

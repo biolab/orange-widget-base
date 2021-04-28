@@ -33,7 +33,7 @@ def save_plot(data, file_formats, start_dir="", filename=""):
             text='Error occurred while saving file "{}": {}'.format(filename, e),
             detailedText=traceback.format_exc(),
             icon=QMessageBox.Critical)
-        mb.exec_()
+        mb.exec()
     else:
         settings.setValue(_LAST_DIR_KEY, os.path.split(filename)[0])
         settings.setValue(_LAST_FILTER_KEY, filter)

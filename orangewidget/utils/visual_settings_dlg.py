@@ -309,4 +309,4 @@ if __name__ == "__main__":
     btn.clicked.connect(dlg.show_dlg)
 
     w.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

@@ -3,7 +3,7 @@ from datetime import date, datetime
 
 import numpy as np
 
-from AnyQt.QtCore import Qt, QModelIndex, QLocale, QRect, QPoint
+from AnyQt.QtCore import Qt, QModelIndex, QLocale, QRect, QPoint, QSize
 from AnyQt.QtGui import QStandardItemModel, QFont, QColor, QIcon, QImage, \
     QPainter
 from AnyQt.QtWidgets import QStyleOptionViewItem, QTableView
@@ -215,7 +215,8 @@ class TestBarItemDataDelegate(GuiTest):
         def paint_with_data(data):
             model.setItemData(index, data)
             opt = self.view.viewOptions()
-            opt.rect = QRect(QPoint(0, 0), delegate.sizeHint(opt, index))
+            size = delegate.sizeHint(opt, index).expandedTo(QSize(10, 10))
+            opt.rect = QRect(QPoint(0, 0), size)
             delegate.initStyleOption(opt, index)
             img = QImage(opt.rect.size(), QImage.Format_ARGB32_Premultiplied)
             p = QPainter(img)

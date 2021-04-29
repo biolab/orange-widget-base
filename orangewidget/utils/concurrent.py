@@ -3,7 +3,7 @@ General helper functions and classes for PyQt concurrent programming
 """
 # TODO: Rename the module to something that does not conflict with stdlib
 # concurrent
-from typing import Callable, Any
+from typing import Callable, Any, List, Optional
 import threading
 import logging
 import warnings
@@ -338,8 +338,7 @@ class FutureSetWatcher(QObject, PyOwned):
     #: Signal emitted when all the futures have completed.
     doneAll = Signal()
 
-    def __init__(self, futures=None, *args, **kwargs):
-        # type: (List[Future], ...) -> None
+    def __init__(self, futures: Optional[List['Future']] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__futures = None
         self.__semaphore = None

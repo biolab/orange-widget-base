@@ -89,7 +89,7 @@ jobs:
       - name: Install Test Deps
         env:
           TEST_ENV: ${{ matrix.test-env }}
-          TEST_DEPS: pytest pytest-cov codecov wheel
+          TEST_DEPS: wheel coverage codecov
         run: python -m pip install $TEST_DEPS $TEST_ENV
         shell: bash
 
@@ -101,13 +101,13 @@ jobs:
 
       - name: Run Tests
         if: ${{ !startsWith(runner.os, 'Linux') }}
-        run: python -m unittest -v # pytest -v --cov=orangewidget
+        run: coverage run -m unittest -v
 
       - name: Run Tests with Xvfb
         if: ${{ startsWith(runner.os, 'Linux') }}
         env:
           XVFBARGS: "-screen 0 1280x1024x24"
-        run: catchsegv xvfb-run -a -s "$XVFBARGS" python -m unittest  -v # pytest -v --cov=orangewidget
+        run: catchsegv xvfb-run -a -s "$XVFBARGS" coverage run -m unittest  -v
 
       - name: Upload Coverage
         run: codecov

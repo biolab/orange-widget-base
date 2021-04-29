@@ -449,6 +449,8 @@ class OWWidgetManager(_WidgetManager):
 
         # Sync node properties upon Setting change
         widget.settingChanged.connect(self.__scheme.schedule_sync)
+        if hasattr(widget, 'graph'):
+            widget.graph.settingChanged.connect(self.__scheme.schedule_sync)
 
         # Install a help shortcut on the widget
         help_action = widget.findChild(QAction, "action-help")

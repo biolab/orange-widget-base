@@ -1027,9 +1027,8 @@ def lineEdit(widget, master, value, label=None, labelWidth=None,
     :type callback: function
     :param valueType: the type into which the entered string is converted
         when synchronizing to `value`. If omitted, the type of the current
-       `value` is used. If `value` is `None`, the text is left as a string.
-    :type valueType: type or `None`
-    :type valueType: type
+        `value` is used. If `value` is `None`, the text is left as a string.
+    :type valueType: type or None
     :param validator: the validator for the input
     :type validator: QValidator
     :param controlWidth: the width of the line edit

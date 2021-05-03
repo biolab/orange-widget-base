@@ -47,8 +47,9 @@ from orangecanvas.scheme.node import UserMessage
 from orangecanvas.scheme.widgetmanager import WidgetManager as _WidgetManager
 from orangecanvas.utils import name_lookup
 from orangecanvas.resources import icon_loader
-from orangewidget.utils.signals import get_input_meta, notify_input_helper
 
+from orangewidget.gui import OWComponent
+from orangewidget.utils.signals import get_input_meta, notify_input_helper
 from orangewidget.widget import OWBaseWidget, Input
 from orangewidget.report.owreport import OWReport
 from orangewidget.settings import SettingsPrinter
@@ -449,8 +450,10 @@ class OWWidgetManager(_WidgetManager):
 
         # Sync node properties upon Setting change
         widget.settingChanged.connect(self.__scheme.schedule_sync)
-        if hasattr(widget, 'graph'):
-            widget.graph.settingChanged.connect(self.__scheme.schedule_sync)
+        for v in widget.__dict__.values():
+            # Also on Setting changes for components like 'graph'
+            if isinstance(v, OWComponent):
+                v.settingChanged.connect(self.__scheme.schedule_sync)
 
         # Install a help shortcut on the widget
         help_action = widget.findChild(QAction, "action-help")

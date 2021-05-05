@@ -71,7 +71,7 @@ class ComboBox(QComboBox):
         sh = super().sizeHint()
         if self.__maximumContentsLength > 0:
             width = (
-                self.fontMetrics().width("X") * self.__maximumContentsLength
+                self.fontMetrics().horizontalAdvance("X") * self.__maximumContentsLength
                 + self.iconSize().width() + 4
             )
             sh = sh.boundedTo(QSize(width, sh.height()))
@@ -173,7 +173,7 @@ class ComboBoxSearch(QComboBox):
         sh = super().sizeHint()
         if self.__maximumContentsLength > 0:
             width = (
-                self.fontMetrics().width("X") * self.__maximumContentsLength
+                self.fontMetrics().horizontalAdvance("X") * self.__maximumContentsLength
                 + self.iconSize().width() + 4
             )
             sh = sh.boundedTo(QSize(width, sh.height()))

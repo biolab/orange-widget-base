@@ -2451,8 +2451,8 @@ class ColoredBarItemDelegate(QtWidgets.QStyledItemDelegate):
         font = self.get_font(option, index)
         metrics = QtGui.QFontMetrics(font)
         height = metrics.lineSpacing() + 8  # 4 pixel margin
-        width = metrics.width(self.displayText(index.data(Qt.DisplayRole),
-                                               QtCore.QLocale())) + 8
+        width = metrics.horizontalAdvance(
+            self.displayText(index.data(Qt.DisplayRole), QtCore.QLocale())) + 8
         return QtCore.QSize(width, height)
 
     def paint(self, painter, option, index):

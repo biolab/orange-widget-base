@@ -2,13 +2,14 @@ import itertools
 import math
 import time
 from collections import OrderedDict, Iterable
+from collections.abc import Iterable
 from typing import Optional
 
 from AnyQt.QtCore import (
     Qt, QAbstractItemModel, QByteArray, QBuffer, QIODevice,
     QSize)
 from AnyQt.QtGui import QColor, QBrush, QIcon
-from AnyQt.QtWidgets import QGraphicsScene, QTableView, QMessageBox, QStyle
+from AnyQt.QtWidgets import QGraphicsScene, QTableView, QMessageBox
 
 from orangewidget.io import PngFormat
 from orangewidget.utils import getdeepattr

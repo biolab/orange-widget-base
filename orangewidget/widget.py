@@ -452,8 +452,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                     x0, x1 = 6, w
                 else:
                     x0, x1 = w, 6
-                y = self.height() / 2
-                h = (w - 6) / 1.12
+                y = self.height() // 2
+                h = int((w - 6) / 1.12)
                 painter.setRenderHint(painter.Antialiasing)
                 painter.drawLines(
                     QLine(x0, y - h, x1, y),
@@ -992,7 +992,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if self.want_main_area:
             width += self.__splitter.handleWidth()
             if self.want_control_area:
-                width += height * self.mainArea_width_height_ratio
+                width += int(height * self.mainArea_width_height_ratio)
             else:
                 return super().sizeHint()
         return QSize(width, height)

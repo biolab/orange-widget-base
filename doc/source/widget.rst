@@ -153,6 +153,7 @@ Class Member Documentation
 
    .. autoclass:: orangewidget.widget::StateInfo.Summary
       :members:
+      :exclude-members: brief, details, icon, format
 
    .. autoclass:: orangewidget.widget::StateInfo.Empty
       :show-inheritance:
@@ -175,8 +176,10 @@ Class Member Documentation
 
    .. function:: set_input_summary(brief:str, detailed:str="", \
                     icon:QIcon=QIcon, format:Qt.TextFormat=Qt.PlainText)
+      :noindex:
 
    .. function:: set_input_summary(number:int)
+      :noindex:
 
       Automatically format number with metric suffixes and set it as input summary.
 
@@ -189,8 +192,10 @@ Class Member Documentation
 
    .. function:: set_output_summary(brief:str, detailed:str="", \
                     icon:QIcon=QIcon, format:Qt.TextFormat=Qt.PlainText)
+      :noindex:
 
    .. function:: set_output_summary(number:int)
+      :noindex:
 
       Automatically format number with metric suffixes and set it as output summary.
 
@@ -198,6 +203,6 @@ Class Member Documentation
 
       Format integers larger then 9999 with metric suffix and at most 3 digits.
 
-   .. autoattribute:: input_summary_changed(message: StateInfo.Message)
+   .. autoattribute:: input_summary_changed(message: StateInfo.Summary)
 
-   .. autoattribute:: output_summary_changed(message: StateInfo.Message)
+   .. autoattribute:: output_summary_changed(message: StateInfo.Summary)

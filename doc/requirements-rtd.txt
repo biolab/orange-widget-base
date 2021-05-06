@@ -1,4 +1,7 @@
---only-binary=PyQt5
+--only-binary PyQt5,matplotlib
 
 setuptools
-PyQt5~=5.9.2
+sphinx~=3.2.1
+AnyQt
+PyQt5~=5.12.1
+PyQtWebengine~=5.12.1

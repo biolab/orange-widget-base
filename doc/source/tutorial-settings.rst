@@ -2,7 +2,7 @@
 Tutorial (Settings and Controls)
 ################################
 
-In the :doc:`previous section <tutorial-cont>` of our tutorial we
+In the :doc:`previous section <tutorial>` of our tutorial we
 have just built a simple sampling widget. Let us now make this widget
 a bit more useful, by allowing a user to set the proportion of data
 instances to be retained in the sample. Say we want to design a widget

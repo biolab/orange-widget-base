@@ -1,9 +1,10 @@
+import enum
 from datetime import date, datetime
 from functools import partial
 from itertools import filterfalse
 from types import MappingProxyType as MappingProxy
 from typing import (
-    Sequence, Any, Mapping, Dict, TypeVar, Type, Optional, Container, Tuple
+    Sequence, Any, Mapping, Dict, TypeVar, Type, Optional, Container, Tuple,
 )
 from typing_extensions import Final
 
@@ -21,6 +22,8 @@ from AnyQt.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, \
     QApplication, QStyle
 
 from orangewidget.utils.cache import LRUCache
+from orangewidget.utils import enum_as_int
+
 
 A = TypeVar("A")
 
@@ -154,16 +157,16 @@ def cast_(type_: Type[A], value: Any) -> Optional[A]:
 
 # QStyleOptionViewItem.Feature aliases as python int. Feature.__ior__
 # implementation is slower then int.__ior__
-_QStyleOptionViewItem_HasDisplay = int(QStyleOptionViewItem.HasDisplay)
-_QStyleOptionViewItem_HasCheckIndicator = int(QStyleOptionViewItem.HasCheckIndicator)
-_QStyleOptionViewItem_HasDecoration = int(QStyleOptionViewItem.HasDecoration)
+_QStyleOptionViewItem_HasDisplay = enum_as_int(QStyleOptionViewItem.HasDisplay)
+_QStyleOptionViewItem_HasCheckIndicator = enum_as_int(QStyleOptionViewItem.HasCheckIndicator)
+_QStyleOptionViewItem_HasDecoration = enum_as_int(QStyleOptionViewItem.HasDecoration)
 
 
 class _AlignmentFlagsCache(dict):
     # A cached int -> Qt.Alignment cache. Used to avoid temporary Qt.Alignment
     # flags object (de)allocation.
-    def __missing__(self, key: int) -> Qt.Alignment:
-        a = Qt.Alignment(key)
+    def __missing__(self, key: int) -> Qt.AlignmentFlag:
+        a = Qt.AlignmentFlag(key)
         self.setdefault(key, a)
         return a
 
@@ -242,7 +245,7 @@ def init_style_option(
             pix = QPixmap.fromImage(value)
             option.icon = QIcon(value)
             option.decorationSize = (pix.size() / pix.devicePixelRatio()).toSize()
-    option.features |= features
+    option.features |= QStyleOptionViewItem.ViewItemFeature(features)
 
 
 class CachedDataItemDelegate(QStyledItemDelegate):
@@ -352,17 +355,18 @@ class StyledItemDelegate(QStyledItemDelegate):
         return super().displayText(value, locale)
 
 
-_Qt_AlignRight = int(Qt.AlignRight)
-_Qt_AlignLeft = int(Qt.AlignLeft)
-_Qt_AlignHCenter = int(Qt.AlignHCenter)
-_Qt_AlignTop = int(Qt.AlignTop)
-_Qt_AlignBottom = int(Qt.AlignBottom)
-_Qt_AlignVCenter = int(Qt.AlignVCenter)
+_Qt_AlignRight = enum_as_int(Qt.AlignRight)
+_Qt_AlignLeft = enum_as_int(Qt.AlignLeft)
+_Qt_AlignHCenter = enum_as_int(Qt.AlignHCenter)
+_Qt_AlignTop = enum_as_int(Qt.AlignTop)
+_Qt_AlignBottom = enum_as_int(Qt.AlignBottom)
+_Qt_AlignVCenter = enum_as_int(Qt.AlignVCenter)
 
 _StaticTextKey = Tuple[str, QFont, Qt.TextElideMode, int]
 _PenKey = Tuple[str, int]
-_State_Mask = int(QStyle.State_Selected | QStyle.State_Enabled |
-                  QStyle.State_Active)
+_State_Mask = enum_as_int(
+    QStyle.State_Selected | QStyle.State_Enabled | QStyle.State_Active
+)
 
 
 class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
@@ -436,7 +440,7 @@ class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
             rect.width()
         )
         tsize = st.size()
-        textalign = int(option.displayAlignment)
+        textalign = enum_as_int(option.displayAlignment)
         text_pos_x = text_pos_y = 0.0
 
         if textalign & _Qt_AlignLeft:
@@ -478,7 +482,7 @@ class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
     def __pen_cache(self, palette: QPalette, state: QStyle.State) -> QPen:
         """Return a QPen from the `palette` for `state`."""
         # NOTE: This method exists mostly to avoid QPen, QColor (de)allocations.
-        key = palette.cacheKey(), int(state) & _State_Mask
+        key = palette.cacheKey(), enum_as_int(state) & _State_Mask
         try:
             return self.__pen_lru_cache[key]
         except KeyError:

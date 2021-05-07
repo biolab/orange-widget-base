@@ -2965,7 +2965,6 @@ class DateTimeEditWCalendarTime(QDateTimeEdit):
             date_time = QtCore.QDateTime.currentDateTime()
         if isinstance(date_time, QtCore.QTime):
             self.setDateTime(
-                QtCore.QDateTime(
-                    self.date(), self.calendarWidget.timeedit.time()))
+                QtCore.QDateTime(self.date(), date_time))
         else:
             self.setDateTime(date_time)

@@ -1,6 +1,8 @@
+import time
+import unittest
 from unittest.mock import Mock
 
-from AnyQt.QtCore import Qt, QTimer
+from AnyQt.QtCore import Qt, QTimer, QDateTime, QDate, QTime
 
 from orangewidget import gui
 from orangewidget.tests.base import GuiTest, WidgetTest
@@ -202,3 +204,29 @@ class TestCheckBoxWithDisabledState(GuiTest):
         self.assertEqual(cb.checkState(), Qt.Checked)
         cb.setEnabled(False)
         self.assertEqual(cb.checkState(), Qt.PartiallyChecked)
+
+
+class TestDateTimeEditWCalendarTime(GuiTest):
+    def test_set_datetime(self):
+        c = gui.DateTimeEditWCalendarTime(None)
+
+        # default time (now)
+        c.set_datetime()
+        self.assertLessEqual(
+            abs(c.dateTime().toSecsSinceEpoch() - time.time()),
+            2)
+
+        # some date
+        poeh = QDateTime(QDate(1961, 4, 12), QTime(6, 7))
+        c.set_datetime(poeh)
+        self.assertEqual(c.dateTime(), poeh)
+
+        # set a different time
+        ali = QTime(8, 5)
+        c.set_datetime(ali)
+        poeh.setTime(ali)
+        self.assertEqual(c.dateTime(), poeh)
+
+
+if __name__ == "__main__":
+    unittest.main()

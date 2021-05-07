@@ -145,7 +145,7 @@ class ComboBoxSearch(QComboBox):
         super().__init__(parent, **kwargs)
         self.__searchline.setParent(self)
         self.__searchline.setFocusProxy(self)
-        self.setFocusPolicy(Qt.ClickFocus | Qt.TabFocus)
+        self.setFocusPolicy(Qt.StrongFocus)
 
     def setMaximumContentsLength(self, length):  # type: (int) -> None
         """

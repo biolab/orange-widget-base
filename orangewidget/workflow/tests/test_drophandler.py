@@ -1,7 +1,7 @@
 from unittest import mock
 from typing import Sequence
 
-from AnyQt.QtCore import Qt, QUrl, QPoint, QMimeData
+from AnyQt.QtCore import Qt, QUrl, QPoint, QMimeData, QPointF
 from AnyQt.QtGui import QDropEvent, QDragEnterEvent
 from AnyQt.QtWidgets import QApplication, QWidget
 
@@ -148,7 +148,7 @@ def dragDrop(
     QApplication.sendEvent(widget, ev)
     if not ev.isAccepted():
         return False
-    ev = QDropEvent(pos, action, mime, buttons, modifiers)
+    ev = QDropEvent(QPointF(pos), action, mime, buttons, modifiers)
     ev.setAccepted(False)
     QApplication.sendEvent(widget, ev)
     return ev.isAccepted()

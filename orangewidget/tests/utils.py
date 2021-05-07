@@ -1,9 +1,9 @@
 import sys
-
-import warnings
 import contextlib
 
-from AnyQt.QtCore import Qt, QObject, QEventLoop, QTimer, QLocale, QPoint
+from AnyQt.QtCore import (
+    Qt, QObject, QEventLoop, QTimer, QLocale, QPoint, QPointF
+)
 from AnyQt.QtTest import QTest
 from AnyQt.QtGui import QMouseEvent
 from AnyQt.QtWidgets import QApplication
@@ -307,7 +307,8 @@ def mouseMove(widget, pos=QPoint(), delay=-1):  # pragma: no-cover
     # Like QTest.mouseMove, but functional without QCursor.setPos
     if pos.isNull():
         pos = widget.rect().center()
-    me = QMouseEvent(QMouseEvent.MouseMove, pos, widget.mapToGlobal(pos),
+    me = QMouseEvent(QMouseEvent.MouseMove, QPointF(pos),
+                     QPointF(widget.mapToGlobal(pos)),
                      Qt.NoButton, Qt.MouseButtons(0), Qt.NoModifier)
     if delay > 0:
         QTest.qWait(delay)

@@ -8,6 +8,8 @@ from AnyQt.QtTest import QTest
 from AnyQt.QtGui import QMouseEvent
 from AnyQt.QtWidgets import QApplication
 
+from orangewidget.utils.combobox import qcombobox_emit_activated
+
 
 class EventSpy(QObject):
     """
@@ -226,12 +228,10 @@ class simulate:
         mindex = model.index(index, column, root)
         assert mindex.flags() & Qt.ItemIsEnabled
         cbox.setCurrentIndex(index)
-        text = cbox.currentText()
         # QComboBox does not have an interface which would allow selecting
         # the current item as if a user would. Only setCurrentIndex which
         # does not emit the activated signals.
-        cbox.activated[int].emit(index)
-        cbox.activated[str].emit(text)
+        qcombobox_emit_activated(cbox, index)
         if delay >= 0:
             QTest.qWait(delay)
 

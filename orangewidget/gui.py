@@ -1670,7 +1670,7 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
             combo.setCurrentIndex(cindex)
             if sendSelectedValue:
                 connectControl(
-                    master, value, callback, combo.activated[str],
+                    master, value, callback, combo.textActivated,
                     CallFrontComboBox(combo, emptyString),
                     ValueCallbackCombo(master, value, emptyString))
             else:

@@ -323,9 +323,8 @@ class ElidingLabel(QLabel):
 
     def sizeHint(self):
         fm = self.fontMetrics()
-        w = fm.width(self.__originalText)
+        w = fm.horizontalAdvance(self.__originalText)
         h = super().minimumSizeHint().height()
-
         return QSize(w, h)
 
     def setElide(self, enabled):
@@ -775,7 +774,7 @@ def main(argv=None):  # pragma: no cover
     sb.addWidget(mw)
     w.layout().addWidget(sb, 0)
     w.show()
-    return app.exec_()
+    return app.exec()
 
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(main(sys.argv))

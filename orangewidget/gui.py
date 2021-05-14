@@ -919,6 +919,8 @@ def checkBox(widget, master, value, label, box=None,
     else:
         b = widget
     if stateWhenDisabled is not None:
+        if isinstance(stateWhenDisabled, bool):
+            stateWhenDisabled = Qt.Checked if stateWhenDisabled else Qt.Unchecked
         cbox = CheckBoxWithDisabledState(label, b, stateWhenDisabled)
         cbox.clicked.connect(cbox._storeTrueState)
     else:
@@ -2449,8 +2451,8 @@ class ColoredBarItemDelegate(QtWidgets.QStyledItemDelegate):
         font = self.get_font(option, index)
         metrics = QtGui.QFontMetrics(font)
         height = metrics.lineSpacing() + 8  # 4 pixel margin
-        width = metrics.width(self.displayText(index.data(Qt.DisplayRole),
-                                               QtCore.QLocale())) + 8
+        width = metrics.horizontalAdvance(
+            self.displayText(index.data(Qt.DisplayRole), QtCore.QLocale())) + 8
         return QtCore.QSize(width, height)
 
     def paint(self, painter, option, index):
@@ -2721,7 +2723,7 @@ class VisibleHeaderSectionContextEventFilter(QtCore.QObject):
                                        max(view.sectionSizeHint(section), 10))
 
             action.toggled.connect(toogleHidden)
-        menu.exec_(event.globalPos())
+        menu.exec(event.globalPos())
         return True
 
 

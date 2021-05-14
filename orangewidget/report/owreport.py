@@ -401,7 +401,7 @@ class OWReport(OWBaseWidget):
         printer = QPrinter()
         print_dialog = QPrintDialog(printer, self)
         print_dialog.setWindowTitle("Print report")
-        if print_dialog.exec_() != QDialog.Accepted:
+        if print_dialog.exec() != QDialog.Accepted:
             return
         self._print_to_printer(printer)
 
@@ -451,7 +451,7 @@ class OWReport(OWBaseWidget):
         )
         mb.setWindowModality(Qt.WindowModal)
         mb.setAttribute(Qt.WA_DeleteOnClose)
-        mb.exec_()
+        mb.exec()
 
     def is_empty(self):
         return not self.table_model.rowCount()

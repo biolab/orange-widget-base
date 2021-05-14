@@ -71,7 +71,7 @@ class ComboBox(QComboBox):
         sh = super().sizeHint()
         if self.__maximumContentsLength > 0:
             width = (
-                self.fontMetrics().width("X") * self.__maximumContentsLength
+                self.fontMetrics().horizontalAdvance("X") * self.__maximumContentsLength
                 + self.iconSize().width() + 4
             )
             sh = sh.boundedTo(QSize(width, sh.height()))
@@ -145,7 +145,7 @@ class ComboBoxSearch(QComboBox):
         super().__init__(parent, **kwargs)
         self.__searchline.setParent(self)
         self.__searchline.setFocusProxy(self)
-        self.setFocusPolicy(Qt.ClickFocus | Qt.TabFocus)
+        self.setFocusPolicy(Qt.StrongFocus)
 
     def setMaximumContentsLength(self, length):  # type: (int) -> None
         """
@@ -173,7 +173,7 @@ class ComboBoxSearch(QComboBox):
         sh = super().sizeHint()
         if self.__maximumContentsLength > 0:
             width = (
-                self.fontMetrics().width("X") * self.__maximumContentsLength
+                self.fontMetrics().horizontalAdvance("X") * self.__maximumContentsLength
                 + self.iconSize().width() + 4
             )
             sh = sh.boundedTo(QSize(width, sh.height()))
@@ -250,8 +250,7 @@ class ComboBoxSearch(QComboBox):
             QStyle.CC_ComboBox, opt, QStyle.SC_ComboBoxEditField, self
         )  # type: QRect
         self.__searchline.setGeometry(editrect)
-        desktop = QApplication.desktop()
-        screenrect = desktop.availableGeometry(self)  # type: QRect
+        screenrect = self.screen().availableGeometry()
 
         # get the height for the view
         listrect = QRect()

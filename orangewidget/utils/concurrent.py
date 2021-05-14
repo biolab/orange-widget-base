@@ -17,7 +17,7 @@ from AnyQt.QtCore import (
     QCoreApplication, QEvent, Q_ARG,
     pyqtSignal as Signal, pyqtSlot as Slot
 )
-import sip
+from AnyQt import sip
 
 _log = logging.getLogger(__name__)
 

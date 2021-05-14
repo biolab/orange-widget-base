@@ -1,8 +1,8 @@
 from typing import Iterable
 
-from PyQt5.QtWidgets import QListView, QLineEdit, QStyle
-from PyQt5.QtGui import QResizeEvent
-from PyQt5.QtCore import (
+from AnyQt.QtWidgets import QListView, QLineEdit, QStyle
+from AnyQt.QtGui import QResizeEvent
+from AnyQt.QtCore import (
     Qt,
     QAbstractItemModel,
     QModelIndex,
@@ -148,8 +148,8 @@ class ListViewSearch(QListView):
 
 def main():
     from itertools import cycle
-    from PyQt5.QtCore import QStringListModel
-    from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout
+    from AnyQt.QtCore import QStringListModel
+    from AnyQt.QtWidgets import QApplication, QWidget, QVBoxLayout
 
     app = QApplication([])
     w = QWidget()

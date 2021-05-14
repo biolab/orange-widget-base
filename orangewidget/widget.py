@@ -9,7 +9,7 @@ from math import log10
 from typing import Optional, Union, List
 
 from AnyQt.QtWidgets import (
-    QWidget, QDialog, QVBoxLayout, QSizePolicy, QApplication, QStyle,
+    QWidget, QDialog, QVBoxLayout, QSizePolicy, QStyle,
     QShortcut, QSplitter, QSplitterHandle, QPushButton, QStatusBar,
     QProgressBar, QAction, QFrame, QStyleOption, QWIDGETSIZE_MAX,
     QHBoxLayout)
@@ -452,8 +452,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                     x0, x1 = 6, w
                 else:
                     x0, x1 = w, 6
-                y = self.height() / 2
-                h = (w - 6) / 1.12
+                y = self.height() // 2
+                h = int((w - 6) / 1.12)
                 painter.setRenderHint(painter.Antialiasing)
                 painter.drawLines(
                     QLine(x0, y - h, x1, y),
@@ -889,7 +889,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             geom.x() + diffx, geom.y(), geom.width() + diffw, geom.height()
         )
         # bound/move by available geometry
-        bounds = QApplication.desktop().availableGeometry(self)
+        bounds = self.screen().availableGeometry()
         bounds = bounds.adjusted(
             framemargins.left(), framemargins.top(),
             -framemargins.right(), -framemargins.bottom()
@@ -939,7 +939,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
         if restored and not self.windowState() & \
                 (Qt.WindowMaximized | Qt.WindowFullScreen):
-            space = QApplication.desktop().availableGeometry(self)
+            space = self.screen().availableGeometry()
             frame, geometry = self.frameGeometry(), self.geometry()
 
             # Fix the widget size to fit inside the available space
@@ -992,7 +992,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if self.want_main_area:
             width += self.__splitter.handleWidth()
             if self.want_control_area:
-                width += height * self.mainArea_width_height_ratio
+                width += int(height * self.mainArea_width_height_ratio)
             else:
                 return super().sizeHint()
         return QSize(width, height)

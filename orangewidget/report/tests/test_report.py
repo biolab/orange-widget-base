@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from AnyQt.QtCore import Qt, QRectF
 from AnyQt.QtGui import QFont, QBrush, QPixmap, QColor, QIcon
-from PyQt5.QtWidgets import QGraphicsScene
+from AnyQt.QtWidgets import QGraphicsScene
 
 from orangewidget.report.owreport import OWReport, HAVE_REPORT
 from orangewidget import gui
@@ -85,7 +85,7 @@ class TestReport(GuiTest):
                        create=True, side_effect=PermissionError),\
                     patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
                           return_value=(filename, 'Report (*.report)')),\
-                    patch("AnyQt.QtWidgets.QMessageBox.exec_",
+                    patch("AnyQt.QtWidgets.QMessageBox.exec",
                           return_value=True), \
                     patch("orangewidget.report.owreport.log.error") as log:
                 rep.save_report()
@@ -101,7 +101,7 @@ class TestReport(GuiTest):
         try:
             with patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
                        return_value=(temp_name, 'Report (*.report)')), \
-                    patch("AnyQt.QtWidgets.QMessageBox.exec_",
+                    patch("AnyQt.QtWidgets.QMessageBox.exec",
                           return_value=True):
                 rep.save_report()
         finally:

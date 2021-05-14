@@ -2961,10 +2961,9 @@ class DateTimeEditWCalendarTime(QDateTimeEdit):
 
     def set_datetime(self, date_time=None):
         if date_time is None:
-            date_time = QtWidgets.QDateTime.currentDateTime()
+            date_time = QtCore.QDateTime.currentDateTime()
         if isinstance(date_time, QtCore.QTime):
             self.setDateTime(
-                QtWidgets.QDateTime(
-                    self.date(), self.calendarWidget.timeedit.time()))
+                QtCore.QDateTime(self.date(), date_time))
         else:
             self.setDateTime(date_time)

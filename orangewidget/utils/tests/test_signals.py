@@ -12,7 +12,8 @@ from orangewidget.widget import \
     Single, Multiple, Default, NonDefault, Explicit, Dynamic
 from orangewidget.tests.base import GuiTest
 from orangewidget.utils.signals import _Signal, Input, Output, \
-    WidgetSignalsMixin, InputSignal, OutputSignal
+    WidgetSignalsMixin, InputSignal, OutputSignal, MultiInput, summarize, \
+    PartialSummary
 from orangewidget.widget import OWBaseWidget
 
 
@@ -206,6 +207,55 @@ class WidgetSignalsMixinTest(GuiTest):
         outputs = TestWidget.get_signals("outputs")
         self.assertTrue(all(isinstance(s, Output) for s in outputs))
         self.assertSequenceEqual([s.name for s in outputs], list("123a"))
+
+    def test_multi_input_summary(self):
+        class Str(str):
+            pass
+
+        @summarize.register(Str)
+        def _(s):
+            return PartialSummary(str(s), None)
+
+        class TestWidget(OWBaseWidget):
+            class Inputs:
+                input_a = MultiInput("A", Str)
+
+            @Inputs.input_a
+            def set_a(self, index, a):
+                pass
+
+            @Inputs.input_a.insert
+            def insert_a(self, index, a):
+                pass
+
+            @Inputs.input_a.remove
+            def remove_a(self, index):
+                pass
+        w = TestWidget()
+        w.insert_a(0, Str("00"))
+        w.insert_a(1, Str("11"))
+        self.assertSequenceEqual(
+            list(w.input_summaries["A"].values()),
+            [PartialSummary("00", None), PartialSummary("11", None)])
+        w.set_a(0, None)
+        self.assertSequenceEqual(
+            list(w.input_summaries["A"].values()),
+            [PartialSummary("11", None)])
+        w.set_a(0, Str("00"))
+        self.assertSequenceEqual(
+            list(w.input_summaries["A"].values()),
+            [PartialSummary("00", None), PartialSummary("11", None)])
+        w.insert_a(1, Str("05"))
+        self.assertSequenceEqual(
+            list(w.input_summaries["A"].values()),
+            [PartialSummary("00", None), PartialSummary("05", None),
+             PartialSummary("11", None)])
+        w.set_a(1, None)
+        w.remove_a(1)
+        self.assertSequenceEqual(
+            list(w.input_summaries["A"].values()),
+            [PartialSummary("00", None), PartialSummary("11", None)])
+
 
 if __name__ == "__main__":
     unittest.main()

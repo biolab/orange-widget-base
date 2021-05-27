@@ -14,6 +14,7 @@ from orangecanvas.registry.description import (
     InputSignal, OutputSignal, Single, Multiple, Default, NonDefault,
     Explicit, Dynamic
 )
+from orangewidget.workflow.utils import WeakKeyDefaultDict
 
 
 # increasing counter for ensuring the order of Input/Output definitions
@@ -256,10 +257,18 @@ class MultiInput(Input):
         self.filter_none = filter_none
         self.closing_sentinel = Closed
 
+    __summary_ids_mapping = WeakKeyDefaultDict(dict)
+    __id_gen = itertools.count()
+
+    def __get_summary_ids(self, widget: 'WidgetSignalsMixin'):
+        ids = self.__summary_ids_mapping[widget]
+        return ids.setdefault(self.name, [])
+
     def __call__(self, method):
         def summarize_wrapper(widget, index, value):
+            ids = self.__get_summary_ids(widget)
             widget.set_partial_input_summary(
-                self.name, summarize(value), id=index)
+                self.name, summarize(value), id=ids[index], index=index)
             method(widget, index, value)
         _ = super().__call__(method)
         return summarize_wrapper if self.auto_summary else method
@@ -267,9 +276,10 @@ class MultiInput(Input):
     def insert(self, method):
         """Register the method as the insert handler"""
         def summarize_wrapper(widget, index, value):
-            self._insert_summary_slot(widget, index)
+            ids = self.__get_summary_ids(widget)
+            ids.insert(index, next(self.__id_gen))
             widget.set_partial_input_summary(
-                self.name, summarize(value), id=index)
+                self.name, summarize(value), id=ids[index], index=index)
             method(widget, index, value)
         self.insert_handler = method.__name__
         return summarize_wrapper if self.auto_summary else method
@@ -277,9 +287,10 @@ class MultiInput(Input):
     def remove(self, method):
         """"Register the method as the remove handler"""
         def summarize_wrapper(widget, index):
-            self._remove_summary_slot(widget, index)
+            ids = self.__get_summary_ids(widget)
+            id_ = ids.pop(index)
             widget.set_partial_input_summary(
-                self.name, summarize(None), id=id)
+                self.name, summarize(None), id=id_)
             method(widget, index)
         self.remove_handler = method.__name__
         return summarize_wrapper if self.auto_summary else method
@@ -290,20 +301,6 @@ class MultiInput(Input):
         if self.remove_handler is None:
             raise RuntimeError('remove_handler is not set')
         return super().bound_signal(widget)
-
-    def _insert_summary_slot(self, widget, index):
-        summaries = widget.input_summaries[self.name]
-        values = list(summaries.values())
-        values.insert(index, None)
-        summaries = {i: v for i, v in enumerate(values)}  # renumerate
-        widget.input_summaries[self.name] = summaries
-
-    def _remove_summary_slot(self, widget, index):
-        summaries = widget.input_summaries[self.name]
-        values = list(summaries.values())
-        del values[index]
-        summaries = {i: v for i, v in enumerate(values)}  # renumerate
-        widget.input_summaries[self.name] = summaries
 
 
 _not_set = object()
@@ -515,21 +512,28 @@ class WidgetSignalsMixin:
         self._update_summary(self.input_summaries)
         self._update_summary(self.output_summaries)
 
-    def set_partial_input_summary(self, name, partial_summary, *, id=None):
-        self._set_part_summary(self.input_summaries[name], id, partial_summary)
+    def set_partial_input_summary(self, name, partial_summary, *, id=None, index=None):
+        self.__set_part_summary(self.input_summaries[name], id, partial_summary, index=index)
         self._update_summary(self.input_summaries)
 
     def set_partial_output_summary(self, name, partial_summary, *, id=None):
-        self._set_part_summary(self.output_summaries[name], id, partial_summary)
+        self.__set_part_summary(self.output_summaries[name], id, partial_summary)
         self._update_summary(self.output_summaries)
 
     @staticmethod
-    def _set_part_summary(summary, id, partial_summary):
+    def __set_part_summary(summary, id, partial_summary, index=None):
         if partial_summary.summary is None:
             if id in summary:
                 del summary[id]
         else:
-            summary[id] = partial_summary
+            if index is None or id in summary:
+                summary[id] = partial_summary
+            else:
+                # Insert inplace at specified index
+                items = list(summary.items())
+                items.insert(index, (id, partial_summary))
+                summary.clear()
+                summary.update(items)
 
     def _update_summary(self, summaries):
         from orangewidget.widget import StateInfo

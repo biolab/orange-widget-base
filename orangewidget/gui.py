@@ -7,6 +7,7 @@ import re
 import itertools
 import warnings
 import logging
+from functools import wraps
 from types import LambdaType
 from collections import defaultdict
 
@@ -1677,6 +1678,26 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     return combo
 
 
+def deferred(func):
+    @wraps(func)
+    def _commit_replacement():
+        raise RuntimeError(
+            "This function is deferred; explicitly call "
+            f"{func.__name__}.deferred or {func.__name__}.now")
+    # Store the original function
+    _commit_replacement.__func = func
+    # .now and .deferred must be bound methods, so they cannot be created by
+    # decorator; besides, deferred needs a closure from auto_commit.
+    # However, at least deferred is passed as an argument by controls created
+    # before creating auto_commmit. Hence, implement them as lambdas to methods
+    # that will be provided by auto_commit
+    _commit_replacement.now = lambda: _commit_replacement.__now()
+    _commit_replacement.deferred = lambda: _commit_replacement.__deferred()
+    # _commit_replacement must not become a bound method because this would
+    # prevent auto_commit from assigning __now and __deferred.
+    return staticmethod(_commit_replacement)
+
+
 def auto_commit(widget, master, value, label, auto_label=None, box=False,
                 checkbox_label=None, orientation=None, commit=None,
                 callback=None, **misc):
@@ -1731,7 +1752,7 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
         if callback:
             callback()
 
-    def unconditional_commit():
+    def conditional_commit():
         nonlocal dirty
         if getattr(master, value):
             do_commit()
@@ -1742,15 +1763,16 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
         nonlocal dirty
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         try:
-            commit()
+            if decorated:
+                commit.__func(master)
+            else:
+                commit()
             dirty = False
         finally:
             QApplication.restoreOverrideCursor()
 
     dirty = False
     commit = commit or getattr(master, 'commit')
-    commit_name = next(LAMBDA_NAME) if isinstance(commit, LambdaType) else commit.__name__
-    setattr(master, 'unconditional_' + commit_name, commit)
 
     if not auto_label:
         if checkbox_label:
@@ -1794,7 +1816,16 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
     if not checkbox_label:
         btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
     checkbox_toggled()
-    setattr(master, commit_name, unconditional_commit)
+
+    decorated = hasattr(commit, "deferred")
+    if decorated:
+        commit.__now = do_commit
+        commit.__deferred = conditional_commit
+    else:
+        commit_name = next(LAMBDA_NAME) if isinstance(commit, LambdaType) else commit.__name__
+        setattr(master, 'unconditional_' + commit_name, commit)
+        setattr(master, commit_name, conditional_commit)
+
     misc['addToLayout'] = addToLayout
     miscellanea(b, widget, widget, **misc)
 

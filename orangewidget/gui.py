@@ -1823,6 +1823,9 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
         commit.__deferred = conditional_commit
     else:
         commit_name = next(LAMBDA_NAME) if isinstance(commit, LambdaType) else commit.__name__
+        warnings.warn(
+            f"decorate {commit_name} with @gui.deferred and "
+            f"then explicitly call {commit_name}.now or {commit_name}.deferred")
         setattr(master, 'unconditional_' + commit_name, commit)
         setattr(master, commit_name, conditional_commit)
 

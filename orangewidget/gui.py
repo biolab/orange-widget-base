@@ -543,7 +543,7 @@ class SpinBoxMixin:
 
         self.mouseHeld = False
         self.verticalDirection = verticalDrag
-        self.mouseStartPos = 0
+        self.mouseStartPos = QtCore.QPoint()
         self.preDragValue = 0
         self.stepSize = 0
 
@@ -603,7 +603,7 @@ class SpinBoxMixin:
 
         if event.type() == QEvent.MouseButtonPress:
             # prepare click+drag
-            self.mouseStartPos = event.globalPos().y()
+            self.mouseStartPos = event.globalPos()
             self.preDragValue = self.value()
             self.mouseHeld = True
         elif event.type() == QEvent.MouseMove and self.mouseHeld:
@@ -619,7 +619,8 @@ class SpinBoxMixin:
 
             pos = event.globalPos()
             posVal = pos.y() if self.verticalDirection else -pos.x()
-            diff = self.mouseStartPos - posVal
+            posValStart = self.mouseStartPos.y() if self.verticalDirection else -self.mouseStartPos.x()
+            diff = posValStart - posVal
             # these magic params are pretty arbitrary, ensure that it's still
             # possible to easily highlight the text if moving mouse slightly
             # up/down, with the default stepsize

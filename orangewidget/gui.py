@@ -635,7 +635,7 @@ class SpinBoxMixin:
         elif event.type() == QEvent.MouseButtonRelease:
             # end click+drag
             # restore default cursor on release
-            if QApplication.overrideCursor() == cursor:
+            while QApplication.overrideCursor() is not None:
                 QApplication.restoreOverrideCursor()
 
             # restore click and hold behavior

@@ -550,7 +550,6 @@ class SpinBoxMixin:
         self.textEditing = False
         self.preEditvalue = 0
 
-        self.installEventFilter(self)
         self.lineEdit().installEventFilter(self)
         self.editingFinished.connect(self.__onEditingFinished)
         self.valueChanged.connect(self.__onValueChanged)

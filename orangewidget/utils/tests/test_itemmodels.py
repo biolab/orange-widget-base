@@ -6,6 +6,7 @@ import unittest
 import numpy as np
 
 from AnyQt.QtCore import Qt, QModelIndex
+from AnyQt.QtTest import QSignalSpy
 
 from orangewidget.utils.itemmodels import \
     AbstractSortTableModel, PyTableModel, PyListModel, \
@@ -166,6 +167,40 @@ class TestAbstractSortTableModel(unittest.TestCase):
         model.sort(1, Qt.DescendingOrder)
         self.assertSequenceEqual(model.mapToSourceRows(...).tolist(), [0, 2, 1])
         self.assertSequenceEqual(model.mapFromSourceRows(...).tolist(), [0, 2, 1])
+
+    def test_sorting_2d(self):
+        class Model(AbstractSortTableModel):
+            def rowCount(self):
+                return 3
+
+            def sortColumnData(self, _):
+                return np.array([[4, 6, 2],
+                                 [3, 3, 3],
+                                 [4, 6, 1]])
+        model = Model()
+        model.sort(0)
+        self.assertEqual(model.mapToSourceRows(...).tolist(), [1, 2, 0])
+
+    def test_setSortIndices(self):
+        model = AbstractSortTableModel()
+        model.rowCount = lambda: 5
+        spy_about = QSignalSpy(model.layoutAboutToBeChanged)
+        spy_changed = QSignalSpy(model.layoutChanged)
+
+        model.setSortIndices([4, 0, 1, 3, 2])
+        self.assertEqual(len(spy_about), 1)
+        self.assertEqual(len(spy_changed), 1)
+        self.assertEqual(model.mapFromSourceRows(...).tolist(), [1, 2, 4, 3, 0])
+        self.assertEqual(model.mapToSourceRows(...).tolist(), [4, 0, 1, 3, 2])
+
+        rows = [0, 1, 2, 3, 4]
+        model.setSortIndices(None)
+        self.assertEqual(len(spy_about), 2)
+        self.assertEqual(len(spy_changed), 2)
+        self.assertEqual(model.mapFromSourceRows(...), ...)
+        self.assertEqual(model.mapToSourceRows(...), ...)
+        self.assertEqual(model.mapFromSourceRows(rows), rows)
+        self.assertEqual(model.mapToSourceRows(rows), rows)
 
 
 # Tests test _is_index_valid and access model._other_data. The latter tests

@@ -92,7 +92,7 @@ class AbstractSortTableModel(QAbstractTableModel):
             data = numpy.array([self.index(row, column).data()
                                 for row in range(self.rowCount())])
 
-        assert data.ndim == 1, 'Data should be 1-dimensional'
+        assert data.ndim in (1, 2), 'Data should be 1- or 2-dimensional'
         data = data[self.mapToSourceRows(Ellipsis)]
         return data
 
@@ -161,7 +161,10 @@ class AbstractSortTableModel(QAbstractTableModel):
         Return indices of sorted data. May be reimplemented to handle
         sorting in a certain way, e.g. to sort NaN values last.
         """
-        indices = numpy.argsort(data, kind="mergesort")
+        if data.ndim == 1:
+            indices = numpy.argsort(data, kind="mergesort")
+        else:
+            indices = numpy.lexsort(data.T[::-1])
         if order == Qt.DescendingOrder:
             indices = indices[::-1]
         return indices

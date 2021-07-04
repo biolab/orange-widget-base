@@ -1,3 +1,4 @@
+import collections
 from collections import defaultdict
 from typing import Sequence
 from math import isnan, isinf
@@ -411,15 +412,38 @@ class PyTableModel(AbstractSortTableModel):
         self.endRemoveRows()
 
     def __setitem__(self, i, value):
+        self._check_sort_order()
+
         if isinstance(i, slice):
             start, stop, _ = _as_contiguous_range(i, len(self))
-            stop -= 1
+            if not isinstance(value, collections.abc.Sized):
+                value = tuple(value)
+            newstop = start + len(value)
+
+            # Signal changes
+            parent = QModelIndex()
+            if newstop > stop:
+                self.rowsAboutToBeInserted.emit(parent, stop, newstop - 1)
+            elif newstop < stop:
+                self.rowsAboutToBeRemoved.emit(parent, newstop, stop - 1)
+
+            # Make changes
+            self._table[i] = value
+
+            # Signal change were made
+            if start != min(stop, newstop):
+                self.dataChanged.emit(
+                    self.index(start, 0),
+                    self.index(min(stop, newstop) - 1, self.columnCount() - 1))
+            if newstop > stop:
+                self.rowsInserted.emit(parent, stop, newstop - 1)
+            elif newstop < stop:
+                self.rowsRemoved.emit(parent, newstop, stop - 1)
         else:
-            start = stop = i = i if i >= 0 else len(self) + i
-        self._check_sort_order()
-        self._table[i] = value
-        self.dataChanged.emit(self.index(start, 0),
-                              self.index(stop, self.columnCount() - 1))
+            self._table[i] = value
+            i %= len(self)
+            self.dataChanged.emit(self.index(i, 0),
+                                  self.index(i, self.columnCount() - 1))
 
     def _check_sort_order(self):
         if self.mapToSourceRows(Ellipsis) is not Ellipsis:

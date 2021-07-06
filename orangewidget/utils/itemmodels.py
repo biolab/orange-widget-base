@@ -10,7 +10,7 @@ from warnings import warn
 
 from AnyQt.QtCore import (
     Qt, QObject, QAbstractListModel, QAbstractTableModel, QModelIndex,
-    QItemSelectionModel, QMimeData, QT_VERSION
+    QItemSelectionModel, QMimeData
 )
 from AnyQt.QtCore import pyqtSignal as Signal
 from AnyQt.QtWidgets import (
@@ -92,7 +92,7 @@ class AbstractSortTableModel(QAbstractTableModel):
             data = numpy.array([self.index(row, column).data()
                                 for row in range(self.rowCount())])
 
-        assert data.ndim == 1, 'Data should be 1-dimensional'
+        assert data.ndim in (1, 2), 'Data should be 1- or 2-dimensional'
         data = data[self.mapToSourceRows(Ellipsis)]
         return data
 
@@ -161,7 +161,10 @@ class AbstractSortTableModel(QAbstractTableModel):
         Return indices of sorted data. May be reimplemented to handle
         sorting in a certain way, e.g. to sort NaN values last.
         """
-        indices = numpy.argsort(data, kind="mergesort")
+        if data.ndim == 1:
+            indices = numpy.argsort(data, kind="mergesort")
+        else:
+            indices = numpy.lexsort(data.T[::-1])
         if order == Qt.DescendingOrder:
             indices = indices[::-1]
         return indices
@@ -180,33 +183,21 @@ class AbstractSortTableModel(QAbstractTableModel):
         data table is left unmodified. Use mapToSourceRows()/mapFromSourceRows()
         when accessing data by row indexes.
         """
-        if QT_VERSION >= 0x50000:
-            self.layoutAboutToBeChanged.emit(
-                [], QAbstractTableModel.VerticalSortHint
-            )
-        else:
-            self.layoutAboutToBeChanged.emit()
+        indices = self._sort(column, order)
+        self.__sortColumn = -1 if column < 0 else column
+        self.__sortOrder = order
+        self.setSortIndices(indices)
+
+    def setSortIndices(self, indices):
+        self.layoutAboutToBeChanged.emit([], QAbstractTableModel.VerticalSortHint)
 
         # Store persistent indices as well as their (actual) rows in the
         # source data table.
         persistent = self.persistentIndexList()
         persistent_rows = self.mapToSourceRows([i.row() for i in persistent])
 
-        self.__sortColumn = -1 if column < 0 else column
-        self.__sortOrder = order
-
-        indices = None
-        if column >= 0:
-            data = numpy.asarray(self._sortColumnData(column))
-            if data is None:
-                data = numpy.arange(self.rowCount())
-            elif data.dtype == object:
-                data = data.astype(str)
-
-            indices = self.mapToSourceRows(self._argsortData(data, order))
-
         if indices is not None:
-            self.__sortInd = indices
+            self.__sortInd = numpy.asarray(indices)
             self.__sortIndInv = numpy.argsort(indices)
         else:
             self.__sortInd = None
@@ -218,10 +209,25 @@ class AbstractSortTableModel(QAbstractTableModel):
             persistent,
             [self.index(row, pind.column())
              for row, pind in zip(persistent_rows, persistent)])
-        if QT_VERSION >= 0x50000:
-            self.layoutChanged.emit([], QAbstractTableModel.VerticalSortHint)
-        else:
-            self.layoutChanged.emit()
+        self.layoutChanged.emit([], QAbstractTableModel.VerticalSortHint)
+
+    def _sort(self, column, order):
+        indices = None
+        if column >= 0:
+            # - _sortColumnData returns data in its currently shown order
+            # - _argSortData thus returns an array a, in which a[i] is the row
+            #   number (in the current view) to put to line i
+            # - mapToSourceRows maps these indices back to original data.
+            # This contrived procedure (instead of _sortColumnData returning
+            # the original data, saving us from double mapping) ensures stable
+            # sort order on consecutive calls
+            data = numpy.asarray(self._sortColumnData(column))
+            if data is None:
+                data = numpy.arange(self.rowCount())
+            elif data.dtype == object:
+                data = data.astype(str)
+            indices = self.mapToSourceRows(self._argsortData(data, order))
+        return indices
 
 
 class PyTableModel(AbstractSortTableModel):

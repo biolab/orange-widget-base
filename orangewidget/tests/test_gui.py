@@ -228,5 +228,70 @@ class TestDateTimeEditWCalendarTime(GuiTest):
         self.assertEqual(c.dateTime(), poeh)
 
 
+class TestDeferred(GuiTest):
+    def test_deferred(self) -> None:
+        class Widget(OWBaseWidget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.option = False
+                self.autocommit = False
+
+                self.checkbox = gui.checkBox(self, self, "option", "foo",
+                                             callback=self.apply.deferred)
+
+                self.commit_button = gui.auto_commit(
+                    self, self, 'autocommit', 'Commit', commit=self.apply)
+
+            real_apply = Mock()
+            # Unlike real functions, mocks don't have names
+            real_apply.__name__ = "apply"
+            apply = gui.deferred(real_apply)
+
+        w = Widget()
+
+        # clicked, but no autocommit
+        w.checkbox.click()
+        w.real_apply.assert_not_called()
+
+        # manual commit
+        w.commit_button.button.click()
+        w.real_apply.assert_called()
+        w.real_apply.reset_mock()
+
+        # enable auto commit - this should not trigger commit
+        w.commit_button.checkbox.click()
+        w.real_apply.assert_not_called()
+
+        # clicking control should auto commit
+        w.checkbox.click()
+        w.real_apply.assert_called()
+        w.real_apply.reset_mock()
+
+        # disabling and reenable auto commit without chenging the control
+        # should not trigger commit
+        w.commit_button.checkbox.click()
+        w.real_apply.assert_not_called()
+
+        # calling now should always call the apply
+        w.apply.now()
+        w.real_apply.assert_called()
+        w.real_apply.reset_mock()
+
+        # calling decorated method without `now` or `deferred` raises an expception
+        self.assertRaises(RuntimeError, w.apply)
+
+    def test_warn_to_defer(self):
+        class Widget(OWBaseWidget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.autocommit = False
+                self.commit_button = gui.auto_commit(
+                    self, self, 'autocommit', 'Commit', commit=lambda: None)
+
+        with self.assertWarns(UserWarning):
+            _ = Widget()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -517,6 +517,8 @@ class SettingsHandler:
             if not isinstance(value, Setting)
         }
         self._migrate_settings(self.defaults)
+        # remove schema_only settings introduced by the migration
+        self._remove_schema_only(self.defaults)
 
     def write_defaults(self):
         """Write (global) defaults for this widget class to a file.
@@ -611,11 +613,14 @@ class SettingsHandler:
         new_data.update(data)
         return new_data
 
-    def _prepare_defaults(self, widget):
-        self.defaults = self.provider.pack(widget)
-        for setting, data, _ in self.provider.traverse_settings(data=self.defaults):
+    def _remove_schema_only(self, settings_dict):
+        for setting, data, _ in self.provider.traverse_settings(data=settings_dict):
             if setting.schema_only:
                 data.pop(setting.name, None)
+
+    def _prepare_defaults(self, widget):
+        self.defaults = self.provider.pack(widget)
+        self._remove_schema_only(self.defaults)
 
     def pack_data(self, widget):
         """
@@ -745,6 +750,9 @@ class ContextHandler(SettingsHandler):
         super().read_defaults_file(settings_file)
         self.global_contexts = pickle.load(settings_file)
         self._migrate_contexts(self.global_contexts)
+        # remove schema_only settings introduced by the migration
+        for context in self.global_contexts:
+            self._remove_schema_only(context.values)
 
     def _migrate_contexts(self, contexts):
         i = 0
@@ -799,9 +807,7 @@ class ContextHandler(SettingsHandler):
         new_contexts = []
         for context in widget.context_settings:
             context = copy.deepcopy(context)
-            for setting, data, _ in self.provider.traverse_settings(data=context.values):
-                if setting.schema_only:
-                    data.pop(setting.name, None)
+            self._remove_schema_only(context.values)
             if context not in globs:
                 new_contexts.append(context)
         globs[:0] = reversed(new_contexts)

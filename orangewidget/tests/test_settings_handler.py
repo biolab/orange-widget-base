@@ -46,6 +46,7 @@ class SettingHandlerTestCase(unittest.TestCase):
     def test_read_defaults(self):
         handler = SettingsHandler()
         handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(SimpleWidget)
 
         defaults = {'a': 5, 'b': {1: 5}}
         with override_default_settings(SimpleWidget, defaults):
@@ -262,6 +263,7 @@ class SettingHandlerTestCase(unittest.TestCase):
     def test_read_defaults_migrates_settings(self):
         handler = SettingsHandler()
         handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(SimpleWidget)
 
         migrate_settings = Mock()
         with patch.object(SimpleWidget, "migrate_settings", migrate_settings):
@@ -278,6 +280,20 @@ class SettingHandlerTestCase(unittest.TestCase):
             with override_default_settings(SimpleWidget, settings_with_version):
                 handler.read_defaults()
             migrate_settings.assert_called_with(settings, 1)
+
+    def test_read_defaults_ensures_no_schema_only(self):
+        handler = SettingsHandler()
+        handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(SimpleWidget)
+
+        def migrate_settings(settings, _):
+            settings["setting"] = 5
+            settings["schema_only_setting"] = True
+
+        with patch.object(SimpleWidget, "migrate_settings", migrate_settings), \
+             override_default_settings(SimpleWidget, {"value": 42}):
+            handler.read_defaults()
+            self.assertEqual(handler.defaults, {'value': 42, 'setting': 5})
 
     def test_initialize_migrates_settings(self):
         handler = SettingsHandler()

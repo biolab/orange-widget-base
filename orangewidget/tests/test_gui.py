@@ -275,11 +275,16 @@ class TestDeferred(GuiTest):
 
         # calling now should always call the apply
         w.apply.now()
-        w.real_apply.assert_called()
+        w.real_apply.assert_called_with(w)
         w.real_apply.reset_mock()
 
         # calling decorated method without `now` or `deferred` raises an expception
         self.assertRaises(RuntimeError, w.apply)
+
+        w2 = Widget()
+        w.apply.now()
+        w.real_apply.assert_called_with(w)
+        w.real_apply.reset_mock()
 
     def test_warn_to_defer(self):
         class Widget(OWBaseWidget):

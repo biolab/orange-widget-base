@@ -1679,23 +1679,38 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
 
 
 def deferred(func):
-    @wraps(func)
-    def _commit_replacement():
-        raise RuntimeError(
-            "This function is deferred; explicitly call "
-            f"{func.__name__}.deferred or {func.__name__}.now")
-    # Store the original function
-    _commit_replacement.__func = func
-    # .now and .deferred must be bound methods, so they cannot be created by
-    # decorator; besides, deferred needs a closure from auto_commit.
-    # However, at least deferred is passed as an argument by controls created
-    # before creating auto_commmit. Hence, implement them as lambdas to methods
-    # that will be provided by auto_commit
-    _commit_replacement.now = lambda: _commit_replacement.__now()
-    _commit_replacement.deferred = lambda: _commit_replacement.__deferred()
-    # _commit_replacement must not become a bound method because this would
-    # prevent auto_commit from assigning __now and __deferred.
-    return staticmethod(_commit_replacement)
+    # Deferred method is turned into a property that returns a function,
+    # (which itself raises an exception about being deferred). The function is
+    # created only once for each widget instance and then cached in the
+    # instance's __dict__ (under the same name to avoid namespace pollution).
+    #
+    # We use a property in order to get `self` when the "method" is referred to,
+    # and not only when it's called.
+    #
+    # The decorator assigns attributes `now` and `deferred` to the function,
+    # so they can be used when creating the widget's GUI. The attributes are
+    # lambda's that call function's `__now` and `__deferred`, which are
+    # provided when the function is passed as a callback to `gui.auto_commit`.
+    def getter(self):
+        name = func.__name__
+        # This getter is called even if the key with the same name exists in
+        # instance's __dict__ because properties have precedence over instance's
+        # __dict__ (see https://www.python.org/dev/peps/pep-0252/).
+        if name in self.__dict__:
+            return self.__dict__[name]
+
+        @wraps(func)
+        def _commit_replacement():
+            raise RuntimeError(
+                "This function is deferred; explicitly call "
+                f"{name}.deferred or {name}.now")
+
+        _commit_replacement.__func = func
+        _commit_replacement.now = lambda: _commit_replacement.__now()
+        _commit_replacement.deferred = lambda: _commit_replacement.__deferred()
+        self.__dict__[name] = _commit_replacement
+        return _commit_replacement
+    return property(getter)
 
 
 def auto_commit(widget, master, value, label, auto_label=None, box=False,

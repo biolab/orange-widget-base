@@ -550,6 +550,7 @@ class SpinBoxMixin:
         self.preEditvalue = 0
 
         self.lineEdit().installEventFilter(self)
+        self.installEventFilter(self)
         self.editingFinished.connect(self.__onEditingFinished)
         self.valueChanged.connect(self.__onValueChanged)
 
@@ -604,7 +605,7 @@ class SpinBoxMixin:
             self.mouseStartPos = event.globalPos()
             self.preDragValue = self.value()
             self.mouseHeld = True
-        elif event.type() == QEvent.MouseMove and self.mouseHeld:
+        elif event.type() == QEvent.MouseMove and self.mouseHeld and isinstance(obj, QLineEdit):
             # do click+drag
             # override default cursor on drag
             if QApplication.overrideCursor() != cursor:

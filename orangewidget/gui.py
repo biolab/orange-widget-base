@@ -545,7 +545,6 @@ class SpinBoxMixin:
         self.verticalDirection = verticalDrag
         self.mouseStartPos = QtCore.QPoint()
         self.preDragValue = 0
-        self.stepSize = 0
 
         self.textEditing = False
         self.preEditvalue = 0
@@ -611,10 +610,7 @@ class SpinBoxMixin:
             if QApplication.overrideCursor() != cursor:
                 QApplication.setOverrideCursor(cursor)
 
-            # disable click and hold behavior
-            if self.stepSize == 0:
-                self.stepSize = self.singleStep()
-                self.setSingleStep(0)
+            stepSize = self.singleStep()
 
             pos = event.globalPos()
             posVal = pos.y() if self.verticalDirection else -pos.x()
@@ -626,7 +622,7 @@ class SpinBoxMixin:
             # up/down, with the default stepsize
             normalizedDiff = abs(diff) / 30
             exponent = 1 + min(normalizedDiff / 10, 3)
-            valueOffset = int(normalizedDiff ** exponent) * self.stepSize
+            valueOffset = int(normalizedDiff ** exponent) * stepSize
             valueOffset = math.copysign(valueOffset, diff)
 
             self.setValue(self.preDragValue + valueOffset)
@@ -636,11 +632,6 @@ class SpinBoxMixin:
             # restore default cursor on release
             while QApplication.overrideCursor() is not None:
                 QApplication.restoreOverrideCursor()
-
-            # restore click and hold behavior
-            if self.stepSize != 0:
-                self.setSingleStep(self.stepSize)
-                self.stepSize = 0
 
             self.__onEditingFinished()
         elif event.type() == QEvent.Wheel:

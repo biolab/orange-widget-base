@@ -14,7 +14,7 @@ import pkg_resources
 
 from AnyQt import QtWidgets, QtCore, QtGui
 from AnyQt.QtCore import Qt, QEvent, QObject, QTimer, pyqtSignal as Signal
-from AnyQt.QtGui import QCursor, QColor
+from AnyQt.QtGui import QCursor, QColor, QPalette
 from AnyQt.QtWidgets import (
     QApplication, QStyle, QSizePolicy, QWidget, QLabel, QGroupBox, QSlider,
     QTableWidgetItem, QStyledItemDelegate, QTableView, QHeaderView,
@@ -2484,11 +2484,12 @@ class ColoredBarItemDelegate(QtWidgets.QStyledItemDelegate):
             QStyle.PE_PanelItemViewItem, option, painter,
             option.widget)
 
+        state = option.state
+        cgroup = QPalette.Normal if state & QStyle.State_Active else QPalette.Inactive
+        cgroup = cgroup if state & QStyle.State_Enabled else QPalette.Disabled
+        role = QPalette.HighlightedText if state & QStyle.State_Selected else QPalette.Text
+        color = option.palette.color(cgroup, role)
         # TODO: Check ForegroundRole.
-        if option.state & QStyle.State_Selected:
-            color = option.palette.highlightedText().color()
-        else:
-            color = option.palette.text().color()
         painter.setPen(QtGui.QPen(color))
 
         align = self.get_text_align(option, index)

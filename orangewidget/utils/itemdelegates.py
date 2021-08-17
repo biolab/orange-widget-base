@@ -482,12 +482,17 @@ class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
         try:
             return self.__pen_lru_cache[key]
         except KeyError:
-            cgroup = QPalette.Normal if state & QStyle.State_Active else QPalette.Inactive
-            cgroup = cgroup if state & QStyle.State_Enabled else QPalette.Disabled
-            role = QPalette.HighlightedText if state & QStyle.State_Selected else QPalette.Text
-            pen = QPen(palette.color(cgroup, role))
+            pen = QPen(text_color_for_state(palette, state))
             self.__pen_lru_cache[key] = pen
             return pen
+
+
+def text_color_for_state(palette: QPalette, state: QStyle.State) -> QColor:
+    """Return the appropriate `palette` text color for the `state`."""
+    cgroup = QPalette.Normal if state & QStyle.State_Active else QPalette.Inactive
+    cgroup = cgroup if state & QStyle.State_Enabled else QPalette.Disabled
+    role = QPalette.HighlightedText if state & QStyle.State_Selected else QPalette.Text
+    return palette.color(cgroup, role)
 
 
 class BarItemDataDelegate(DataDelegate):

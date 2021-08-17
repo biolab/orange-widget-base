@@ -14,7 +14,7 @@ import pkg_resources
 
 from AnyQt import QtWidgets, QtCore, QtGui
 from AnyQt.QtCore import Qt, QEvent, QObject, QTimer, pyqtSignal as Signal
-from AnyQt.QtGui import QCursor, QColor
+from AnyQt.QtGui import QCursor, QColor, QPalette
 from AnyQt.QtWidgets import (
     QApplication, QStyle, QSizePolicy, QWidget, QLabel, QGroupBox, QSlider,
     QTableWidgetItem, QStyledItemDelegate, QTableView, QHeaderView,
@@ -26,6 +26,7 @@ from orangewidget.utils.buttons import VariableTextPushButton
 from orangewidget.utils.combobox import (
     ComboBox as OrangeComboBox, ComboBoxSearch as OrangeComboBoxSearch
 )
+from orangewidget.utils.itemdelegates import text_color_for_state
 from orangewidget.utils.itemmodels import PyListModel
 
 __re_label = re.compile(r"(^|[^%])%\((?P<value>[a-zA-Z]\w*)\)")
@@ -2485,11 +2486,8 @@ class ColoredBarItemDelegate(QtWidgets.QStyledItemDelegate):
             option.widget)
 
         # TODO: Check ForegroundRole.
-        if option.state & QStyle.State_Selected:
-            color = option.palette.highlightedText().color()
-        else:
-            color = option.palette.text().color()
-        painter.setPen(QtGui.QPen(color))
+        painter.setPen(
+            QtGui.QPen(text_color_for_state(option.palette, option.state)))
 
         align = self.get_text_align(option, index)
 

@@ -26,6 +26,7 @@ from orangewidget.utils.buttons import VariableTextPushButton
 from orangewidget.utils.combobox import (
     ComboBox as OrangeComboBox, ComboBoxSearch as OrangeComboBoxSearch
 )
+from orangewidget.utils.itemdelegates import text_color_for_state
 from orangewidget.utils.itemmodels import PyListModel
 
 __re_label = re.compile(r"(^|[^%])%\((?P<value>[a-zA-Z]\w*)\)")
@@ -2484,13 +2485,9 @@ class ColoredBarItemDelegate(QtWidgets.QStyledItemDelegate):
             QStyle.PE_PanelItemViewItem, option, painter,
             option.widget)
 
-        state = option.state
-        cgroup = QPalette.Normal if state & QStyle.State_Active else QPalette.Inactive
-        cgroup = cgroup if state & QStyle.State_Enabled else QPalette.Disabled
-        role = QPalette.HighlightedText if state & QStyle.State_Selected else QPalette.Text
-        color = option.palette.color(cgroup, role)
         # TODO: Check ForegroundRole.
-        painter.setPen(QtGui.QPen(color))
+        painter.setPen(
+            QtGui.QPen(text_color_for_state(option.palette, option.state)))
 
         align = self.get_text_align(option, index)
 

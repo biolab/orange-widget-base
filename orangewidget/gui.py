@@ -544,15 +544,14 @@ class SpinBoxMixin:
 
         self.mouseHeld = False
         self.verticalDirection = verticalDrag
-        self.mouseStartPos = 0
+        self.mouseStartPos = QtCore.QPoint()
         self.preDragValue = 0
-        self.stepSize = 0
 
         self.textEditing = False
         self.preEditvalue = 0
 
-        self.installEventFilter(self)
         self.lineEdit().installEventFilter(self)
+        self.installEventFilter(self)
         self.editingFinished.connect(self.__onEditingFinished)
         self.valueChanged.connect(self.__onValueChanged)
 
@@ -604,38 +603,37 @@ class SpinBoxMixin:
 
         if event.type() == QEvent.MouseButtonPress:
             # prepare click+drag
-            self.mouseStartPos = event.globalPos().y()
+            self.mouseStartPos = event.globalPos()
             self.preDragValue = self.value()
             self.mouseHeld = True
-        elif event.type() == QEvent.MouseMove and self.mouseHeld:
+        elif event.type() == QEvent.MouseMove and self.mouseHeld and isinstance(obj, QLineEdit):
             # do click+drag
             # override default cursor on drag
             if QApplication.overrideCursor() != cursor:
                 QApplication.setOverrideCursor(cursor)
 
-            # disable click and hold behavior
-            if self.stepSize == 0:
-                self.stepSize = self.singleStep()
-                self.setSingleStep(0)
+            stepSize = self.singleStep()
 
             pos = event.globalPos()
             posVal = pos.y() if self.verticalDirection else -pos.x()
-            diff = self.mouseStartPos - posVal
+            posValStart = self.mouseStartPos.y() if self.verticalDirection else -self.mouseStartPos.x()
+            diff = posValStart - posVal
+
             # these magic params are pretty arbitrary, ensure that it's still
             # possible to easily highlight the text if moving mouse slightly
             # up/down, with the default stepsize
-            valueOffset = int((diff / 25) ** 3) * self.stepSize
+            normalizedDiff = abs(diff) / 30
+            exponent = 1 + min(normalizedDiff / 10, 3)
+            valueOffset = int(normalizedDiff ** exponent) * stepSize
+            valueOffset = math.copysign(valueOffset, diff)
+
             self.setValue(self.preDragValue + valueOffset)
+
         elif event.type() == QEvent.MouseButtonRelease:
             # end click+drag
             # restore default cursor on release
-            if QApplication.overrideCursor() == cursor:
+            while QApplication.overrideCursor() is not None:
                 QApplication.restoreOverrideCursor()
-
-            # restore click and hold behavior
-            if self.stepSize != 0:
-                self.setSingleStep(self.stepSize)
-                self.stepSize = 0
 
             self.__onEditingFinished()
         elif event.type() == QEvent.Wheel:

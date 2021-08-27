@@ -140,6 +140,90 @@ class TestPyTableModel(unittest.TestCase):
                         self.model.data(self.model.index(1, 0),
                                         Qt.TextAlignmentRole))
 
+    def test_set_item_signals(self):
+        def p(*s):
+            return [[x] for x in s]
+
+        def assert_changed(startrow, stoprow, ncolumns):
+            start, stop = changed[-1][:2]
+            self.assertEqual(start.row(), startrow)
+            self.assertEqual(stop.row(), stoprow)
+            self.assertEqual(start.column(), 0)
+            self.assertEqual(stop.column(), ncolumns)
+
+        self.model.wrap(p(0, 1, 2, 3, 4, 5))
+        aboutinserted = QSignalSpy(self.model.rowsAboutToBeInserted)
+        inserted = QSignalSpy(self.model.rowsInserted)
+        aboutremoved = QSignalSpy(self.model.rowsAboutToBeRemoved)
+        removed = QSignalSpy(self.model.rowsRemoved)
+        changed = QSignalSpy(self.model.dataChanged)
+
+        # Insert rows
+        self.model[2:4] = p(6, 7, 8, 9, 10) + [[11, 2]]
+        self.assertEqual(list(self.model), p(0, 1, 6, 7, 8, 9, 10) + [[11, 2]] + p(4, 5))
+        self.assertEqual(len(changed), 1)
+        assert_changed(2, 3, 1)
+        self.assertEqual(aboutinserted[-1][1:], [4, 7])
+        self.assertEqual(inserted[-1][1:], [4, 7])
+        self.assertEqual(len(aboutremoved), 0)
+        self.assertEqual(len(removed), 0)
+
+        # Remove rows
+        self.model[2:8] = p(2, 3)
+        self.assertEqual(list(self.model), p(0, 1, 2, 3, 4, 5))
+        self.assertEqual(len(changed), 2)  # one is from before
+        assert_changed(2, 3, 0)
+        self.assertEqual(aboutremoved[-1][1:], [4, 7])
+        self.assertEqual(removed[-1][1:], [4, 7])
+        self.assertEqual(len(inserted), 1)  # from before
+        self.assertEqual(len(aboutinserted), 1)  # from before
+
+        # Change rows
+        self.model[-5:-3] = p(19, 20)
+        self.assertEqual(list(self.model), p(0, 19, 20, 3, 4, 5))
+        self.assertEqual(len(changed), 3)  # two are from before
+        assert_changed(1, 2, 0)
+        self.assertEqual(len(inserted), 1)  # from before
+        self.assertEqual(len(aboutinserted), 1)  # from before
+        self.assertEqual(len(removed), 1)  # from before
+        self.assertEqual(len(aboutremoved), 1)  # from before
+
+        # Insert without change
+        self.model[3:3] = p(21, 22)
+        self.assertEqual(list(self.model), p(0, 19, 20, 21, 22, 3, 4, 5))
+        self.assertEqual(len(changed), 3)  #from before
+        self.assertEqual(inserted[-1][1:], [3, 4])
+        self.assertEqual(aboutinserted[-1][1:], [3, 4])
+        self.assertEqual(len(removed), 1)  # from before
+        self.assertEqual(len(aboutremoved), 1)  # from before
+
+        # Remove without change
+        self.model[3:5] = []
+        self.assertEqual(list(self.model), p(0, 19, 20, 3, 4, 5))
+        self.assertEqual(len(changed), 3)  #from before
+        self.assertEqual(removed[-1][1:], [3, 4])
+        self.assertEqual(aboutremoved[-1][1:], [3, 4])
+        self.assertEqual(len(inserted), 2)  # from before
+        self.assertEqual(len(aboutinserted), 2)  # from before
+
+        # Remove all
+        self.model[:] = []
+        self.assertEqual(list(self.model), [])
+        self.assertEqual(len(changed), 3)  #from before
+        self.assertEqual(removed[-1][1:], [0, 5])
+        self.assertEqual(aboutremoved[-1][1:], [0, 5])
+        self.assertEqual(len(inserted), 2)  # from before
+        self.assertEqual(len(aboutinserted), 2)  # from before
+
+        # Add to empty
+        self.model[:] = p(0, 1, 2, 3)
+        self.assertEqual(list(self.model), p(0, 1, 2, 3))
+        self.assertEqual(len(changed), 3)  #from before
+        self.assertEqual(inserted[-1][1:], [0, 3])
+        self.assertEqual(inserted[-1][1:], [0, 3])
+        self.assertEqual(len(removed), 3)  # from before
+        self.assertEqual(len(aboutremoved), 3)  # from before
+
 
 class TestAbstractSortTableModel(unittest.TestCase):
     def test_sorting(self):

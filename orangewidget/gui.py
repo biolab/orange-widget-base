@@ -1708,24 +1708,38 @@ def deferred(func) -> DeferredFunc:
     # so they can be used when creating the widget's GUI. The attributes are
     # lambda's that call function's `__now` and `__deferred`, which are
     # provided when the function is passed as a callback to `gui.auto_commit`.
+
+    # In some previous attempt, __dict__[name] = _commit_replacement was used
+    # for caching. This does not work when the deferred function is overridden
+    # in derived classes
+    cache = {}
+
     def getter(self):
         name = func.__name__
         # This getter is called even if the key with the same name exists in
         # instance's __dict__ because properties have precedence over instance's
         # __dict__ (see https://www.python.org/dev/peps/pep-0252/).
-        if name in self.__dict__:
-            return self.__dict__[name]
+        if (self, name) in cache:
+            return cache[(self, name)]
 
         @wraps(func)
         def _commit_replacement():
-            raise RuntimeError(
-                "This function is deferred; explicitly call "
-                f"{name}.deferred or {name}.now")
+            # If deferred function was passed to auto_commit (which detect by
+            # checking that it has `__now`), raise an exception if it's called
+            # directly to force explicit decision for `now` or `deferred`.
+            if hasattr(_commit_replacement, "__now"):
+                raise RuntimeError(
+                    "This function is deferred; explicitly call "
+                    f"{name}.deferred or {name}.now")
+            # Otherwise, call it. If deferred function is overriden, auto_commit
+            # will decorate the last override, so this exception is needed for
+            # super().commit() will work.
+            func(self)
 
         _commit_replacement.__func = func
         _commit_replacement.now = lambda: _commit_replacement.__now()
         _commit_replacement.deferred = lambda: _commit_replacement.__deferred()
-        self.__dict__[name] = _commit_replacement
+        cache[(self, name)] = _commit_replacement
         return _commit_replacement
     return property(getter)
 
@@ -1854,10 +1868,25 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
         commit.__now = do_commit
         commit.__deferred = conditional_commit
     else:
-        commit_name = next(LAMBDA_NAME) if isinstance(commit, LambdaType) else commit.__name__
-        warnings.warn(
-            f"decorate {commit_name} with @gui.deferred and "
-            f"then explicitly call {commit_name}.now or {commit_name}.deferred")
+        if isinstance(commit, LambdaType):
+            commit_name = next(LAMBDA_NAME)
+        else:
+            commit_name = commit.__name__
+            super_commit = getattr(super(type(master), master), commit_name, None)
+            if super_commit and hasattr(super_commit, "deferred"):
+                raise RuntimeError(
+                    f"{type(master).__name__}.{commit_name} must be decorated "
+                    "with gui.deferred because it overrides a decorated "
+                    f"{super_commit.__qualname__}.")
+            else:
+                warnings.warn(
+                    f"decorate {type(master).__name__}.{commit_name} "
+                    "with @gui.deferred and then explicitly call "
+                    f"{commit_name}.now or {commit_name}.deferred.")
+
+        # TODO: I suppose we don't need to to this for lambdas, do we?
+        # Maybe we can change `else` to `elif not isinstance(commit, LambdaType)
+        # and remove `if` that follows?
         setattr(master, 'unconditional_' + commit_name, commit)
         setattr(master, commit_name, conditional_commit)
 

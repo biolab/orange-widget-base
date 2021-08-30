@@ -292,10 +292,90 @@ class TestDeferred(GuiTest):
                 super().__init__(*args, **kwargs)
                 self.autocommit = False
                 self.commit_button = gui.auto_commit(
-                    self, self, 'autocommit', 'Commit', commit=lambda: None)
+                    self, self, 'autocommit', 'Commit')
+
+            def commit(self):
+                pass
 
         with self.assertWarns(UserWarning):
             _ = Widget()
+
+    def test_override(self):
+        class Widget(OWBaseWidget, openclass=True):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.autocommit = False
+                self.commit_button = gui.auto_commit(
+                    self, self, 'autocommit', 'Commit')
+
+            m = Mock()
+            n = Mock()
+
+            @gui.deferred
+            def commit(self):
+                self.m()
+
+        class Widget2(Widget):
+            @gui.deferred
+            def commit(self):
+                super().commit()
+                self.n()
+
+        w = Widget2()
+        w.commit.now()
+        w.m.assert_called_once()
+        w.n.assert_called_once()
+        w.m.reset_mock()
+        w.n.reset_mock()
+
+        class Widget3(Widget):
+            @gui.deferred
+            def commit(self):
+                self.n()
+
+        w = Widget3()
+        w.commit.now()
+        w.m.assert_not_called()
+        w.n.assert_called_once()
+        w.m.reset_mock()
+        w.n.reset_mock()
+
+        # This tests that exception is raised if derived method is undecorated
+        class Widget4(Widget):
+            def commit(self):
+                self.n()
+
+        self.assertRaises(RuntimeError, Widget4)
+
+    def test_override_and_decorate(self):
+        class Widget(OWBaseWidget, openclass=True):
+            m = Mock()
+            n = Mock()
+
+            def commit(self):
+                self.m()
+
+        class Widget2(Widget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.autocommit = False
+                self.commit_button = gui.auto_commit(
+                    self, self, 'autocommit', 'Commit')
+
+            @gui.deferred
+            def commit(self):
+                super().commit()
+                self.n()
+
+        w = Widget2()
+        w.commit.deferred()
+        w.m.assert_not_called()
+        w.n.assert_not_called()
+
+        w.autocommit = True
+        w.commit.deferred()
+        w.m.assert_called_once()
+        w.n.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ import contextlib
 import math
 import re
 import itertools
+import sys
 import warnings
 import logging
 from functools import wraps
@@ -1678,9 +1679,25 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     return combo
 
 
-def deferred(func):
+if sys.version_info >= (3, 8):
+    from typing import Protocol
+
+    class DeferredFunc(Protocol):
+        def deferred(self) -> None:
+            ...
+
+        def now(self) -> None:
+            ...
+else:
+    from typing import Any
+    DeferredFunc = Any
+
+
+# The type hint is somewhat wrong: the decorator returns a property, which is
+# a function, but in practice it's the same. PyCharm correctly recognizes it.
+def deferred(func) -> DeferredFunc:
     # Deferred method is turned into a property that returns a function,
-    # (which itself raises an exception about being deferred). The function is
+    # (which only raises an exception about being deferred). The function is
     # created only once for each widget instance and then cached in the
     # instance's __dict__ (under the same name to avoid namespace pollution).
     #

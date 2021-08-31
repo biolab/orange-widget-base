@@ -1,3 +1,4 @@
+import sys
 import time
 import unittest
 from unittest.mock import Mock
@@ -376,6 +377,35 @@ class TestDeferred(GuiTest):
         w.commit.deferred()
         w.m.assert_called_once()
         w.n.assert_called_once()
+
+    def test_caching(self):
+        ndeleted = 0
+
+        class Widget:
+            @gui.deferred
+            def commit(self):
+                pass
+
+            @gui.deferred
+            def magog(self):
+                pass
+
+            def __del__(self):
+                nonlocal ndeleted
+                ndeleted += 1
+                print("deleted")
+
+        w1 = Widget()
+        w2 = Widget()
+
+        nrefs = sys.getrefcount(w1)
+        self.assertIs(w1.commit, w1.commit)
+        self.assertIsNot(w1.commit, w2.commit)
+        self.assertIsNot(w1.commit, w1.magog)
+
+        # Two additional references (`self` in two replacement_functions),
+        # but none other
+        self.assertEqual(sys.getrefcount(w1), nrefs + 2)
 
 
 if __name__ == "__main__":

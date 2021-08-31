@@ -8,6 +8,7 @@ import itertools
 import sys
 import warnings
 import logging
+import weakref
 from functools import wraps
 from types import LambdaType
 from collections import defaultdict
@@ -1712,15 +1713,15 @@ def deferred(func) -> DeferredFunc:
     # In some previous attempt, __dict__[name] = _commit_replacement was used
     # for caching. This does not work when the deferred function is overridden
     # in derived classes
-    cache = {}
+    cache = weakref.WeakKeyDictionary()
 
     def getter(self):
         name = func.__name__
         # This getter is called even if the key with the same name exists in
         # instance's __dict__ because properties have precedence over instance's
         # __dict__ (see https://www.python.org/dev/peps/pep-0252/).
-        if (self, name) in cache:
-            return cache[(self, name)]
+        if self in cache and name in cache[self]:
+            return cache[self][name]
 
         @wraps(func)
         def _commit_replacement():
@@ -1734,12 +1735,15 @@ def deferred(func) -> DeferredFunc:
             # Otherwise, call it. If deferred function is overriden, auto_commit
             # will decorate the last override, so this exception is needed for
             # super().commit() will work.
+            #
             func(self)
 
         _commit_replacement.__func = func
         _commit_replacement.now = lambda: _commit_replacement.__now()
         _commit_replacement.deferred = lambda: _commit_replacement.__deferred()
-        cache[(self, name)] = _commit_replacement
+        if self not in cache:
+            cache[self] = {}
+        cache[self][name] = _commit_replacement
         return _commit_replacement
     return property(getter)
 

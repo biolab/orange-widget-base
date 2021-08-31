@@ -1,4 +1,3 @@
-import sys
 import time
 import unittest
 from unittest.mock import Mock
@@ -378,34 +377,69 @@ class TestDeferred(GuiTest):
         w.m.assert_called_once()
         w.n.assert_called_once()
 
-    def test_caching(self):
-        ndeleted = 0
+    def test_two_autocommits(self):
+        class Widget(OWBaseWidget, openclass=True):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.autocommit = False
+                self.automagog = False
+                self.commit_button = gui.auto_commit(
+                    self, self, 'autocommit', 'Commit', commit=self.commit)
+                self.magog_button = gui.auto_commit(
+                    self, self, 'automagog', 'Magog', commit=self.magog)
 
-        class Widget:
+            real_commit = Mock()
+            real_magog = Mock()
+
             @gui.deferred
             def commit(self):
-                pass
+                self.real_commit()
 
             @gui.deferred
             def magog(self):
-                pass
+                self.real_magog()
 
-            def __del__(self):
-                nonlocal ndeleted
-                ndeleted += 1
-                print("deleted")
+        w = Widget()
 
-        w1 = Widget()
-        w2 = Widget()
+        # Make a deffered call to commit; nothing should be called
+        w.commit.deferred()
+        w.real_commit.assert_not_called()
+        w.real_magog.assert_not_called()
 
-        nrefs = sys.getrefcount(w1)
-        self.assertIs(w1.commit, w1.commit)
-        self.assertIsNot(w1.commit, w2.commit)
-        self.assertIsNot(w1.commit, w1.magog)
+        # enable check boxes, but only commit is dirty
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+        w.real_commit.assert_called()
+        w.real_magog.assert_not_called()
+        w.real_commit.reset_mock()
 
-        # Two additional references (`self` in two replacement_functions),
-        # but none other
-        self.assertEqual(sys.getrefcount(w1), nrefs + 2)
+        # disable, enable, disable; nothing is dirty => shouldn't call anything
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+
+        # Make a deffered call to magog; nothing should be called
+        w.magog.deferred()
+        w.real_commit.assert_not_called()
+        w.real_magog.assert_not_called()
+
+        # enable check boxes, but only magog is dirty
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+        w.real_commit.assert_not_called()
+        w.real_magog.assert_called()
+        w.real_magog.reset_mock()
+
+        # disable, enable; nothing is dirty => shouldn't call anything
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+
+
 
 
 if __name__ == "__main__":

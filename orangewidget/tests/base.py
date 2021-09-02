@@ -242,6 +242,7 @@ class WidgetTest(GuiTest):
             nonlocal report
             if report is None:
                 report = OWReport()
+                report.have_report_warning_shown = True  # if missing QtWebView/QtWebKit
                 if not (os.environ.get("TRAVIS") or os.environ.get("APPVEYOR")):
                     report.show = Mock()
                 cls.widgets.append(report)

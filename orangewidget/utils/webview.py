@@ -533,7 +533,7 @@ elif HAVE_WEBENGINE:
             id = next(self._id_gen)
             value = self._objects[id] = dict(id=id, name=name, obj=obj)
             # Wait till JS is connected to receive objects
-            wait(until=lambda: self.receivers(self.objectChanged))
+            wait(until=lambda: self.receivers(self.objectChanged), timeout=30000)
             self.objectChanged.emit(value)
 
         @pyqtSlot(int)

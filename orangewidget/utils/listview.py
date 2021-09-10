@@ -67,6 +67,7 @@ class ListViewSearch(QListView):
         super().setModel(model)
         self.__pmodel.setSourceModel(model)
         self.__filter_reset()
+        self.model().rowsInserted.connect(self.__model_rowInserted)
 
     def setRootIndex(self, index: QModelIndex) -> None:
         super().setRootIndex(index)
@@ -74,9 +75,7 @@ class ListViewSearch(QListView):
 
     def __filter_reset(self):
         root = self.rootIndex()
-        pm = self.__pmodel
-        for i in range(self.__pmodel.rowCount(root)):
-            self.setRowHidden(i, not pm.filterAcceptsRow(i, root))
+        self.__filter(range(self.__pmodel.rowCount(root)))
 
     def __setFilterString(self, string: str):
         self.__pmodel.setFilterFixedString(string)
@@ -89,6 +88,13 @@ class ListViewSearch(QListView):
     def filterString(self):
         """Return the filter string."""
         return self.__search.text()
+
+    def __filter(self, rows: Iterable[int]) -> None:
+        """Set hidden state for rows based on filter string"""
+        root = self.rootIndex()
+        pm = self.__pmodel
+        for r in rows:
+            self.setRowHidden(r, not pm.filterAcceptsRow(r, root))
 
     def __filter_set(self, rows: Iterable[int], state: bool):
         for r in rows:
@@ -115,6 +121,13 @@ class ListViewSearch(QListView):
         mranges = fmodel.mapSelectionToSource(mrange)
         for mrange in mranges:
             self.__filter_set(range(mrange.top(), mrange.bottom() + 1), False)
+
+    def __model_rowInserted(self, _, start: int, end: int) -> None:
+        """
+        Filter elements when inserted in list - proxy model's rowsAboutToBeRemoved
+        is not called on elements that are hidden when inserting
+        """
+        self.__filter(range(start, end + 1))
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)

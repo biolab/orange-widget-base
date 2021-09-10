@@ -55,6 +55,28 @@ class TestListViewSearch(GuiTest):
             [self.lv.isRowHidden(i) for i in range(num_items)],
         )
 
+    def test_insert_new_value(self):
+        num_items = 4
+        filter_row = self.lv.findChild(QLineEdit)
+        filter_row.grab()
+        self.lv.grab()
+
+        QTest.keyClick(filter_row, Qt.Key_E, delay=-1)
+        self.assertListEqual(
+            [False, True, False, True],
+            [self.lv.isRowHidden(i) for i in range(num_items)],
+        )
+
+        model = self.lv.model()
+        if model.insertRow(model.rowCount()):
+            index = model.index(model.rowCount() - 1, 0)
+            model.setData(index, "six")
+
+        self.assertListEqual(
+            [False, True, False, True, True],
+            [self.lv.isRowHidden(i) for i in range(num_items + 1)],
+        )
+
     def test_empty(self):
         self.lv.setModel(QStringListModel([]))
         self.assertEqual(0, self.lv.model().rowCount())

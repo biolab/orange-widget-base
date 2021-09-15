@@ -369,8 +369,9 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 warnings.warn(
                     "subclassing of widget classes is deprecated and will be "
                     "disabled in the future.\n"
-                    f"Extract code from {base.__name__} or explicitly open it.",
-                    RuntimeWarning)
+                    f"Extract code from {base.__name__} or explicitly open it "
+                    "by adding `openclass=True` to class definition.",
+                    RuntimeWarning, stacklevel=3)
                 # raise TypeError(f"class {base.__name__} cannot be subclassed")
 
     @classmethod

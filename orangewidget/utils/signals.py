@@ -77,7 +77,7 @@ def can_summarize(type_, name, explicit):
         if summarize.dispatch(a_type) is base_summarize:
             warnings.warn(
                 f"register 'summarize' function for type {a_type.__name__}. "
-                + instr, UserWarning)
+                + instr, UserWarning, stacklevel=4)
             return False
     return True
 
@@ -281,9 +281,9 @@ class MultiInput(Input):
     def insert(self, method):
         """Register the method as the insert handler"""
         def summarize_wrapper(widget, index, value):
-            ids = self.__get_summary_ids(widget)
-            ids.insert(index, next(self.__id_gen))
             if summarize_wrapper is getattr(type(widget), method.__name__):
+                ids = self.__get_summary_ids(widget)
+                ids.insert(index, next(self.__id_gen))
                 widget.set_partial_input_summary(
                     self.name, summarize(value), id=ids[index], index=index)
             method(widget, index, value)
@@ -293,9 +293,9 @@ class MultiInput(Input):
     def remove(self, method):
         """"Register the method as the remove handler"""
         def summarize_wrapper(widget, index):
-            ids = self.__get_summary_ids(widget)
-            id_ = ids.pop(index)
             if summarize_wrapper is getattr(type(widget), method.__name__):
+                ids = self.__get_summary_ids(widget)
+                id_ = ids.pop(index)
                 widget.set_partial_input_summary(
                     self.name, summarize(None), id=id_)
             method(widget, index)

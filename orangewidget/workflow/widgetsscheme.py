@@ -34,7 +34,7 @@ from typing import Optional, Dict, Any, List, Mapping, overload
 from AnyQt.QtWidgets import QWidget, QAction
 from AnyQt.QtGui import QWhatsThisClickedEvent
 
-from AnyQt.QtCore import Qt, QCoreApplication, QEvent, QByteArray
+from AnyQt.QtCore import Qt, QCoreApplication, QEvent, QByteArray, QTimer
 from AnyQt.QtCore import pyqtSlot as Slot
 
 from orangecanvas.registry import WidgetDescription, OutputSignal
@@ -47,8 +47,9 @@ from orangecanvas.scheme.node import UserMessage
 from orangecanvas.scheme.widgetmanager import WidgetManager as _WidgetManager
 from orangecanvas.utils import name_lookup
 from orangecanvas.resources import icon_loader
-from orangewidget.utils.signals import get_input_meta, notify_input_helper
 
+from orangewidget.gui import OWComponent
+from orangewidget.utils.signals import get_input_meta, notify_input_helper
 from orangewidget.widget import OWBaseWidget, Input
 from orangewidget.report.owreport import OWReport
 from orangewidget.settings import SettingsPrinter
@@ -73,6 +74,8 @@ class WidgetsScheme(Scheme):
         self.signal_manager = WidgetsSignalManager(self)
         self.widget_manager.set_scheme(self)
         self.__report_view = None  # type: Optional[OWReport]
+
+        self.__sync_scheduled = False
 
     def widget_for_node(self, node):
         """
@@ -99,8 +102,16 @@ class WidgetsScheme(Scheme):
             if settings != node.properties:
                 node.properties = settings
                 changed = True
+        if changed:
+            self.node_properties_changed.emit()
+        self.__sync_scheduled = False
         log.debug("Scheme node properties sync (changed: %s)", changed)
         return changed
+
+    def schedule_sync(self):
+        if not self.__sync_scheduled:
+            self.__sync_scheduled = True
+            QTimer.singleShot(0, self.sync_node_properties)
 
     def show_report_view(self):
         inst = self.report_view()
@@ -436,6 +447,13 @@ class OWWidgetManager(_WidgetManager):
         )
         # Advertised state for the workflow execution semantics.
         widget.widgetStateChanged.connect(self.__on_widget_state_changed)
+
+        # Sync node properties upon Setting change
+        widget.settingChanged.connect(self.__scheme.schedule_sync)
+        for v in widget.__dict__.values():
+            # Also on Setting changes for components like 'graph'
+            if isinstance(v, OWComponent):
+                v.settingChanged.connect(self.__scheme.schedule_sync)
 
         # Install a help shortcut on the widget
         help_action = widget.findChild(QAction, "action-help")

@@ -74,6 +74,7 @@ class TestContextHandler(TestCase):
 
         handler = ContextHandler()
         handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(handler.widget_class)
 
         # Old settings without version
         migrate_context = Mock()
@@ -89,6 +90,27 @@ class TestContextHandler(TestCase):
             handler.read_defaults_file(create_defaults_file(contexts))
         self.assertSequenceEqual(handler.global_contexts, contexts)
         migrate_context.assert_has_calls([call(c, c.values[VERSION_KEY]) for c in contexts])
+
+    def test_read_defaults_ensures_no_schema_only(self):
+        handler = ContextHandler()
+        handler.widget_class = SimpleWidget
+        handler.provider = SettingProvider(SimpleWidget)
+
+        def migrate_settings(settings, _):
+            settings["setting"] = 5
+            settings["schema_only_setting"] = True
+
+        def migrate_context(context, _):
+            context.values["context_setting"] = 5
+            context.values["schema_only_context_setting"] = True
+
+        with patch.object(SimpleWidget, "migrate_settings", migrate_settings), \
+             patch.object(SimpleWidget, "migrate_context", migrate_context), \
+             override_default_settings(SimpleWidget, {"value": 42},
+                                       [DummyContext()], handler=ContextHandler):
+            handler.read_defaults()
+            self.assertEqual(handler.defaults, {'value': 42, 'setting': 5})
+            self.assertEqual(handler.global_contexts[0].values, {'context_setting': 5})
 
     def test_initialize(self):
         handler = ContextHandler()

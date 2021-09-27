@@ -742,7 +742,7 @@ def open_widget_classes():
 
 
 @contextmanager
-def override_default_settings(widget, defaults=None, handler=None):
+def override_default_settings(widget, defaults=None, context_defaults=[], handler=None):
     if defaults is None:
         defaults = {}
 
@@ -754,6 +754,7 @@ def override_default_settings(widget, defaults=None, handler=None):
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "wb") as f:
         pickle.dump(defaults, f)
+        pickle.dump(context_defaults, f)
 
     yield
 

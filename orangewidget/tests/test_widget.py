@@ -36,6 +36,14 @@ class MyWidget(OWBaseWidget):
         self.widget = None
 
 
+class SignalTypeA:
+    pass
+
+
+class SignalTypeB:
+    pass
+
+
 class WidgetTestCase(WidgetTest):
     def test_setattr(self):
         widget = self.create_widget(MyWidget)
@@ -484,13 +492,26 @@ class WidgetTestInfoSummary(WidgetTest):
         self.assertEqual(StateInfo.format_number(999_999), "1M")
         self.assertEqual(StateInfo.format_number(1_000_000), "1M")
 
+    def test_overriden_handler(self):
+        class TestWidget(OWBaseWidget, openclass=True):
+            class Inputs(OWBaseWidget.Inputs):
+                inputA = Input("a", SignalTypeA)
 
-class SignalTypeA:
-    pass
+            @Inputs.inputA
+            def handler(self, _):
+                pass
 
+        class DerivedWidget(TestWidget):
+            name = "tw"
 
-class SignalTypeB:
-    pass
+            @TestWidget.Inputs.inputA
+            def handler(self, obj):
+                super().handler(obj)
+
+        widget = self.create_widget(DerivedWidget)
+        widget.set_partial_input_summary = MagicMock()
+        self.send_signal(widget.Inputs.inputA, SignalTypeA())
+        widget.set_partial_input_summary.assert_called_once()
 
 
 @summarize.register(SignalTypeA)

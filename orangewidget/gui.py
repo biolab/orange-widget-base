@@ -1791,7 +1791,7 @@ if sys.version_info >= (3, 7):
 else:
     class DeferredData:
         def __init__(self):
-            self.naw = self.deferred = None
+            self.now = self.deferred = None
             self.dirty = False
             self.commit_depth = 0
 

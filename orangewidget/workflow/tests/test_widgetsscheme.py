@@ -69,18 +69,22 @@ class MakeList(widget.OWBaseWidget, openclass=True):
     def __init__(self):
         super().__init__()
         self.inputs = []
+        self.events = []
 
     @Inputs.element
     def set_element(self, index, el):
         self.inputs[index] = el
+        self.events.append(("set", index, el))
 
     @Inputs.element.insert
     def insert_element(self, index, el):
         self.inputs.insert(index, el)
+        self.events.append(("insert", index, el))
 
     @Inputs.element.remove
     def remove_element(self, index):
         self.inputs.pop(index)
+        self.events.append(("remove", index))
 
     def handleNewSignals(self):
         self.Outputs.out.send(list(self.inputs))
@@ -424,48 +428,82 @@ class TestSignalManager(GuiTest):
         model, widgets = create_workflow_2()
         w1, w2, list_ = widgets.w1, widgets.w2, widgets.list_
         spy = QSignalSpy(widgets.list_node.state_changed)
-        w1.Outputs.out.send(42)
-        w2.Outputs.out.send(None)
 
         def check_inputs(expected: list):
             if widgets.list_node.state() & SchemeNode.Pending:
                 self.assertTrue(spy.wait())
             self.assertEqual(list_.inputs, expected)
 
+        def check_events(expected: list):
+            if widgets.list_node.state() & SchemeNode.Pending:
+                self.assertTrue(spy.wait())
+            self.assertEqual(expected, list_.events)
+
+        def reset_events():
+            list_.events.clear()
+
+        w1.Outputs.out.send(None)
+        w2.Outputs.out.send(42)
+        check_inputs([42])
+        check_events([("insert", 0, 42)])
+        reset_events()
+
         w1.Outputs.out.send(None)
         w2.Outputs.out.send(-42)
         check_inputs([-42])
+        check_events([("set", 0, -42)])
+        reset_events()
 
         w1.Outputs.out.send(42)
         check_inputs([42, -42])
+        check_events([("insert", 0, 42)])
+        reset_events()
 
         w1.Outputs.out.send(None)
         check_inputs([-42])
+        check_events([("remove", 0)])
+        reset_events()
+
         w2.Outputs.out.send(None)
         check_inputs([])
+        check_events([("remove", 0)])
+        reset_events()
 
         w2.Outputs.out.send(2)
         check_inputs([2])
+        check_events([("insert", 0, 2)])
+        reset_events()
 
         w1.Outputs.out.send(1)
         check_inputs([1, 2])
+        check_events([("insert", 0, 1)]),
+        reset_events()
 
         w2.Outputs.out.send(None)
         check_inputs([1])
+        check_events([("remove", 1)])
+        reset_events()
 
         w2.Outputs.out.send(2)
         check_inputs([1, 2])
+        check_events([("insert", 1, 2)])
+        reset_events()
 
-        l1= model.find_links(widgets.w1_node, None, widgets.list_node, None)[0]
+        l1 = model.find_links(widgets.w1_node, None, widgets.list_node, None)[0]
         model.remove_link(l1)
         check_inputs([2])
+        check_events([("remove", 0)])
+        reset_events()
 
         model.insert_link(0, l1)
         check_inputs([1, 2])
+        check_events([("insert", 0, 1)])
+        reset_events()
 
         l2 = model.find_links(widgets.w2_node, None, widgets.list_node, None)[0]
         model.remove_link(l2)
         check_inputs([1])
+        check_events([("remove", 1)])
 
         model.insert_link(1, l2)
         check_inputs([1, 2])

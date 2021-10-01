@@ -708,9 +708,13 @@ def set_multi_input_helper(
         if new and filtered:
             # insert in inputs only (done above)
             return
+        elif new:
+            # Some inputs before this might be filtered invalidating the
+            # effective index. Find appropriate index for insertion
+            index = len([obj for _, obj in inputs[:index] if not filter_f(obj)])
         elif remove:
             if filter_f(signal_old[1]):
-                # was already removed, only remove from inputs (done above)
+                # was already notified as removed, only remove from inputs (done above)
                 return
         elif update and filtered:
             if filter_f(signal_old[1]):
@@ -722,6 +726,8 @@ def set_multi_input_helper(
                 new = False
                 index = local_index(key, inputs, filter_f)
                 assert index is not None
+        elif update:
+            index = local_index(key, inputs, filter_f)
 
         if signal_old is not None and filter_f(signal_old[1]) and not filtered:
             # update with non-none value, substitute as new signal

@@ -7,6 +7,7 @@ import re
 import itertools
 import warnings
 import logging
+from inspect import getattr_static
 from types import LambdaType
 from collections import defaultdict
 
@@ -184,7 +185,7 @@ class OWComponent:
         else:
             super().__setattr__(name, value)
             # First check that the widget is not just being constructed
-            if hasattr(self, "controlled_attributes"):
+            if getattr_static(self, "controlled_attributes", None) is not None:
                 self._on_attr_changed(name, value)
 
     def _on_attr_changed(self, name, value):

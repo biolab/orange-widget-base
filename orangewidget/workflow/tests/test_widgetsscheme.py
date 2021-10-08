@@ -528,6 +528,25 @@ class TestSignalManager(GuiTest):
         check_inputs([2])
         model.remove_link(l1)
         check_inputs([2])
+        reset_events()
+
+        model.remove_link(l2)
+        check_inputs([])
+        check_events([("remove", 0)])
+        reset_events()
+
+        w1.Outputs.out.send(None)
+        w2.Outputs.out.send(1)
+        model.insert_link(0, l1)
+        model.insert_link(1, l2)
+        check_inputs([1])
+        check_events([("insert", 0, 1)])
+        reset_events()
+        # ensure proper index on input removal when preceding inputs are
+        # filtered
+        model.remove_link(l2)
+        check_inputs([])
+        check_events([("remove", 0)])
 
     def test_old_style_input(self):
         model, widgets = create_workflow()

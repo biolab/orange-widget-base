@@ -228,5 +228,219 @@ class TestDateTimeEditWCalendarTime(GuiTest):
         self.assertEqual(c.dateTime(), poeh)
 
 
+class TestDeferred(GuiTest):
+    def test_deferred(self) -> None:
+        class Widget(OWBaseWidget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.option = False
+                self.autocommit = False
+
+                self.checkbox = gui.checkBox(self, self, "option", "foo",
+                                             callback=self.apply.deferred)
+
+                self.commit_button = gui.auto_commit(
+                    self, self, 'autocommit', 'Commit', commit=self.apply)
+
+            real_apply = Mock()
+            # Unlike real functions, mocks don't have names
+            real_apply.__name__ = "apply"
+            apply = gui.deferred(real_apply)
+
+        w = Widget()
+
+        # clicked, but no autocommit
+        w.checkbox.click()
+        w.real_apply.assert_not_called()
+
+        # manual commit
+        w.commit_button.button.click()
+        w.real_apply.assert_called()
+        w.real_apply.reset_mock()
+
+        # enable auto commit - this should not trigger commit
+        w.commit_button.checkbox.click()
+        w.real_apply.assert_not_called()
+
+        # clicking control should auto commit
+        w.checkbox.click()
+        w.real_apply.assert_called()
+        w.real_apply.reset_mock()
+
+        # disabling and reenable auto commit without chenging the control
+        # should not trigger commit
+        w.commit_button.checkbox.click()
+        w.real_apply.assert_not_called()
+
+        # calling now should always call the apply
+        w.apply.now()
+        w.real_apply.assert_called_with(w)
+        w.real_apply.reset_mock()
+
+        # calling decorated method without `now` or `deferred` raises an expception
+        self.assertRaises(RuntimeError, w.apply)
+
+        w2 = Widget()
+        w.apply.now()
+        w.real_apply.assert_called_with(w)
+        w.real_apply.reset_mock()
+
+    def test_warn_to_defer(self):
+        class Widget(OWBaseWidget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.autocommit = False
+                self.commit_button = gui.auto_commit(
+                    self, self, 'autocommit', 'Commit')
+
+            def commit(self):
+                pass
+
+        with self.assertWarns(UserWarning):
+            _ = Widget()
+
+    def test_override(self):
+        class Widget(OWBaseWidget, openclass=True):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.autocommit = False
+                self.commit_button = gui.auto_commit(
+                    self, self, 'autocommit', 'Commit')
+
+            m = Mock()
+            n = Mock()
+
+            @gui.deferred
+            def commit(self):
+                self.m()
+
+        class Widget2(Widget):
+            @gui.deferred
+            def commit(self):
+                super().commit()
+                self.n()
+
+        w = Widget2()
+        w.commit.now()
+        w.m.assert_called_once()
+        w.n.assert_called_once()
+        w.m.reset_mock()
+        w.n.reset_mock()
+
+        class Widget3(Widget):
+            @gui.deferred
+            def commit(self):
+                self.n()
+
+        w = Widget3()
+        w.commit.now()
+        w.m.assert_not_called()
+        w.n.assert_called_once()
+        w.m.reset_mock()
+        w.n.reset_mock()
+
+        # This tests that exception is raised if derived method is undecorated
+        class Widget4(Widget):
+            def commit(self):
+                self.n()
+
+        self.assertRaises(RuntimeError, Widget4)
+
+    def test_override_and_decorate(self):
+        class Widget(OWBaseWidget, openclass=True):
+            m = Mock()
+            n = Mock()
+
+            def commit(self):
+                self.m()
+
+        class Widget2(Widget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.autocommit = False
+                self.commit_button = gui.auto_commit(
+                    self, self, 'autocommit', 'Commit')
+
+            @gui.deferred
+            def commit(self):
+                super().commit()
+                self.n()
+
+        w = Widget2()
+        w.commit.deferred()
+        w.m.assert_not_called()
+        w.n.assert_not_called()
+
+        w.autocommit = True
+        w.commit.deferred()
+        w.m.assert_called_once()
+        w.n.assert_called_once()
+
+    def test_two_autocommits(self):
+        class Widget(OWBaseWidget, openclass=True):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.autocommit = False
+                self.automagog = False
+                self.commit_button = gui.auto_commit(
+                    self, self, 'autocommit', 'Commit', commit=self.commit)
+                self.magog_button = gui.auto_commit(
+                    self, self, 'automagog', 'Magog', commit=self.magog)
+
+            real_commit = Mock()
+            real_magog = Mock()
+
+            @gui.deferred
+            def commit(self):
+                self.real_commit()
+
+            @gui.deferred
+            def magog(self):
+                self.real_magog()
+
+        w = Widget()
+
+        # Make a deffered call to commit; nothing should be called
+        w.commit.deferred()
+        w.real_commit.assert_not_called()
+        w.real_magog.assert_not_called()
+
+        # enable check boxes, but only commit is dirty
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+        w.real_commit.assert_called()
+        w.real_magog.assert_not_called()
+        w.real_commit.reset_mock()
+
+        # disable, enable, disable; nothing is dirty => shouldn't call anything
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+
+        # Make a deffered call to magog; nothing should be called
+        w.magog.deferred()
+        w.real_commit.assert_not_called()
+        w.real_magog.assert_not_called()
+
+        # enable check boxes, but only magog is dirty
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+        w.real_commit.assert_not_called()
+        w.real_magog.assert_called()
+        w.real_magog.reset_mock()
+
+        # disable, enable; nothing is dirty => shouldn't call anything
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+        w.commit_button.checkbox.click()
+        w.magog_button.checkbox.click()
+
+
+
+
 if __name__ == "__main__":
     unittest.main()

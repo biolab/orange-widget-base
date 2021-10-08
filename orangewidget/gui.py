@@ -5,6 +5,7 @@ import contextlib
 import math
 import re
 import itertools
+import sys
 import warnings
 import logging
 from types import LambdaType
@@ -14,7 +15,7 @@ import pkg_resources
 
 from AnyQt import QtWidgets, QtCore, QtGui
 from AnyQt.QtCore import Qt, QEvent, QObject, QTimer, pyqtSignal as Signal
-from AnyQt.QtGui import QCursor, QColor, QPalette
+from AnyQt.QtGui import QCursor, QColor
 from AnyQt.QtWidgets import (
     QApplication, QStyle, QSizePolicy, QWidget, QLabel, QGroupBox, QSlider,
     QTableWidgetItem, QStyledItemDelegate, QTableView, QHeaderView,
@@ -1677,6 +1678,224 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
     return combo
 
 
+# Decorator deferred allows for doing this:
+#
+# class MyWidget(OWBaseWidget):
+#    def __init__(self):
+#        ...
+#        # construct some control, for instance a checkbox, which calls
+#        # a deferred commit
+#        cb = gui.checkbox(..., callback=commit.deferred)
+#        ...
+#        gui.auto_commit(..., commit=commit)
+#
+#     @deferred
+#     def commit(self):
+#         ...
+#
+#     def some_method(self):
+#         ...
+#         self.commit.now()
+#
+#     def another_method(self):
+#         ...
+#         self.commit.deferred()
+#
+# Calling self.commit() will raise an exception that one must choose to call
+# either `now` or `deferred`.
+#
+# 1. `now` and `deferred` are created by `gui.auto_commit` and must be
+#    stored to the instance.
+#
+#    Hence, auto_commit stores `now` and `then` into `master.__<name>_data.now`
+#    and`master.<name>_data.deferred`, where <data> is the name of the
+#    decorated method (usually "commit").
+#
+# 2. Calling a decorated self.commit() should raise an exception that one
+#    must choose between `now` and `deferred` ... unless when calling
+#    super().commit() from overriden commit.
+#
+#    Decorator would thus replace the method with a function (or a callable)
+#    that raises an exception ... except for when calling super().
+#
+#    With everything else in place, the only simple way to allow calling super
+#    that I see is to have a flag (..._data.commit_depth) that we're already
+#    within commit.If we're in a commit, we allow calling the decorated commit,
+#    otherwise raise an exception. `commit` is usually not called from multiple
+#    threads, and even if is is, the only consequence would be that we will
+#    (in rare, unfortunate cases with very exact timing) allow calling
+#    self.commit instead of (essentially) self.commit.now instead of raising
+#    a rather diagnostic exception. This is a non-issue.
+#
+# 3. `now` and `deferred` must have a reference to the widget instance
+#    (that is, to what will be bound to `self` in the actual `commit`.
+#
+#    Therefore, we cannot simply have a `commit` to which we attach `now`
+#    and `deferred` because `commit.now` would then be a function - one and the
+#    same function for all widgets of that class, not a method bound to a
+#    particular instance's commit.
+#
+#    To solve this problem, the decorated `commit` is not a function but a
+#    property (of class `DeferrerProperty`) that returns a callable object
+#    (of class `Deferred`). When the property is retrieved, we get a reference
+#    to the instance which is kept in the closure. `Deferred` than provides
+#    `now` and `deferred`.
+
+# 4. Although `now` and `deferred` are constructed only in gui.auto_commit,
+#    they (esp. `deferred`) must by available before that - not for
+#    being called but for being stored as a callback for the checkbox.
+#
+#    To solve this problem, `Deferred` returns either a `..._data.now` and
+#    `..._data.deferred` set by auto_commit; if they are not yet set, it returns
+#    a lambda that calls them, essentially thunking a function that does not
+#    yet exist.
+#
+# 5. `now` and `deferred` are set by `auto_commit` as well as by mocking in
+#    unit tests. Because on the outside we only see commit.now and
+#    commit.deffered (although they are stored elsewhere, not as attributes
+#    of commit), they need to pretend to be attributes. Hence we patch
+#    __setattr__, __getattribute__ and __delattr__.
+
+# The type hint is somewhat wrong: the decorator returns a property, which is
+# a function, but in practice it's the same. PyCharm correctly recognizes it.
+if sys.version_info >= (3, 8):
+    from typing import Protocol
+
+
+    class DeferredFunc(Protocol):
+        def deferred(self) -> None:
+            ...
+
+        def now(self) -> None:
+            ...
+else:
+    from typing import Any
+    DeferredFunc = Any
+
+
+if sys.version_info >= (3, 7):
+    from typing import Optional, Callable
+    from dataclasses import dataclass
+
+    @dataclass
+    class DeferredData:
+        # now and deferred are set by auto_commit
+        now: Optional[Callable] = None
+        deferred: Optional[Callable] = None
+        # if True, data was changed while auto was disabled,
+        # so enabling auto commit must call `func`
+        dirty: bool = False
+        # A flag (counter) telling that we're within commit and
+        # super().commit() should not raise an exception
+        commit_depth: int = 0
+else:
+    class DeferredData:
+        def __init__(self):
+            self.now = self.deferred = None
+            self.dirty = False
+            self.commit_depth = 0
+
+
+def deferred(func) -> DeferredFunc:
+    name = func.__name__
+
+    # Deferred method is turned into a property that returns a class, with
+    # __call__ that raises an exception about being deferred
+
+    class DeferrerProperty:
+        def __get__(self, instance, owner=None):
+            if instance is None:
+                # We come here is somebody retrieves, e.g. OWTable.commit
+                data = None
+            else:
+                # `DeferredData` is created once per instance
+                data = instance.__dict__.setdefault(f"__{name}_data",
+                                                    DeferredData())
+
+            class Deferred:
+                # A property that represents commit. Its closure include
+                # - func: the original commit method
+                # - instance: a widget instance
+                # and, for practicality
+                # - data: a data class containing `now`, `deferred`, `dirty`
+                #         and `commit_depth` for this `instance`
+                # - name: name of the method being decorate (usually "commit")
+
+                # Name of the function being decorated, copied to a standard
+                # attribute; used, for instance, in auto_commit to check for
+                # decorated overriden methods and in exception messages
+                __name__ = name
+
+                # A flag that tells an observer that the method is decorated
+                # auto_commit uses it to check that a widget that overrides
+                # a decorated method also decorates its method
+                decorated = True
+
+                @classmethod
+                def __call__(cls):
+                    # Semantically, decorated method is replaced by this one,
+                    # which raises an exception except in super calls.
+
+                    # If commit_depth > 0, we're calling super (assuming
+                    # no threading on commit!)
+                    if data.commit_depth:
+                        cls.call()
+                    else:
+                        raise RuntimeError(
+                            "This function is deferred; explicitly call "
+                            f"{name}.deferred or {name}.now")
+
+                @staticmethod
+                def call():
+                    data.commit_depth += 1
+                    try:
+                        acting_func = instance.__dict__.get(name, func)
+                        acting_func(instance)
+                    finally:
+                        data.commit_depth -= 1
+
+                def __setattr__(self, key, value):
+                    if key in ("now", "deferred"):
+                        setattr(data, key, value)
+                    else:
+                        super().__setattr__(key, value)
+
+                def __getattribute__(self, key):
+                    if key in ("now", "deferred"):
+                        # If auto_commit already set a function, return it.
+                        # If not, return that function that calls a function,
+                        # which will later be set by auto_commit
+                        value = getattr(data, key)
+                        if value is not None:
+                            return value
+                        else:
+                            return lambda: getattr(data, key)()
+                    return super().__getattribute__(key)
+
+                def __delattr__(self, key):
+                    if key in ("now", "deferred"):
+                        setattr(data, key, None)
+                    else:
+                        super().__delattr__(self, key)
+
+                @property
+                def dirty(_):
+                    return data.dirty
+
+                @dirty.setter
+                def dirty(_, value):
+                    data.dirty = value
+
+            return Deferred()
+
+        def __set__(self, instance, value):
+            raise ValueError(
+                f"decorated {name} can't be mocked; "
+                f"mock '{name}.now' and/or '{name}.deferred'.")
+
+    return DeferrerProperty()
+
+
 def auto_commit(widget, master, value, label, auto_label=None, box=False,
                 checkbox_label=None, orientation=None, commit=None,
                 callback=None, **misc):
@@ -1719,11 +1938,18 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
     :type box: int or str or None
     :return: the box
     """
+    commit = commit or getattr(master, 'commit')
+    if isinstance(commit, LambdaType):
+        commit_name = next(LAMBDA_NAME)
+    else:
+        commit_name = commit.__name__
+    decorated = hasattr(commit, "deferred")
+
     def checkbox_toggled():
         if getattr(master, value):
             btn.setText(auto_label)
             btn.setEnabled(False)
-            if dirty:
+            if is_dirty():
                 do_commit()
         else:
             btn.setText(label)
@@ -1731,26 +1957,40 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
         if callback:
             callback()
 
-    def unconditional_commit():
-        nonlocal dirty
+    if decorated:
+        def is_dirty():
+            return commit.dirty
+
+        def set_dirty(state):
+            commit.dirty = state
+    else:
+        dirty = False
+
+        def is_dirty():
+            return dirty
+
+        def set_dirty(state):
+            nonlocal dirty
+            dirty = state
+
+    def conditional_commit():
         if getattr(master, value):
             do_commit()
         else:
-            dirty = True
+            set_dirty(True)
 
     def do_commit():
-        nonlocal dirty
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         try:
-            commit()
-            dirty = False
+            if decorated:
+                commit.call()
+            else:
+                commit()
+            set_dirty(False)
         finally:
             QApplication.restoreOverrideCursor()
 
-    dirty = False
-    commit = commit or getattr(master, 'commit')
-    commit_name = next(LAMBDA_NAME) if isinstance(commit, LambdaType) else commit.__name__
-    setattr(master, 'unconditional_' + commit_name, commit)
+    set_dirty(False)
 
     if not auto_label:
         if checkbox_label:
@@ -1794,7 +2034,30 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
     if not checkbox_label:
         btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
     checkbox_toggled()
-    setattr(master, commit_name, unconditional_commit)
+
+    if decorated:
+        commit.now = do_commit
+        commit.deferred = conditional_commit
+    else:
+        if not isinstance(commit, LambdaType):
+            for supertype in type(master).mro()[1:]:
+                inherited_commit = getattr(supertype, commit_name, None)
+                if getattr(inherited_commit, "decorated", False):
+                    raise RuntimeError(
+                        f"{type(master).__name__}.{commit_name} must be"
+                        "decorated with gui.deferred because it overrides"
+                        f"a decorated {supertype.__name__}.")
+            warnings.warn(
+                f"decorate {type(master).__name__}.{commit_name} "
+                "with @gui.deferred and then explicitly call "
+                f"{commit_name}.now or {commit_name}.deferred.")
+
+        # TODO: I suppose we don't need to to this for lambdas, do we?
+        # Maybe we can change `else` to `elif not isinstance(commit, LambdaType)
+        # and remove `if` that follows?
+        setattr(master, 'unconditional_' + commit_name, commit)
+        setattr(master, commit_name, conditional_commit)
+
     misc['addToLayout'] = addToLayout
     miscellanea(b, widget, widget, **misc)
 

@@ -498,7 +498,7 @@ class WidgetTest(GuiTest):
         if widget is None:
             widget = self.widget
 
-        widget.unconditional_commit()
+        widget.commit.now()
         self.wait_until_finished(widget=widget, timeout=wait)
 
     def get_output(self, output, widget=None, wait=DEFAULT_TIMEOUT):

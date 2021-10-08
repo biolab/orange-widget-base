@@ -498,7 +498,11 @@ class WidgetTest(GuiTest):
         if widget is None:
             widget = self.widget
 
-        widget.commit.now()
+        if hasattr(widget.commit, "now"):
+            widget.commit.now()
+        else:
+            # Support for deprecated, non-decorated commit
+            widget.unconditional_commit()
         self.wait_until_finished(widget=widget, timeout=wait)
 
     def get_output(self, output, widget=None, wait=DEFAULT_TIMEOUT):

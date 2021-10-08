@@ -664,7 +664,7 @@ def set_multi_input_helper(
     inout.closing_sentinel as the obj.
     """
     inputs_ = get_widget_inputs(widget)
-    inputs = list(inputs_.setdefault(input.name, ()))
+    inputs = inputs_.setdefault(input.name, ())
     filter_none = input.filter_none
 
     signal_old = None
@@ -679,15 +679,16 @@ def set_multi_input_helper(
         index = key_to_pos.get(key)
         assert index is not None
 
+    inputs_updated = list(inputs)
     if new:
-        inputs.insert(index, (key, obj))
+        inputs_updated.insert(index, (key, obj))
     elif remove:
-        signal_old = inputs.pop(index)
+        signal_old = inputs_updated.pop(index)
     else:
-        signal_old = inputs[index]
-        inputs[index] = (key, obj)
+        signal_old = inputs_updated[index]
+        inputs_updated[index] = (key, obj)
 
-    inputs_[input.name] = tuple(inputs)
+    inputs_[input.name] = tuple(inputs_updated)
 
     if filter_none:
         def filter_f(obj):
@@ -715,10 +716,16 @@ def set_multi_input_helper(
         if new and filtered:
             # insert in inputs only (done above)
             return
+        elif new:
+            # Some inputs before this might be filtered invalidating the
+            # effective index. Find appropriate index for insertion
+            index = len([obj for _, obj in inputs[:index] if not filter_f(obj)])
         elif remove:
             if filter_f(signal_old[1]):
-                # was already removed, only remove from inputs (done above)
+                # was already notified as removed, only remove from inputs (done above)
                 return
+            else:
+                index = local_index(key, inputs, filter_f)
         elif update and filtered:
             if filter_f(signal_old[1]):
                 # did not change; remains filtered
@@ -729,6 +736,8 @@ def set_multi_input_helper(
                 new = False
                 index = local_index(key, inputs, filter_f)
                 assert index is not None
+        elif update:
+            index = local_index(key, inputs, filter_f)
 
         if signal_old is not None and filter_f(signal_old[1]) and not filtered:
             # update with non-none value, substitute as new signal

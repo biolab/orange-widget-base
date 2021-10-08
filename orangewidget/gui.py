@@ -128,9 +128,6 @@ class OWComponent:
     Qt widgets inserted by function in `orangewidget.gui` module. See
     `OWScatterPlotGraph` for an example.
     """
-
-    settingChanged = Signal(str)
-
     def __init__(self, widget=None):
         self.controlled_attributes = defaultdict(list)
         self.controls = ControlGetter(self)
@@ -186,12 +183,8 @@ class OWComponent:
             super().__setattr__(name, value)
             # First check that the widget is not just being constructed
             if hasattr(self, "controlled_attributes"):
-                self._on_attr_changed(name, value)
-
-    def _on_attr_changed(self, name, value):
-        for callback in self.controlled_attributes.get(name, ()):
-            callback(value)
-        self.settingChanged.emit(name)
+                for callback in self.controlled_attributes.get(name, ()):
+                    callback(value)
 
 
 def miscellanea(control, box, parent, *,

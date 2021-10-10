@@ -19,7 +19,7 @@ from orangewidget.widget import OWBaseWidget, Msg, StateInfo, Input, Output
 from orangewidget.utils.messagewidget import MessagesWidget
 
 
-class DummyComponent(QObject, OWComponent):
+class DummyComponent(OWComponent):
     dummyattr = None
 
 

@@ -156,6 +156,9 @@ class ErrorReporting(QDialog):
         F = self.DataField
         data = self._data.copy()
 
+        if not QSettings().value('error-reporting/add-scheme', type=bool):
+            data.pop(F.WIDGET_SCHEME, None)
+
         def _post_report(data):
             MAX_RETRIES = 2
             for _retry in range(MAX_RETRIES):
@@ -247,8 +250,8 @@ class ErrorReporting(QDialog):
         if widget_class is not None:
             data[F.WIDGET_NAME] = widget_class.name
             data[F.WIDGET_MODULE] = widget_module
-        if workflow is not None \
-                and QSettings().value('reporting/add-scheme', True, type=bool):
+
+        if workflow is not None:
             fd, filename = mkstemp(prefix='ows-', suffix='.ows.xml')
             os.close(fd)
             try:
@@ -258,6 +261,7 @@ class ErrorReporting(QDialog):
                     data[F.WIDGET_SCHEME] = f.read()
             except Exception:
                 pass
+
         data[F.VERSION] = QApplication.applicationVersion()
         data[F.ENVIRONMENT] = 'Python {} on {} {} {} {}'.format(
             platform.python_version(), platform.system(), platform.release(),

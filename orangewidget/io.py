@@ -4,7 +4,8 @@ import tempfile
 from collections import OrderedDict
 
 from AnyQt import QtGui, QtCore, QtSvg
-from AnyQt.QtCore import QMimeData, QMarginsF
+from AnyQt.QtCore import QMimeData, QMarginsF, Qt
+from AnyQt.QtGui import QPalette
 from AnyQt.QtWidgets import (
     QGraphicsScene, QGraphicsView, QWidget, QApplication
 )
@@ -49,6 +50,20 @@ class _Registry(type):
         return '{}({{{}}})'.format(cls.__name__, ', '.join(cls.registry))
 
 
+def effective_background(scene: QGraphicsScene, view: QGraphicsView):
+    background = scene.backgroundBrush()
+    if background.style() != Qt.NoBrush:
+        return background
+    background = view.backgroundBrush()
+    if background.style() != Qt.NoBrush:
+        return background
+    viewport = view.viewport()
+    role = viewport.backgroundRole()
+    if role != QPalette.NoRole:
+        return viewport.palette().brush(role)
+    return viewport.palette().brush(QPalette.Window)
+
+
 class classproperty(property):
     def __get__(self, instance, class_):
         return self.fget(class_)
@@ -82,10 +97,12 @@ class ImgFormat(metaclass=_Registry):
         try:
             scene = scene.scene()
             scenerect = scene.sceneRect()   #preserve scene bounding rectangle
-            viewrect = scene.views()[0].sceneRect()
+            view = scene.views()[0]
+            viewrect = view.sceneRect()
             scene.setSceneRect(viewrect)
             backgroundbrush = scene.backgroundBrush()  #preserve scene background brush
-            scene.setBackgroundBrush(QtCore.Qt.white)
+            brush = effective_background(scene, view)
+            scene.setBackgroundBrush(brush)
             exporter = cls._get_exporter()
             cls._export(exporter(scene), filename)
             scene.setBackgroundBrush(backgroundbrush)  # reset scene background brush

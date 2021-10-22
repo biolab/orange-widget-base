@@ -1058,11 +1058,11 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         """Overloaded to restore the geometry when the widget is shown
         """
         QDialog.showEvent(self, event)
-        if self.save_position and not self.__was_restored:
-            # Restore saved geometry on (first) show
+        if not self.__was_restored:
+            # Restore saved geometry/layout on (first) show
             if self.__splitter is not None:
                 self.__setControlAreaVisible(self.controlAreaVisible)
-            if self.savedWidgetGeometry is not None:
+            if self.save_position and self.savedWidgetGeometry is not None:
                 self.__restoreWidgetGeometry(bytes(self.savedWidgetGeometry))
             self.__was_restored = True
 

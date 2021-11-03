@@ -1,7 +1,11 @@
 --only-binary PyQt5,matplotlib
 
 setuptools
-sphinx~=3.2.1
+sphinx>=4.2.0
 AnyQt
 PyQt5~=5.12.1
 PyQtWebengine~=5.12.1
+# sphinx pins docutils version, but the installation in the RTD worker/config
+# overrides it because docutils is also in our transitive dependencies.
+# https://docs.readthedocs.io/en/stable/faq.html#i-need-to-install-a-package-in-a-environment-with-pinned-versions
+-e .

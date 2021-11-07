@@ -1383,13 +1383,14 @@ def hSlider(widget, master, value, box=None, minValue=0, maxValue=10, step=1,
         slider.setTickInterval(ticks)
 
     if createLabel:
-        label = QLabel(sliderBox)
+        slider.label = label = QLabel(sliderBox)
         sliderBox.layout().addWidget(label)
         label.setText(labelFormat % minValue)
         width1 = label.sizeHint().width()
         label.setText(labelFormat % maxValue)
         width2 = label.sizeHint().width()
         label.setFixedSize(max(width1, width2), label.sizeHint().height())
+        label.setAlignment(Qt.AlignRight)
         txt = labelFormat % (getdeepattr(master, value) / divideFactor)
         label.setText(txt)
         label.setLbl = lambda x: \
@@ -1405,6 +1406,7 @@ def hSlider(widget, master, value, box=None, minValue=0, maxValue=10, step=1,
         slider.sliderReleased.connect(dn.notify_immediately)
 
     miscellanea(slider, sliderBox, widget, **misc)
+    slider.box = sliderBox
     return slider
 
 

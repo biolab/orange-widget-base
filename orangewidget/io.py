@@ -230,6 +230,11 @@ class SvgFormat(ImgFormat):
 
     @staticmethod
     def _export(exporter, filename):
+        if isinstance(exporter.item, QGraphicsScene):
+            scene = exporter.item
+            params = exporter.parameters()
+            brush = effective_background(scene, scene.views()[0])
+            params.param("background").setValue(brush.color())
         exporter.export(filename)
 
     @classmethod

@@ -1,7 +1,7 @@
 import itertools
 import math
 import time
-from collections import OrderedDict, Iterable
+from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Optional
 

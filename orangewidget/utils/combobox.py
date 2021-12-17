@@ -241,7 +241,8 @@ class ComboBoxSearch(QComboBox):
         if sys.platform == "darwin":
             slmargin = self.__searchline.style() \
                 .pixelMetric(QStyle.PM_FocusFrameVMargin)
-            popuprect_origin.adjust(slmargin / 2, 0, -slmargin * 1.5, slmargin)
+            popuprect_origin.adjust(slmargin // 2, 0,
+                                    -(slmargin * 3) // 2, slmargin)
         popuprect_origin = QRect(
             self.mapToGlobal(popuprect_origin.topLeft()),
             popuprect_origin.size()

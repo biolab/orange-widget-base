@@ -57,7 +57,7 @@ class OWCanvasMainWindow(CanvasMainWindow):
             "Show report", self,
             objectName="action-show-report",
             toolTip="Show a report window",
-            shortcut=QKeySequence(Qt.ShiftModifier | Qt.Key_R),
+            shortcut=QKeySequence("Shift+R"),
             enabled=HAVE_REPORT,
         )
         self.show_report_action.triggered.connect(self.show_report_view)

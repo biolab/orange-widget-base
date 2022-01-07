@@ -339,7 +339,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             self.set_basic_layout()
             self.update_summaries()
 
-        sc = QShortcut(QKeySequence(Qt.ShiftModifier | Qt.Key_F1), self)
+        sc = QShortcut(QKeySequence("Shift+F1"), self)
         sc.activated.connect(self.__quicktip)
 
         sc = QShortcut(QKeySequence.Copy, self)
@@ -354,7 +354,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 self.__toggleControlArea
             )
             sc = QShortcut(
-                QKeySequence(Qt.ControlModifier | Qt.ShiftModifier | Qt.Key_D),
+                QKeySequence("Ctrl+Shift+D"),
                 self, autoRepeat=False)
             sc.activated.connect(self.__toggleControlArea)
         return self
@@ -646,8 +646,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 "Show status bar", self, objectName="action-show-status-bar",
                 toolTip="Show status bar", checkable=True,
                 enabled=False, visible=False,
-                shortcut=QKeySequence(
-                    Qt.ShiftModifier | Qt.ControlModifier | Qt.Key_Backslash)
+                shortcut=QKeySequence("Shift+Ctrl+\\")
             )
             statusbar_action.toggled[bool].connect(statusbar.setVisible)
             self.addAction(statusbar_action)

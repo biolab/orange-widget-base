@@ -1359,7 +1359,18 @@ def hSlider(widget, master, value, box=None, minValue=0, maxValue=10, step=1,
     :type intOnly: bool
     :rtype: :obj:`QSlider` or :obj:`FloatSlider`
     """
-    sliderBox = hBox(widget, box, addToLayout=False)
+    # The last condition, misc.get("addToLayout") is here for backward
+    # compatibility. This function used to always create sliderBox; if
+    # addToLayout was False and widget was not None, this created a QWidget
+    # that was (usually) not added to any layout and could invisibly hang over
+    # some other widget (and capture its clicks). Conditions `label or
+    # createLabel or box` are here to ensure the box is created when needed.
+    # addToLayout is checked so that the returned `slider` still has the `box`
+    # attribute in case any caller used it (for reasons I can't see).
+    if label or createLabel or box or (misc.get("addToLayout") and widget):
+        sliderBox = hBox(widget, box, addToLayout=False)
+    else:
+        sliderBox = None
     if label:
         widgetLabel(sliderBox, label)
     sliderOrient = Qt.Vertical if vertical else Qt.Horizontal
@@ -1374,7 +1385,8 @@ def hSlider(widget, master, value, box=None, minValue=0, maxValue=10, step=1,
     else:
         slider = FloatSlider(sliderOrient, minValue, maxValue, step)
         signal = slider.valueChangedFloat[float]
-    sliderBox.layout().addWidget(slider)
+    if sliderBox is not None:
+        sliderBox.layout().addWidget(slider)
     slider.setValue(getdeepattr(master, value))
     if width:
         slider.setFixedWidth(width)

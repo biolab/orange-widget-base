@@ -2,22 +2,23 @@ import sys
 import enum
 import base64
 from itertools import chain
-from operator import attrgetter
 from xml.sax.saxutils import escape
 from collections import OrderedDict
 from typing import (
     NamedTuple, Tuple, List, Dict, Iterable, Union, Optional, Hashable
 )
 
-from AnyQt.QtCore import Qt, QSize, QBuffer, QPropertyAnimation, QEasingCurve, Property
-from AnyQt.QtGui import (
-    QIcon, QPixmap, QPainter, QPalette, QLinearGradient, QBrush, QPen
+from AnyQt.QtCore import (
+    Qt, QSize, QBuffer, QPropertyAnimation, QEasingCurve, Property
 )
+from AnyQt.QtGui import QIcon, QPixmap, QPainter
 from AnyQt.QtWidgets import (
-    QWidget, QLabel, QSizePolicy, QStyle, QHBoxLayout, QMessageBox,
+    QWidget, QLabel, QSizePolicy, QStyle, QHBoxLayout,
     QMenu, QWidgetAction, QStyleOption, QStylePainter, QApplication
 )
 from AnyQt.QtCore import pyqtSignal as Signal
+
+from orangewidget.utils.buttons import flat_button_hover_background
 
 __all__ = ["Message", "MessagesWidget"]
 
@@ -155,6 +156,7 @@ class Message(
         """
         return (not self.text and self.icon.isNull() and
                 not self.informativeText and not self.detailedText)
+
     @property
     def icon(self):
         return QIcon(super().icon)
@@ -501,38 +503,14 @@ class MessageWidget(QWidget):
         self.update()
 
     def paintEvent(self, event):
-        opt = QStyleOption()
-        opt.initFrom(self)
         if not self.message:
             return
 
-        if not (opt.state & QStyle.State_MouseOver or
-                opt.state & QStyle.State_HasFocus):
-            return
-
-        palette = opt.palette  # type: QPalette
-        if opt.state & QStyle.State_HasFocus:
-            pen = QPen(palette.color(QPalette.Highlight))
-        else:
-            pen = QPen(palette.color(QPalette.Dark))
-
-        if self.message and \
-                opt.state & QStyle.State_MouseOver and \
-                opt.state & QStyle.State_Active:
-            g = QLinearGradient()
-            g.setCoordinateMode(QLinearGradient.ObjectBoundingMode)
-            base = palette.color(QPalette.Window)
-            base.setAlpha(90)
-            g.setColorAt(0, base.lighter(200))
-            g.setColorAt(0.6, base)
-            g.setColorAt(1.0, base.lighter(200))
-            brush = QBrush(g)
-        else:
-            brush = QBrush(Qt.NoBrush)
-        p = QPainter(self)
-        p.setBrush(brush)
-        p.setPen(pen)
-        p.drawRect(opt.rect.adjusted(0, 0, -1, -1))
+        opt = QStyleOption()
+        opt.initFrom(self)
+        if opt.state & (QStyle.State_MouseOver | QStyle.State_HasFocus):
+            p = QPainter(self)
+            flat_button_hover_background(p, opt)
 
 
 class MessagesWidget(MessageWidget):
@@ -668,6 +646,7 @@ class InOutStateWidget(MessageWidget):
         else:
             super().mousePressEvent(event)
 
+
 class IconWidget(QWidget):
     """
     A widget displaying an `QIcon`
@@ -789,6 +768,7 @@ def main(argv=None):  # pragma: no cover
     w.layout().addWidget(sb, 0)
     w.show()
     return app.exec()
+
 
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(main(sys.argv))

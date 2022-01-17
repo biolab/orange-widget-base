@@ -2582,7 +2582,8 @@ class IndicatorItemDelegate(QtWidgets.QStyledItemDelegate):
         if indicator:
             brush = index.data(Qt.ForegroundRole)
             if brush is None:
-                brush = QtGui.QBrush(Qt.black)
+                brush = QtGui.QBrush(
+                    text_color_for_state(option.palette, option.state))
             painter.save()
             painter.setRenderHints(QtGui.QPainter.Antialiasing)
             painter.setBrush(brush)

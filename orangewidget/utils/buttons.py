@@ -115,6 +115,8 @@ class SimpleButton(QAbstractButton):
             if option.state & QStyle.State_Active:
                 mode = (QIcon.Active if option.state & QStyle.State_MouseOver
                         else QIcon.Normal)
+            elif option.state & QStyle.State_Enabled:
+                mode = QIcon.Normal
             else:
                 mode = QIcon.Disabled
             if self.isChecked():

@@ -709,8 +709,10 @@ class IconWidget(QWidget):
         painter.drawPrimitive(QStyle.PE_Widget, opt)
         if not self.__icon.isNull():
             rect = self.contentsRect()
-            if opt.state & QStyle.State_Active:
+            if opt.state & QStyle.State_MouseOver:
                 mode = QIcon.Active
+            elif opt.state & QStyle.State_Enabled:
+                mode = QIcon.Normal
             else:
                 mode = QIcon.Disabled
             self.__icon.paint(painter, rect, Qt.AlignCenter, mode, QIcon.Off)

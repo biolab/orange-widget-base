@@ -1,15 +1,23 @@
 # pylint: disable=all
-
-import unittest
-
-import pkg_resources
 from AnyQt.QtCore import Qt, QRect
-from AnyQt.QtWidgets import QListView, QApplication
+from AnyQt.QtWidgets import QListView, QApplication, QProxyStyle, QStyle, QStyleFactory
 from AnyQt.QtTest import QTest, QSignalSpy
+
 from orangewidget.tests.base import GuiTest
 from orangewidget.tests.utils import mouseMove, excepthook_catch
 
 from orangewidget.utils import combobox
+
+
+class StyleHintStyle(QProxyStyle):
+    def styleHint(self, hint, option, widget=None, returnData=None) -> int:
+        if hint == QStyle.SH_ComboBox_ListMouseTracking:
+            return 1
+        return super().styleHint(hint, option, widget, returnData)
+
+    @staticmethod
+    def create():
+        return StyleHintStyle(QStyleFactory.create("fusion"))
 
 
 class TestComboBoxSearch(GuiTest):
@@ -99,7 +107,7 @@ class TestComboBoxSearch(GuiTest):
 
     def test_track(self):
         cb = self.cb
-        cb.setStyleSheet("combobox-list-mousetracking: 1")
+        cb.setStyle(StyleHintStyle.create())
         cb.showPopup()
         popup = cb.findChild(QListView)  # type: QListView
         model = popup.model()

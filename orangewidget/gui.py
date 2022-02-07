@@ -2552,7 +2552,7 @@ class BarItemDelegate(QtWidgets.QStyledItemDelegate):
                 painter.setOpacity(0.75)
             painter.setBrush(self.brush)
             painter.drawRect(
-                rect.adjusted(1, 1, - rect.width() * (1.0 - val) - 2, -2))
+                rect.adjusted(1, 1, int(- rect.width() * (1.0 - val) - 2), -2))
             painter.restore()
 
 
@@ -2781,7 +2781,7 @@ class ColoredBarItemDelegate(QtWidgets.QStyledItemDelegate):
             bar_rect.setTop(bar_rect.bottom() - 1)
             bar_rect.setBottom(bar_rect.bottom() + 1)
             w = text_rect.width()
-            bar_rect.setWidth(max(0, min(w * ratio, w)))
+            bar_rect.setWidth(max(0, min(int(w * ratio), w)))
             painter.drawRoundedRect(bar_rect, 2, 2)
         painter.restore()
 

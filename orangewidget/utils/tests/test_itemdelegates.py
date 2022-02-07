@@ -1,12 +1,15 @@
 import unittest
 from datetime import date, datetime
+from typing import Any, Dict
 
 import numpy as np
 
 from AnyQt.QtCore import Qt, QModelIndex, QLocale, QRect, QPoint, QSize
 from AnyQt.QtGui import QStandardItemModel, QFont, QColor, QIcon, QImage, \
     QPainter
-from AnyQt.QtWidgets import QStyleOptionViewItem, QTableView
+from AnyQt.QtWidgets import (
+    QStyleOptionViewItem, QTableView, QAbstractItemDelegate
+)
 
 from orangecanvas.gui.svgiconengine import SvgIconEngine
 from orangewidget.tests.base import GuiTest
@@ -212,7 +215,8 @@ class TestBarItemDataDelegate(GuiTest):
         delegate = self.delegate
         model.setData(index, 0.5, delegate.barFillRatioRole)
 
-        def paint_with_data(data):
+        def paint_with_data_(data):
+            paint_with_data(delegate, data, self.view.viewOptions())
             model.setItemData(index, data)
             opt = self.view.viewOptions()
             size = delegate.sizeHint(opt, index).expandedTo(QSize(10, 10))
@@ -224,8 +228,27 @@ class TestBarItemDataDelegate(GuiTest):
                 delegate.paint(p, opt, index)
             finally:
                 p.end()
+        paint_with_data_({delegate.barFillRatioRole: 0.2,
+                          delegate.barColorRole: QColor(Qt.magenta)})
+        paint_with_data_({delegate.barFillRatioRole: None,
+                          delegate.barColorRole: None})
 
-        paint_with_data({delegate.barFillRatioRole: 0.2,
-                         delegate.barColorRole: QColor(Qt.magenta)})
-        paint_with_data({delegate.barFillRatioRole: None,
-                         delegate.barColorRole: None})
+
+def paint_with_data(
+        delegate: QAbstractItemDelegate,
+        data: Dict[int, Any],
+        options: QStyleOptionViewItem = None
+) -> None:
+    model = create_model(1, 1)
+    index = model.index(0, 0)
+    model.setItemData(index, data)
+    opt = QStyleOptionViewItem(options) if options is not None else QStyleOptionViewItem()
+    size = delegate.sizeHint(opt, index).expandedTo(QSize(10, 10))
+    opt.rect = QRect(QPoint(0, 0), size)
+    delegate.initStyleOption(opt, index)
+    img = QImage(opt.rect.size(), QImage.Format_ARGB32_Premultiplied)
+    p = QPainter(img)
+    try:
+        delegate.paint(p, opt, index)
+    finally:
+        p.end()

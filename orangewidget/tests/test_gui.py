@@ -6,6 +6,7 @@ from AnyQt.QtCore import Qt, QTimer, QDateTime, QDate, QTime
 
 from orangewidget import gui
 from orangewidget.tests.base import GuiTest, WidgetTest
+from orangewidget.utils.tests.test_itemdelegates import paint_with_data
 from orangewidget.widget import OWBaseWidget
 
 
@@ -440,6 +441,22 @@ class TestDeferred(GuiTest):
         w.magog_button.checkbox.click()
 
 
+class TestBarItemDelegate(GuiTest):
+    def test(self):
+        delegate = gui.BarItemDelegate(None)
+        paint_with_data(delegate, {Qt.DisplayRole: 0.5})
+
+
+class TestIndicatorItemDelegate(GuiTest):
+    def test(self):
+        delegate = gui.IndicatorItemDelegate(None)
+        paint_with_data(delegate, {Qt.DisplayRole: True})
+
+
+class TestColoredBarItemDelegate(GuiTest):
+    def test(self):
+        delegagte = gui.ColoredBarItemDelegate()
+        paint_with_data(delegagte, {Qt.DisplayRole: 1.0, gui.BarRatioRole: 0.5})
 
 
 if __name__ == "__main__":

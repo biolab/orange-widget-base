@@ -581,7 +581,7 @@ class BarItemDataDelegate(DataDelegate):
             if color is None:
                 color = self.color
             if not color.isValid():
-                color = opt.palette.color(QPalette.Foreground)
+                color = opt.palette.color(QPalette.WindowText)
             rect = option.rect
             pw = self.penWidth
             hmargin = 3 + pw / 2  # + half pen width for the round line cap

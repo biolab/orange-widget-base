@@ -428,7 +428,7 @@ class RecentPathsWComboMixin(RecentPathsWidgetMixin):
                 self.file_combo.model().item(i).setToolTip(recent.abspath)
                 if not os.path.exists(recent.abspath):
                     self.file_combo.setItemData(i, QBrush(Qt.red),
-                                                Qt.TextColorRole)
+                                                Qt.ForegroundRole)
 
     def update_file_list(self, key, value, oldvalue):
         if key == "basedir":

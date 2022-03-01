@@ -92,7 +92,7 @@ class TestPdf(GuiTest):
         graph.addItem(pyqtgraph.ScatterPlotItem(x=list(range(100)), y=list(range(100))))
         try:
             imgio.PdfFormat.write(fname, graph)
-            self.assertGreater(os.path.getsize(fname), size_empty + 10000)
+            self.assertGreater(os.path.getsize(fname), size_empty + 5000)
         finally:
             os.unlink(fname)
 
@@ -101,7 +101,7 @@ class TestPdf(GuiTest):
         graph.addItem(pyqtgraph.PlotCurveItem(x=list(range(100)), y=list(range(100))))
         try:
             imgio.PdfFormat.write(fname, graph)
-            self.assertGreater(os.path.getsize(fname), size_empty + 2000)
+            self.assertGreater(os.path.getsize(fname), size_empty + 1000)
         finally:
             os.unlink(fname)
 

@@ -23,7 +23,7 @@ import numpy as np
 from AnyQt.QtCore import Qt, QObject, QFile, QTimer, QUrl, QSize, QEventLoop, \
     pyqtProperty, pyqtSlot, pyqtSignal
 from AnyQt.QtGui import QColor
-from AnyQt.QtWidgets import QSizePolicy, QWidget, qApp
+from AnyQt.QtWidgets import QSizePolicy, QWidget, QApplication
 from AnyQt import sip
 
 try:
@@ -33,7 +33,8 @@ except ImportError:
     HAVE_WEBKIT = False
 
 try:
-    from AnyQt.QtWebEngineWidgets import QWebEngineView, QWebEngineScript
+    from AnyQt.QtWebEngineWidgets import QWebEngineView
+    from AnyQt.QtWebEngineCore import QWebEngineScript
     from AnyQt.QtWebChannel import QWebChannel
     HAVE_WEBENGINE = True
 except ImportError:
@@ -413,7 +414,7 @@ def wait(until: callable, timeout=5000):
     """
     started = time.perf_counter()
     while not until():
-        qApp.processEvents(QEventLoop.ExcludeUserInputEvents)
+        QApplication.instance().processEvents(QEventLoop.ExcludeUserInputEvents)
         if (time.perf_counter() - started) * 1000 > timeout:
             raise TimeoutError()
 

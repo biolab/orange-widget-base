@@ -240,7 +240,7 @@ if HAVE_WEBKIT:
             if debug:
                 settings.setAttribute(settings.LocalStorageEnabled, True)
                 settings.setAttribute(settings.DeveloperExtrasEnabled, True)
-                settings.setObjectCacheCapacities(4e6, 4e6, 4e6)
+                settings.setObjectCacheCapacities(int(4e6), int(4e6), int(4e6))
                 settings.enablePersistentStorage()
 
         def runJavaScript(self, javascript, resultCallback=None):

@@ -76,12 +76,15 @@ class Config(config.Default):
         """
         # `iter_entry_points` yields them in unspecified order, so we insert
         # our first
-        default_ep = pkg_resources.EntryPoint(
-            "Orange3", "Orange.canvas.workflows",
-            dist=pkg_resources.get_distribution("Orange3"))
+        try:
+            default_ep = (pkg_resources.EntryPoint(
+                "Orange3", "Orange.canvas.workflows",
+                dist=pkg_resources.get_distribution("Orange3")),)
+        except pkg_resources.DistributionNotFound:
+            default_ep = tuple()
 
         return itertools.chain(
-            (default_ep,),
+            default_ep,
             pkg_resources.iter_entry_points("orange.widgets.tutorials")
         )
 

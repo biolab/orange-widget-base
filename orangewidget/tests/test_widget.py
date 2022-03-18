@@ -127,6 +127,18 @@ class WidgetTestCase(WidgetTest):
         self.assertFalse((w2.restoreGeometryAndLayoutState(QByteArray())))
         self.assertFalse(w2.restoreGeometryAndLayoutState(QByteArray(b'ab')))
 
+    def test_resizing_disabled_width_hint(self):
+        class TestWidget(OWBaseWidget):
+            name = "Test"
+            resizing_enabled = False
+            want_main_area = True
+        w = TestWidget()
+        w._OWBaseWidget__setControlAreaVisible(False)
+        sm1 = w.maximumSize()
+        w._OWBaseWidget__setControlAreaVisible(True)
+        sm2 = w.maximumSize()
+        self.assertLess(sm1.width() + 30, sm2.width())
+
     def test_garbage_collect(self):
         widget = MyWidget()
         ref = weakref.ref(widget)

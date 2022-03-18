@@ -400,7 +400,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             self.setHandleWidth(18)
 
         def _adjusted_size(self, size_method):
-            size = size_method(super())()
             parent = self.parentWidget()
             if isinstance(parent, OWBaseWidget) \
                     and not parent.controlAreaVisible \
@@ -408,12 +407,11 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 indices = range(1, self.count())
             else:
                 indices = range(0, self.count())
-
-            height = max((size_method(self.widget(i))().height()
-                          for i in indices),
-                         default=0)
-            size.setHeight(height)
-            return size
+            shs = [size_method(self.widget(i))() for i in indices]
+            height = max((sh.height() for sh in shs), default=0)
+            width = sum(sh.width() for sh in shs)
+            width += max(0, self.handleWidth() * (self.count() - 1))
+            return QSize(width, height)
 
         def sizeHint(self):
             return self._adjusted_size(attrgetter("sizeHint"))

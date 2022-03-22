@@ -104,7 +104,9 @@ jobs:
         env:
           PACKAGES: ${{ matrix.extra-system-packages }}
         # https://www.riverbankcomputing.com/pipermail/pyqt/2020-June/042949.html
-        run: sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 $PACKAGES
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 $PACKAGES
 
       - name: Setup Pip Cache
         uses: actions/cache@v2

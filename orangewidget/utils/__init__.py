@@ -1,4 +1,7 @@
+import enum
 import inspect
+from typing import Union
+
 import sys
 import warnings
 from operator import attrgetter
@@ -85,3 +88,21 @@ class DeprecatedSignal:
 
     def __getattr__(self, item):
         return self.__signal.item
+
+
+def enum_as_int(value: Union[int, enum.Enum]) -> int:
+    """
+    Return a `enum.Enum` value as an `int.
+
+    This is function intended for extracting underlying Qt5/6 enum
+    values specifically with PyQt6 where most Qt enums are represented
+    with `enum.Enum` and lose their numerical value.
+
+    >>> from PyQt6.QtCore import Qt
+    >>> enum_as_int(Qt.Alignment.AlignLeft)
+    1
+    """
+    if isinstance(value, enum.Enum):
+        return int(value.value)
+    else:
+        return int(value)

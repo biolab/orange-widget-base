@@ -1188,8 +1188,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     def keyPressEvent(self, e):
         """Handle default key actions or pass the event to the inherited method
         """
-        if (int(e.modifiers()), e.key()) in OWBaseWidget.defaultKeyActions:
-            OWBaseWidget.defaultKeyActions[int(e.modifiers()), e.key()](self)
+        if (e.modifiers(), e.key()) in OWBaseWidget.defaultKeyActions:
+            OWBaseWidget.defaultKeyActions[e.modifiers(), e.key()](self)
         else:
             QDialog.keyPressEvent(self, e)
 

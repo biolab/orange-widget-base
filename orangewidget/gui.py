@@ -1216,7 +1216,7 @@ def radioButtons(widget, master, value, btnLabels=(), tooltips=None,
     bg.ogMaster = master
     for i, lab in enumerate(btnLabels):
         appendRadioButton(bg, lab, tooltip=tooltips and tooltips[i], id=i + 1)
-    connectControl(master, value, callback, bg.group.buttonClicked[int],
+    connectControl(master, value, callback, bg.group.idClicked,
                    CallFrontRadioButtons(bg), CallBackRadioButton(bg, master))
     miscellanea(bg.group, bg, widget, **misc)
     return bg
@@ -1670,7 +1670,7 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
             combo.setCurrentIndex(cindex)
             if sendSelectedValue:
                 connectControl(
-                    master, value, callback, combo.activated[str],
+                    master, value, callback, combo.textActivated,
                     CallFrontComboBox(combo, emptyString),
                     ValueCallbackCombo(master, value, emptyString))
             else:

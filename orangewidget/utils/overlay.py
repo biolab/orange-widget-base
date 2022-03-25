@@ -156,10 +156,16 @@ class OverlayWidget(QWidget):
             effectivesh = QSize(0, 0)
             vpolicy = hpolicy = QSizePolicy.Ignored
 
+        def is_expanding(policy: QSizePolicy.Policy):
+            try:
+                return policy & QSizePolicy.ExpandFlag
+            except TypeError:
+                return policy.value & QSizePolicy.ExpandFlag.value
+
         def getsize(hint, minimum, maximum, policy):
             if policy == QSizePolicy.Ignored:
                 return maximum
-            elif policy & QSizePolicy.ExpandFlag:
+            elif is_expanding(policy):
                 return maximum
             else:
                 return max(hint, minimum)

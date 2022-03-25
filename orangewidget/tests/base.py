@@ -12,20 +12,20 @@ from contextlib import contextmanager, ExitStack
 from unittest.mock import Mock, patch
 from typing import List, Optional, TypeVar, Type
 
-import sip
-
 from AnyQt.QtCore import Qt, QObject, pyqtSignal, QElapsedTimer, pyqtSlot
 from AnyQt.QtTest import QTest, QSignalSpy
 from AnyQt.QtWidgets import (
     QApplication, QComboBox, QSpinBox, QDoubleSpinBox, QSlider
 )
+from AnyQt import sip
 
 from orangewidget.report.owreport import OWReport
 from orangewidget.settings import SettingsHandler
 from orangewidget.utils.signals import get_input_meta, notify_input_helper
 from orangewidget.widget import OWBaseWidget
 
-sip.setdestroyonexit(False)
+if hasattr(sip, "setdestroyonexit"):
+    sip.setdestroyonexit(False)
 
 app = None
 
@@ -242,6 +242,7 @@ class WidgetTest(GuiTest):
             nonlocal report
             if report is None:
                 report = OWReport()
+                report.have_report_warning_shown = True  # if missing QtWebView/QtWebKit
                 if not (os.environ.get("TRAVIS") or os.environ.get("APPVEYOR")):
                     report.show = Mock()
                 cls.widgets.append(report)

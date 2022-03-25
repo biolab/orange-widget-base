@@ -4,7 +4,7 @@ from typing import Optional
 from AnyQt.QtCore import (
     Qt, QEvent, QObject, QAbstractItemModel, QSortFilterProxyModel,
     QModelIndex, QSize, QRect, QPoint, QMargins, QElapsedTimer,
-    QTimer
+    QTimer, QT_VERSION
 )
 from AnyQt.QtGui import QMouseEvent, QKeyEvent, QPainter, QPalette, QPen
 from AnyQt.QtWidgets import (
@@ -115,7 +115,7 @@ class _ComboBoxListDelegate(QStyledItemDelegate):
         super().paint(painter, option, index)
         if index.data(Qt.AccessibleDescriptionRole) == "separator":
             palette = option.palette  # type: QPalette
-            brush = palette.brush(QPalette.Disabled, QPalette.Foreground)
+            brush = palette.brush(QPalette.Disabled, QPalette.WindowText)
             painter.setPen(QPen(brush, 1.0))
             rect = option.rect  # type: QRect
             y = rect.center().y()
@@ -422,10 +422,17 @@ class ComboBoxSearch(QComboBox):
             if index.isValid() and \
                     index.flags() & (Qt.ItemIsEnabled | Qt.ItemIsSelectable):
                 self.hidePopup()
-                text = self.itemText(index.row())
                 self.setCurrentIndex(index.row())
-                self.activated[int].emit(index.row())
-                self.activated[str].emit(text)
+                qcombobox_emit_activated(self, index.row())
+
+
+def qcombobox_emit_activated(cb: QComboBox, index: int):
+    cb.activated[int].emit(index)
+    text = cb.itemText(index)
+    if QT_VERSION >= 0x050f00:  # 5.15
+        cb.textActivated.emit(text)
+    if QT_VERSION < 0x060000:  # 6.0
+        cb.activated[str].emit(text)
 
 
 def qwidget_margin_within(widget, ancestor):

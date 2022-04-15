@@ -950,8 +950,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             # Move the widget to the center of available space if it is
             # currently outside it
             if not space.contains(self.frameGeometry()):
-                x = max(0, space.width() / 2 - width / 2)
-                y = max(0, space.height() / 2 - height / 2)
+                x = max(0, space.width() // 2 - width // 2)
+                y = max(0, space.height() // 2 - height // 2)
 
                 self.move(x, y)
         return restored

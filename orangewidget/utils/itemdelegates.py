@@ -471,8 +471,7 @@ class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
         try:
             return self.__static_text_lru_cache[text, font, elideMode, width]
         except KeyError:
-            text = fontMetrics.elidedText(text, elideMode, width)
-            st = QStaticText(text)
+            st = QStaticText(fontMetrics.elidedText(text, elideMode, width))
             st.prepare(QTransform(), font)
             # take a copy of the font for cache key
             key = text, QFont(font), elideMode, width

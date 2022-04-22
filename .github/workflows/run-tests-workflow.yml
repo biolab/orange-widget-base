@@ -39,7 +39,7 @@ jobs:
 
           - os: ubuntu-20.04
             python-version: "3.10"
-            test-env: "PyQt6~=6.2.3 PyQt6-WebEngine~=6.2.1"
+            test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
             extra-system-packages: "libegl1-mesa"
 
           # macOS
@@ -90,7 +90,7 @@ jobs:
 
           - os: windows-2019
             python-version: "3.10"
-            test-env: "PyQt6~=6.2.3 PyQt6-WebEngine~=6.2.1"
+            test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
 
     steps:
       - uses: actions/checkout@v2

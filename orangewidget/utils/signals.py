@@ -8,12 +8,15 @@ from typing import (
     Callable
 )
 
-from AnyQt.QtCore import Qt
+from AnyQt.QtCore import Qt, pyqtSignal, QPoint
+from AnyQt.QtWidgets import QWidgetAction, QMenu, QWidget, QLabel, QVBoxLayout
 
 from orangecanvas.registry.description import (
     InputSignal, OutputSignal, Single, Multiple, Default, NonDefault,
     Explicit, Dynamic
 )
+
+from orangewidget.utils.messagewidget import MessagesWidget
 from orangewidget.workflow.utils import WeakKeyDefaultDict
 
 
@@ -23,13 +26,14 @@ from orangewidget.workflow.utils import WeakKeyDefaultDict
 _counter = itertools.count()
 
 
-PartialSummary = NamedTuple(
-    "PartialSummary", (("summary", Union[None, str, int]),
-                       ("details", Optional[str])))
+class PartialSummary(NamedTuple):
+    summary: Union[None, str, int] = None
+    details: Optional[str] = None
+    preview_func: Optional[Callable[[], QWidget]] = None
 
 
 def base_summarize(_) -> PartialSummary:
-    return PartialSummary(None, None)
+    return PartialSummary()
 
 
 summarize = singledispatch(base_summarize)
@@ -412,7 +416,7 @@ class WidgetSignalsMixin:
 
     def __init__(self):
         self.input_summaries = {}
-        self.output_summaries = {}
+        self.output_summaries: Dict[str, PartialSummary] = {}
         self._bind_signals()
 
     def _bind_signals(self):
@@ -519,7 +523,8 @@ class WidgetSignalsMixin:
         self._update_summary(self.input_summaries)
         self._update_summary(self.output_summaries)
 
-    def set_partial_input_summary(self, name, partial_summary, *, id=None, index=None):
+    def set_partial_input_summary(self, name, partial_summary, *,
+                                  id=None, index=None):
         self.__set_part_summary(self.input_summaries[name], id, partial_summary, index=index)
         self._update_summary(self.input_summaries)
 
@@ -591,6 +596,43 @@ class WidgetSignalsMixin:
             setter(summary, SUMMARY_STYLE + detail, format=Qt.RichText)
         else:
             setter(summary)
+
+    def show_preview(self, summaries):
+        view = QWidget(self)
+        view.setLayout(QVBoxLayout())
+
+        for name, summary in summaries.items():
+            if not summary:
+                view.layout().addWidget(QLabel("<hr/><table>"
+                           f"<tr><th><nobr>{name}</nobr>: "
+                           f"</th><td>-</td></tr>"
+                           "</table>"))
+            for i, part in enumerate(summary.values(), start=1):
+                part_no = f" ({i})" if len(summary) > 1 else ""
+                detail = str(part.details or part.summary) or "-"
+                view.layout().addWidget(
+                    QLabel("<hr/><table>"
+                           f"<tr><th><nobr>{name}{part_no}</nobr>: "
+                           f"</th><td>{detail}</td></tr>"
+                           "</table>")
+                )
+                if part.preview_func:
+                    preview = part.preview_func()
+                    view.layout().addWidget(preview, 1)
+        if view.layout().isEmpty():
+            return
+        view.layout().addStretch()
+
+        screen = self.windowHandle().screen()
+        geometry = screen.availableGeometry()
+        preview = QMenu(self)
+        wid, hei = geometry.width(), geometry.height()
+        preview.setFixedSize(wid // 2, hei // 2)
+        view.setFixedSize(wid // 2 - 4, hei // 2 - 4)
+        action = QWidgetAction(preview)
+        action.setDefaultWidget(view)
+        preview.addAction(action)
+        preview.popup(QPoint(wid // 4, hei // 4), action)
 
 
 def get_input_meta(widget: WidgetSignalsMixin, name: str) -> Optional[Input]:

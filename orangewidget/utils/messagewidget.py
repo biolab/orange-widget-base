@@ -636,7 +636,7 @@ class MessagesWidget(MessageWidget):
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             message = self.message
-            if message and (message.detailedText or message.informativeText):
+            if message:
                 popup = QMenu(self)
                 label = QLabel(
                     self, textInteractionFlags=Qt.TextBrowserInteraction,
@@ -656,6 +656,17 @@ class MessagesWidget(MessageWidget):
         else:
             super().mousePressEvent(event)
 
+
+class InOutStateWidget(MessageWidget):
+    clicked = Signal()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+            event.accept()
+            return
+        else:
+            super().mousePressEvent(event)
 
 class IconWidget(QWidget):
     """

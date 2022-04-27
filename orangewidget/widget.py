@@ -24,6 +24,7 @@ from orangewidget.gui import OWComponent, VerticalScrollArea
 from orangewidget.io import ClipboardFormat, ImgFormat
 from orangewidget.settings import SettingsHandler
 from orangewidget.utils import saveplot, getdeepattr
+from orangewidget.utils.messagewidget import MessageWidget
 from orangewidget.utils.progressbar import ProgressBarMixin
 from orangewidget.utils.messages import (
     WidgetMessagesMixin, UnboundMsg, MessagesWidget
@@ -759,13 +760,13 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
             sb = self.statusBar()
             if sb is not None:
-                in_msg = MessagesWidget(
+                in_msg = MessageWidget(
                     objectName="input-summary", visible=False,
                     defaultStyleSheet=css,
                     sizePolicy=QSizePolicy(QSizePolicy.Fixed,
                                            QSizePolicy.Fixed)
                 )
-                out_msg = MessagesWidget(
+                out_msg = MessageWidget(
                     objectName="output-summary", visible=False,
                     defaultStyleSheet=css,
                     sizePolicy=QSizePolicy(QSizePolicy.Fixed,
@@ -791,7 +792,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                         icon=m.icon, text=m.brief, informativeText=m.details,
                         textFormat=m.format
                     )
-                    msgwidget.setMessage(0, message)
+                    msgwidget.setMessage(message)
                     msgwidget.setVisible(not message.isEmpty())
 
                 info.input_summary_changed.connect(

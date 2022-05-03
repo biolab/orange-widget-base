@@ -1,7 +1,6 @@
 import itertools
 import math
 import time
-from collections import OrderedDict
 from collections.abc import Iterable
 from typing import Optional
 
@@ -106,14 +105,14 @@ class Report:
 
     def report_items(self, name, items=None):
         """
-        Add a sequence of pairs or an `OrderedDict` as a HTML list to report.
+        Add a sequence of pairs or a dictionary as a HTML list to report.
 
         The first argument, `name` can be omitted.
 
         :param name: report section name (can be omitted)
-        :type name: str or tuple or OrderedDict
+        :type name: str or tuple or dict
         :param items: a sequence of items
-        :type items: list or tuple or OrderedDict
+        :type items: list or tuple or dict
         """
         name, items = self._fix_args(name, items)
         self.report_name(name)
@@ -139,7 +138,7 @@ class Report:
             whose name is taken from `self.graph_name`
 
         :param name: report section name (can be omitted)
-        :type name: str or tuple or OrderedDict
+        :type name: str or tuple or dict
         :param plot: plot widget
         :type plot:
             QGraphicsScene or pyqtgraph.PlotItem or pyqtgraph.PlotWidget
@@ -562,12 +561,12 @@ def get_html_subsection(name):
 
 def render_items(items):
     """
-    Render a sequence of pairs or an `OrderedDict` as a HTML list.
+    Render a sequence of pairs or a dictionary as a HTML list.
 
     The function skips the items whose values are `None` or `False`.
 
     :param items: a sequence of items
-    :type items: list or tuple or OrderedDict
+    :type items: list or tuple or dict
     :return: rendered content
     :rtype: str
     """
@@ -580,12 +579,12 @@ def render_items(items):
 
 def render_items_vert(items):
     """
-    Render a sequence of pairs or an `OrderedDict` as a comma-separated list.
+    Render a sequence of pairs or a dictionary as a comma-separated list.
 
     The function skips the items whose values are `None` or `False`.
 
     :param items: a sequence of items
-    :type items: list or tuple or OrderedDict
+    :type items: list or tuple or dict
     :return: rendered content
     :rtype: str
     """

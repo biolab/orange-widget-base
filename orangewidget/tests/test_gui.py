@@ -457,6 +457,8 @@ class TestColoredBarItemDelegate(GuiTest):
     def test(self):
         delegagte = gui.ColoredBarItemDelegate()
         paint_with_data(delegagte, {Qt.DisplayRole: 1.0, gui.BarRatioRole: 0.5})
+        nan = float("nan")
+        paint_with_data(delegagte, {Qt.DisplayRole: nan, gui.BarRatioRole: nan})
 
 
 if __name__ == "__main__":

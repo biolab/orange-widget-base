@@ -103,6 +103,9 @@ class Message(
         return super().__new__(cls, Severity(severity), QIcon(icon), text,
                                informativeText, detailedText, textFormat)
 
+    def __bool__(self):
+        return not self.isEmpty()
+
     def asHtml(self, includeShortText=True):
         # type: () -> str
         """
@@ -338,13 +341,11 @@ class ElidingLabel(QLabel):
             super().setText(self.__originalText)
 
 
-class MessagesWidget(QWidget):
+class MessageWidget(QWidget):
     """
-    An iconified multiple message display area.
+    An iconified message display area.
 
-    `MessagesWidget` displays a short message along with an icon. If there
-    are multiple messages they are summarized. The user can click on the
-    widget to display the full message text in a popup view.
+    `IconifiedMessage` displays a short message along with an icon.
     """
     #: Signal emitted when an embedded html link is clicked
     #: (if `openExternalLinks` is `False`).
@@ -352,14 +353,6 @@ class MessagesWidget(QWidget):
 
     #: Signal emitted when an embedded html link is hovered.
     linkHovered = Signal(str)
-
-    Severity = Severity
-    #: General informative message.
-    Information = Severity.Information
-    #: A warning message severity.
-    Warning = Severity.Warning
-    #: An error message severity.
-    Error = Severity.Error
 
     Message = Message
 
@@ -370,11 +363,10 @@ class MessagesWidget(QWidget):
             QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         )
         super().__init__(parent, **kwargs)
-        self.__openExternalLinks = openExternalLinks  # type: bool
-        self.__messages = OrderedDict()  # type: Dict[Hashable, Message]
+        self._openExternalLinks = openExternalLinks  # type: bool
         #: The full (joined all messages text - rendered as html), displayed
         #: in a tooltip.
-        self.__fulltext = ""
+        self.message = None
         #: Leading icon
         self.__iconwidget = IconWidget(
             sizePolicy=QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -383,7 +375,7 @@ class MessagesWidget(QWidget):
         self.__textlabel = ElidingLabel(
             wordWrap=False,
             textInteractionFlags=Qt.LinksAccessibleByMouse,
-            openExternalLinks=self.__openExternalLinks,
+            openExternalLinks=self._openExternalLinks,
             sizePolicy=QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum),
             elide=elideText
         )
@@ -407,17 +399,30 @@ class MessagesWidget(QWidget):
         self.anim.setEasingCurve(QEasingCurve.OutQuad)
         self.anim.setLoopCount(2)
 
+    def setMessage(self, message):
+        self.message = message
+        self.ensurePolished()
+        icon = message_icon(message)
+        self.__iconwidget.setIcon(icon)
+        self.__iconwidget.setVisible(not (message.isEmpty() or icon.isNull()))
+        self.__textlabel.setTextFormat(message.textFormat)
+        self.__textlabel.setText(message.text)
+        self.__textlabel.setVisible(bool(message.text))
+        self.setToolTip(self._styled(message.asHtml()))
+        self.anim.start(QPropertyAnimation.KeepWhenStopped)
+        self.layout().activate()
+
     def sizeHint(self):
         sh = super().sizeHint()
         h = self.style().pixelMetric(QStyle.PM_SmallIconSize)
-        if all(m.isEmpty() for m in self.messages()):
+        if not self.message:
             sh.setWidth(0)
         return sh.expandedTo(QSize(0, h + 2))
 
     def minimumSizeHint(self):
         msh = super().minimumSizeHint()
         h = self.style().pixelMetric(QStyle.PM_SmallIconSize)
-        if all(m.isEmpty() for m in self.messages()):
+        if not self.message:
             msh.setWidth(0)
         else:
             msh.setWidth(h + 2)
@@ -431,14 +436,14 @@ class MessagesWidget(QWidget):
         using `QDesktopServices.openUrl`
         """
         # TODO: update popup if open
-        self.__openExternalLinks = state
+        self._openExternalLinks = state
         self.__textlabel.setOpenExternalLinks(state)
 
     def openExternalLinks(self):
         # type: () -> bool
         """
         """
-        return self.__openExternalLinks
+        return self._openExternalLinks
 
     def setDefaultStyleSheet(self, css):
         # type: (str) -> None
@@ -463,7 +468,6 @@ class MessagesWidget(QWidget):
         """
         if self.__defaultStyleSheet != css:
             self.__defaultStyleSheet = css
-            self.__update()
 
     def defaultStyleSheet(self):
         """
@@ -473,6 +477,85 @@ class MessagesWidget(QWidget):
             The current style sheet
         """
         return self.__defaultStyleSheet
+
+    def flashIcon(self):
+        self.anim.start(QPropertyAnimation.KeepWhenStopped)
+
+    def _styled(self, html):
+        # Prepend css style sheet before a html fragment.
+        if self.__defaultStyleSheet.strip():
+            return f"<style>{escape(self.__defaultStyleSheet)}</style>\n{html}"
+        else:
+            return html
+
+    def enterEvent(self, event):
+        super().enterEvent(event)
+        self.update()
+
+    def leaveEvent(self, event):
+        super().leaveEvent(event)
+        self.update()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        self.update()
+
+    def paintEvent(self, event):
+        opt = QStyleOption()
+        opt.initFrom(self)
+        if not self.message:
+            return
+
+        if not (opt.state & QStyle.State_MouseOver or
+                opt.state & QStyle.State_HasFocus):
+            return
+
+        palette = opt.palette  # type: QPalette
+        if opt.state & QStyle.State_HasFocus:
+            pen = QPen(palette.color(QPalette.Highlight))
+        else:
+            pen = QPen(palette.color(QPalette.Dark))
+
+        if self.message and \
+                opt.state & QStyle.State_MouseOver and \
+                opt.state & QStyle.State_Active:
+            g = QLinearGradient()
+            g.setCoordinateMode(QLinearGradient.ObjectBoundingMode)
+            base = palette.color(QPalette.Window)
+            base.setAlpha(90)
+            g.setColorAt(0, base.lighter(200))
+            g.setColorAt(0.6, base)
+            g.setColorAt(1.0, base.lighter(200))
+            brush = QBrush(g)
+        else:
+            brush = QBrush(Qt.NoBrush)
+        p = QPainter(self)
+        p.setBrush(brush)
+        p.setPen(pen)
+        p.drawRect(opt.rect.adjusted(0, 0, -1, -1))
+
+
+class MessagesWidget(MessageWidget):
+    """
+    An iconified multiple message display area.
+
+    `MessagesWidget` displays a short message along with an icon. If there
+    are multiple messages they are summarized. The user can click on the
+    widget to display the full message text in a popup view.
+    """
+    Severity = Severity
+    #: General informative message.
+    Information = Severity.Information
+    #: A warning message severity.
+    Warning = Severity.Warning
+    #: An error message severity.
+    Error = Severity.Error
+
+    def __init__(self, parent=None, openExternalLinks=False, elideText=False,
+                 defaultStyleSheet="", **kwargs):
+        super().__init__(parent, openExternalLinks, elideText,
+                         defaultStyleSheet, **kwargs)
+        self.__messages = OrderedDict()  # type: Dict[Hashable, Message]
 
     def setMessage(self, message_id, message):
         # type: (Hashable, Message) -> None
@@ -547,54 +630,20 @@ class MessagesWidget(QWidget):
                 self.anim.start(QPropertyAnimation.KeepWhenStopped)
                 break
 
-    @staticmethod
-    def __styled(css, html):
-        # Prepend css style sheet before a html fragment.
-        if css.strip():
-            return "<style>\n" + escape(css) + "\n</style>\n" + html
-        else:
-            return html
-
     def __update(self):
-        """
-        Update the current display state.
-        """
-        self.ensurePolished()
-        summary = self.summarize()
-        icon = message_icon(summary)
-        self.__iconwidget.setIcon(icon)
-        self.__iconwidget.setVisible(not (summary.isEmpty() or icon.isNull()))
-        self.__textlabel.setTextFormat(summary.textFormat)
-        self.__textlabel.setText(summary.text)
-        self.__textlabel.setVisible(bool(summary.text))
-
-        def is_short(m):
-            return not (m.informativeText or m.detailedText)
-
-        messages = [m for m in self.__messages.values() if not m.isEmpty()]
-        if not messages:
-            fulltext = ""
-        else:
-            messages = sorted(messages, key=attrgetter("severity"),
-                              reverse=True)
-            fulltext = "<hr/>".join(m.asHtml() for m in messages)
-        self.__fulltext = fulltext
-        self.setToolTip(self.__styled(self.__defaultStyleSheet, fulltext))
-        self.anim.start(QPropertyAnimation.KeepWhenStopped)
-
-        self.layout().activate()
+        super().setMessage(self.summarize())
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            if self.__fulltext:
+            message = self.message
+            if message:
                 popup = QMenu(self)
                 label = QLabel(
                     self, textInteractionFlags=Qt.TextBrowserInteraction,
-                    openExternalLinks=self.__openExternalLinks,
+                    openExternalLinks=self._openExternalLinks,
                 )
                 label.setContentsMargins(4, 4, 4, 4)
-                label.setText(self.__styled(self.__defaultStyleSheet,
-                                            self.__fulltext))
+                label.setText(self._styled(message.asHtml()))
 
                 label.linkActivated.connect(self.linkActivated)
                 label.linkHovered.connect(self.linkHovered)
@@ -607,52 +656,17 @@ class MessagesWidget(QWidget):
         else:
             super().mousePressEvent(event)
 
-    def enterEvent(self, event):
-        super().enterEvent(event)
-        self.update()
 
-    def leaveEvent(self, event):
-        super().leaveEvent(event)
-        self.update()
+class InOutStateWidget(MessageWidget):
+    clicked = Signal()
 
-    def changeEvent(self, event):
-        super().changeEvent(event)
-        self.update()
-
-    def paintEvent(self, event):
-        opt = QStyleOption()
-        opt.initFrom(self)
-        if not self.__fulltext:
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+            event.accept()
             return
-
-        if not (opt.state & QStyle.State_MouseOver or
-                opt.state & QStyle.State_HasFocus):
-            return
-
-        palette = opt.palette  # type: QPalette
-        if opt.state & QStyle.State_HasFocus:
-            pen = QPen(palette.color(QPalette.Highlight))
         else:
-            pen = QPen(palette.color(QPalette.Dark))
-
-        if self.__fulltext and \
-                opt.state & QStyle.State_MouseOver and \
-                opt.state & QStyle.State_Active:
-            g = QLinearGradient()
-            g.setCoordinateMode(QLinearGradient.ObjectBoundingMode)
-            base = palette.color(QPalette.Window)
-            base.setAlpha(90)
-            g.setColorAt(0, base.lighter(200))
-            g.setColorAt(0.6, base)
-            g.setColorAt(1.0, base.lighter(200))
-            brush = QBrush(g)
-        else:
-            brush = QBrush(Qt.NoBrush)
-        p = QPainter(self)
-        p.setBrush(brush)
-        p.setPen(pen)
-        p.drawRect(opt.rect.adjusted(0, 0, -1, -1))
-
+            super().mousePressEvent(event)
 
 class IconWidget(QWidget):
     """

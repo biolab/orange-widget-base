@@ -3,6 +3,7 @@ import os
 import types
 import warnings
 import textwrap
+from functools import partial
 from operator import attrgetter
 from math import log10
 
@@ -24,6 +25,7 @@ from orangewidget.gui import OWComponent, VerticalScrollArea
 from orangewidget.io import ClipboardFormat, ImgFormat
 from orangewidget.settings import SettingsHandler
 from orangewidget.utils import saveplot, getdeepattr
+from orangewidget.utils.messagewidget import InOutStateWidget
 from orangewidget.utils.progressbar import ProgressBarMixin
 from orangewidget.utils.messages import (
     WidgetMessagesMixin, UnboundMsg, MessagesWidget
@@ -759,18 +761,20 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
             sb = self.statusBar()
             if sb is not None:
-                in_msg = MessagesWidget(
+                in_msg = InOutStateWidget(
                     objectName="input-summary", visible=False,
                     defaultStyleSheet=css,
                     sizePolicy=QSizePolicy(QSizePolicy.Fixed,
                                            QSizePolicy.Fixed)
                 )
-                out_msg = MessagesWidget(
+                out_msg = InOutStateWidget(
                     objectName="output-summary", visible=False,
                     defaultStyleSheet=css,
                     sizePolicy=QSizePolicy(QSizePolicy.Fixed,
                                            QSizePolicy.Fixed)
                 )
+                in_msg.clicked.connect(partial(self.show_preview, self.input_summaries))
+                out_msg.clicked.connect(partial(self.show_preview, self.output_summaries))
 
                 in_out_msg = sb.findChild(QWidget, "in-out-msg")
 
@@ -791,7 +795,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                         icon=m.icon, text=m.brief, informativeText=m.details,
                         textFormat=m.format
                     )
-                    msgwidget.setMessage(0, message)
+                    msgwidget.setMessage(message)
                     msgwidget.setVisible(not message.isEmpty())
 
                 info.input_summary_changed.connect(

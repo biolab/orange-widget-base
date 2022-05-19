@@ -16,7 +16,7 @@ from orangewidget.settings import Setting, SettingProvider
 from orangewidget.tests.base import WidgetTest
 from orangewidget.utils.signals import summarize, PartialSummary
 from orangewidget.widget import OWBaseWidget, Msg, StateInfo, Input, Output
-from orangewidget.utils.messagewidget import MessagesWidget
+from orangewidget.utils.messagewidget import InOutStateWidget
 
 
 class DummyComponent(OWComponent):
@@ -434,45 +434,40 @@ class WidgetTestInfoSummary(WidgetTest):
     def test_io_summaries(self):
         w = MyWidget()
         info = w.info  # type: StateInfo
-        inmsg = w.findChild(MessagesWidget, "input-summary")  # type: MessagesWidget
-        outmsg = w.findChild(MessagesWidget, "output-summary")  # type: MessagesWidget
-        self.assertEqual(len(inmsg.messages()), 0)
-        self.assertEqual(len(outmsg.messages()), 0)
+        inmsg: InOutStateWidget = w.findChild(InOutStateWidget, "input-summary")
+        outmsg: InOutStateWidget = w.findChild(InOutStateWidget, "output-summary")
+        self.assertFalse(inmsg.message)
+        self.assertFalse(outmsg.message)
 
         w.info.set_input_summary(w.info.NoInput)
         w.info.set_output_summary(w.info.NoOutput)
-
-        self.assertEqual(len(inmsg.messages()), 1)
-        self.assertFalse(inmsg.summarize().isEmpty())
-        self.assertEqual(len(outmsg.messages()), 1)
-        self.assertFalse(outmsg.summarize().isEmpty())
+        self.assertTrue(inmsg.message.text)
+        self.assertTrue(outmsg.message.text)
 
         info.set_input_summary("Foo")
 
-        self.assertEqual(len(inmsg.messages()), 1)
-        self.assertEqual(inmsg.summarize().text, "Foo")
-        self.assertFalse(inmsg.summarize().icon.isNull())
+        self.assertTrue(inmsg.message)
+        self.assertEqual(inmsg.message.text, "Foo")
 
         info.set_input_summary(12_345)
         info.set_output_summary(1234)
 
-        self.assertEqual(inmsg.summarize().text, "12.3k")
-        self.assertEqual(inmsg.summarize().informativeText, "12345")
-        self.assertEqual(outmsg.summarize().text, "1234")
+        self.assertEqual(inmsg.message.text, "12.3k")
+        self.assertEqual(inmsg.message.informativeText, "12345")
+        self.assertEqual(outmsg.message.text, "1234")
 
         info.set_input_summary("Foo", "A foo that bars",)
 
         info.set_input_summary(None)
         info.set_output_summary(None)
 
-        self.assertTrue(inmsg.summarize().isEmpty())
-        self.assertTrue(outmsg.summarize().isEmpty())
+        self.assertFalse(inmsg.message.text)
+        self.assertFalse(outmsg.message.text)
 
         info.set_output_summary("Foobar", "42")
 
-        self.assertEqual(len(outmsg.messages()), 1)
-        self.assertEqual(outmsg.summarize().text, "Foobar")
-        self.assertFalse(outmsg.summarize().icon.isNull())
+        self.assertTrue(outmsg.message)
+        self.assertEqual(outmsg.message.text, "Foobar")
 
         with self.assertRaises(TypeError):
             info.set_input_summary(None, "a")
@@ -489,10 +484,10 @@ class WidgetTestInfoSummary(WidgetTest):
         info.set_input_summary(1234, "Foo")
         info.set_output_summary(1234, "Bar")
 
-        self.assertEqual(inmsg.summarize().text, "1234")
-        self.assertEqual(inmsg.summarize().informativeText, "Foo")
-        self.assertEqual(outmsg.summarize().text, "1234")
-        self.assertEqual(outmsg.summarize().informativeText, "Bar")
+        self.assertEqual(inmsg.message.text, "1234")
+        self.assertEqual(inmsg.message.informativeText, "Foo")
+        self.assertEqual(outmsg.message.text, "1234")
+        self.assertEqual(outmsg.message.informativeText, "Bar")
 
     def test_format_number(self):
         self.assertEqual(StateInfo.format_number(9999), "9999")

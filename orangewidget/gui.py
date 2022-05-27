@@ -2800,7 +2800,7 @@ class ColoredBarItemDelegate(QtWidgets.QStyledItemDelegate):
 
     def get_bar_ratio(self, _, index):
         ratio = index.data(BarRatioRole)
-        return ratio, isinstance(ratio, float)
+        return ratio, isinstance(ratio, float) and 0.0 <= ratio <= 1.0
 
     def get_bar_brush(self, _, index):
         bar_brush = index.data(BarBrushRole)

@@ -780,9 +780,12 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
         widgetLabel(bi, posttext)
 
     isDouble = spinType == float
-    sbox = bi.control = b.control = \
-        (SpinBox, DoubleSpinBox)[isDouble](minv, maxv,
-                                           step, bi)
+    sbox = (SpinBox, DoubleSpinBox)[isDouble](minv, maxv, step, bi)
+    if bi is not None:
+        bi.control = sbox
+    if b is not None:
+        b.control = sbox
+
     if bi is not widget:
         bi.setDisabled(disabled)
     else:

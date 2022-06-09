@@ -1571,7 +1571,8 @@ def valueSlider(widget, master, value, box=None, label=None,
 def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
              orientation=Qt.Vertical, items=(), callback=None,
              sendSelectedValue=None, emptyString=None, editable=False,
-             contentsLength=None, searchable=False, *, model=None, **misc):
+             contentsLength=None, searchable=False, *, model=None,
+             tooltips=None, **misc):
     """
     Construct a combo box.
 
@@ -1616,6 +1617,8 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
             combo.setMinimumContentsLength(contentsLength)
     :param searchable: decides whether combo box has search-filter option
     :type searchable: bool
+    :param tooltips: tooltips for individual items; applied only if model is None
+    :type tooltips: list of str
     :rtype: QComboBox
     """
     widget_label = None
@@ -1680,6 +1683,10 @@ def comboBox(widget, master, value, box=None, label=None, labelWidth=None,
                 connectControl(
                     master, value, callback, combo.activated[int],
                     CallFrontComboBox(combo, emptyString))
+
+    if tooltips is not None and model is None:
+        for i, tip in enumerate(tooltips):
+            combo.setItemData(i, tip, Qt.ToolTipRole)
 
     if misc.pop("valueType", False):
         log.warning("comboBox no longer accepts argument 'valueType'")

@@ -181,6 +181,10 @@ class GuiTest(unittest.TestCase):
             else:
                 appnope.nope()
         cls.tear_down_stack = ExitStack()
+        if "pyqtgraph" in sys.modules:
+            # undo pyqtgraph excepthook override, abort on exceptions in
+            # slots, event handlers, ...
+            sys.excepthook = sys.__excepthook__
         super().setUpClass()
 
     @classmethod

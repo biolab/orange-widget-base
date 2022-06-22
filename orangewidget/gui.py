@@ -23,7 +23,7 @@ from AnyQt.QtWidgets import (
 )
 
 from orangewidget.utils import getdeepattr
-from orangewidget.utils.buttons import VariableTextPushButton
+from orangewidget.utils.buttons import VariableTextPushButton, ApplyButton
 from orangewidget.utils.combobox import (
     ComboBox as OrangeComboBox, ComboBoxSearch as OrangeComboBoxSearch
 )
@@ -1975,11 +1975,14 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
             callback()
 
     if decorated:
+        commit.dirty = False
         def is_dirty():
             return commit.dirty
 
         def set_dirty(state):
             commit.dirty = state
+            b.button.setModified(state)
+
     else:
         dirty = False
 
@@ -2006,8 +2009,6 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
             set_dirty(False)
         finally:
             QApplication.restoreOverrideCursor()
-
-    set_dirty(False)
 
     if not auto_label:
         if checkbox_label:
@@ -2036,9 +2037,14 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
         w = b.style().pixelMetric(QStyle.PM_CheckBoxLabelSpacing)
         separator(b, w, 0)
     cb.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+    if decorated:
+        ButtonType = ApplyButton
+    else:
+        ButtonType = VariableTextPushButton
 
-    b.button = btn = VariableTextPushButton(
+    b.button = btn = ButtonType(
         b, text=label, textChoiceList=[label, auto_label], clicked=do_commit)
+
     btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
     if b.layout() is not None:
         if is_macstyle():

@@ -33,3 +33,14 @@ class TestVariableTextPushButton(GuiTest):
         b.setText("MMMMMMM")
         self.assertEqual(b.sizeHint(), sh)
         b.setTextChoiceList(["A", "B", "C"])
+
+
+class TestApplyButton(GuiTest):
+    def test_button(self):
+        b = buttons.ApplyButton(text="Apply", textChoiceList=["Apply", "Auto"])
+        b.grab()
+        b.sizeHint()
+        b.setModified(True)
+        b.grab()
+        b.setModified(False)
+        b.grab()

@@ -624,6 +624,15 @@ class TestPyListModel(unittest.TestCase):
         r = model.moveRows(QModelIndex(), 0, 0, QModelIndex(), 0)
         self.assertIs(r, False)
 
+    def test_separator(self):
+        model = PyListModel([1, PyListModel.Separator, 2])
+        model.append(model.Separator)
+        model += [1, model.Separator]
+        model.extend([1, model.Separator])
+        for i in range(len(model)):
+            self.assertIs(model.flags(model.index(i)) == Qt.NoItemFlags,
+                          i % 2 != 0, f"in row {i}")
+
 
 if __name__ == "__main__":
     unittest.main()

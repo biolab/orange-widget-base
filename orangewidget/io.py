@@ -110,10 +110,16 @@ class ImgFormat(metaclass=_Registry):
         except Exception:
             if isinstance(scene, QGraphicsScene):
                 view = scene.views()[0]
+                rect = scene.itemsBoundingRect()
             else:
                 view = scene
-            rect = view.rect()
-            rect = rect.adjusted(-15, -15, 15, 15)
+                try:
+                    # If the view shows a scene, use itemsBoundingRect to avoid
+                    # any empty space around the scene
+                    rect = view.scene().itemsBoundingRect()
+                except:
+                    rect = view.rect()
+                    rect = rect.adjusted(-15, -15, 15, 15)
             ratio = view.devicePixelRatio()
             try:
                 buffer = cls._get_buffer(rect.size(), filename, ratio)

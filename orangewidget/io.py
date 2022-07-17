@@ -4,10 +4,10 @@ import tempfile
 from collections import OrderedDict
 
 from AnyQt import QtGui, QtCore, QtSvg, QtWidgets
-from AnyQt.QtCore import QMarginsF, Qt
+from AnyQt.QtCore import QMarginsF, Qt, QRectF, QPointF
 from AnyQt.QtGui import QPalette
 from AnyQt.QtWidgets import (
-    QGraphicsScene, QGraphicsView, QApplication
+    QGraphicsScene, QGraphicsView, QApplication, qApp
 )
 
 from orangewidget.utils.matplotlib_export import scene_code
@@ -77,8 +77,12 @@ class ImgFormat(metaclass=_Registry):
         raise NotImplementedError
 
     @staticmethod
-    def _get_target(scene, painter, buffer, source):
+    def _get_target(source):
         return QtCore.QRectF(0, 0, source.width(), source.height())
+
+    @classmethod
+    def _setup_painter(cls, scene, painter, source_rect, buffer):
+        pass
 
     @staticmethod
     def _save_buffer(buffer, filename):
@@ -93,9 +97,9 @@ class ImgFormat(metaclass=_Registry):
         raise NotImplementedError
 
     @classmethod
-    def write_image(cls, filename, scene):
-        try:
-            scene = scene.scene()
+    def write_image(cls, filename, object):
+        def save_pyqtgraph():
+            scene = object.scene()
             scenerect = scene.sceneRect()   #preserve scene bounding rectangle
             view = scene.views()[0]
             viewrect = view.sceneRect()
@@ -107,37 +111,63 @@ class ImgFormat(metaclass=_Registry):
             cls._export(exporter(scene), filename)
             scene.setBackgroundBrush(backgroundbrush)  # reset scene background brush
             scene.setSceneRect(scenerect)   # reset scene bounding rectangle
-        except Exception:
-            if isinstance(scene, QGraphicsScene):
-                view = scene.views()[0]
-                rect = scene.itemsBoundingRect()
+
+        def save_scene():
+            rect = object.itemsBoundingRect()
+            views = object.views()
+            target_rect = None
+            if views:
+                view = views[0]
+                ratio = views[0].devicePixelRatio()
+                if view.isTransformed() and not view.transform().isIdentity():
+                    target_rect = view.rect()
             else:
-                view = scene
+                # It is unusual for scene not to be viewed - except in tests
+                # We still try to get ratio for (any) screen, otherwise
+                # assume 1 (the only consequence is lower resolution)
                 try:
-                    # If the view shows a scene, use itemsBoundingRect to avoid
-                    # any empty space around the scene
-                    rect = view.scene().itemsBoundingRect()
-                except:
-                    rect = view.rect()
-                    rect = rect.adjusted(-15, -15, 15, 15)
-            ratio = view.devicePixelRatio()
+                    ratio = qApp.screens()[0].devicePixelRatio()
+                except:  # pylint: disable=broad-except
+                    ratio = 1
+            _render(rect, ratio, target_rect)
+
+        def save_widget():
+            _render(object.rect(), object.devicePixelRatio())
+
+        def _render(source_rect, pixel_ratio, target_rect=None):
+            if target_rect is None:
+                target_rect = source_rect
+            buffer_size = target_rect.adjusted(-15, -15, 15, 15).size()
             try:
-                buffer = cls._get_buffer(rect.size(), filename, ratio)
+                buffer = cls._get_buffer(buffer_size, filename, pixel_ratio)
             except TypeError:
-                buffer = cls._get_buffer(rect.size(), filename)
+                buffer = cls._get_buffer(buffer_size, filename)
 
             painter = QtGui.QPainter()
             painter.begin(buffer)
-            painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            painter.setRenderHint(QtGui.QPainter.LosslessImageRendering)
-
-            target = cls._get_target(scene, painter, buffer, rect)
+            painter.setRenderHints(QtGui.QPainter.Antialiasing
+                                   | QtGui.QPainter.LosslessImageRendering)
+            cls._setup_painter(
+                painter, object,
+                QRectF(0, 0, buffer_size.width(), buffer_size.height()), buffer)
             try:
-                scene.render(painter, target)
+                object.render(
+                    painter,
+                    QRectF(15, 15, target_rect.width(), target_rect.height()),
+                    source_rect)
             except TypeError:
-                scene.render(painter)  # QWidget.render() takes different params
+                # QWidget.render() takes different params
+                object.render(painter, QPointF(15, 15))
             painter.end()
             cls._save_buffer(buffer, filename)
+
+        try:
+            save_pyqtgraph()
+        except:
+            if isinstance(object, QGraphicsScene):
+                save_scene()
+            else:
+                save_widget()
 
     @classmethod
     def write(cls, filename, scene):
@@ -173,16 +203,15 @@ class PngFormat(ImgFormat):
         img.setDevicePixelRatio(ratio)
         return img
 
-    @staticmethod
-    def _get_target(scene, painter, buffer, source):
-        try:
-            brush = scene.backgroundBrush()
+    @classmethod
+    def _setup_painter(cls, painter, object, source_rect, buffer):
+        if isinstance(object, (QGraphicsScene, QGraphicsView)):
+            brush = object.backgroundBrush()
             if brush.style() == QtCore.Qt.NoBrush:
-                brush = QtGui.QBrush(scene.palette().color(QtGui.QPalette.Base))
-        except AttributeError:  # not a QGraphicsView/Scene
+                brush = QtGui.QBrush(object.palette().color(QtGui.QPalette.Base))
+        else:
             brush = QtGui.QBrush(QtCore.Qt.white)
-        painter.fillRect(buffer.rect(), brush)
-        return QtCore.QRectF(0, 0, source.width(), source.height())
+        painter.fillRect(source_rect, brush)
 
     @staticmethod
     def _save_buffer(buffer, filename):

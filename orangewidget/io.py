@@ -4,7 +4,7 @@ import tempfile
 from collections import OrderedDict
 
 from AnyQt import QtGui, QtCore, QtSvg, QtWidgets
-from AnyQt.QtCore import QMimeData, QMarginsF, Qt
+from AnyQt.QtCore import QMarginsF, Qt
 from AnyQt.QtGui import QPalette
 from AnyQt.QtWidgets import (
     QGraphicsScene, QGraphicsView, QWidget, QApplication
@@ -273,10 +273,7 @@ class ClipboardFormat(PngFormat):
 
     @staticmethod
     def _export(exporter, _):
-        buffer = exporter.export(toBytes=True)
-        mimedata = QMimeData()
-        mimedata.setData("image/png", buffer)
-        QApplication.clipboard().setMimeData(mimedata)
+        exporter.export(copy=True)
 
 
 class SvgFormat(ImgFormat):

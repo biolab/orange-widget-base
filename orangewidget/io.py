@@ -3,7 +3,7 @@ import sys
 import tempfile
 from collections import OrderedDict
 
-from AnyQt import QtGui, QtCore, QtSvg
+from AnyQt import QtGui, QtCore, QtSvg, QtWidgets
 from AnyQt.QtCore import QMimeData, QMarginsF, Qt
 from AnyQt.QtGui import QPalette
 from AnyQt.QtWidgets import (
@@ -178,7 +178,83 @@ class PngFormat(ImgFormat):
     @staticmethod
     def _get_exporter():
         from pyqtgraph.exporters.ImageExporter import ImageExporter
-        return ImageExporter
+        from pyqtgraph import functions as fn
+
+        # Use devicePixelRatio
+        class PngExporter(ImageExporter):
+            def __init__(self, item):
+                super().__init__(item)
+                if isinstance(item, QGraphicsScene):
+                    self.ratio = item.views()[0].devicePixelRatio()
+                else:
+                    # Let's hope it's a view or another QWidget
+                    self.ratio = item.devicePixelRatio()
+
+            # Copied verbatim from super;
+            # changes are in three lines that define self.png
+            def export(self, fileName=None, toBytes=False, copy=False):
+                if fileName is None and not toBytes and not copy:
+                    filter = self.getSupportedImageFormats()
+                    self.fileSaveDialog(filter=filter)
+                    return
+
+                w = int(self.params['width'])
+                h = int(self.params['height'])
+                if w == 0 or h == 0:
+                    raise Exception(
+                        "Cannot export image with size=0 (requested "
+                        "export size is %dx%d)" % (w, h))
+
+                targetRect = QtCore.QRect(0, 0, w, h)
+                sourceRect = self.getSourceRect()
+
+                self.png = QtGui.QImage(w * self.ratio, h * self.ratio,
+                                        QtGui.QImage.Format.Format_ARGB32)
+                self.png.fill(self.params['background'])
+                self.png.setDevicePixelRatio(self.ratio)
+
+                ## set resolution of image:
+                origTargetRect = self.getTargetRect()
+                resolutionScale = targetRect.width() / origTargetRect.width()
+                # self.png.setDotsPerMeterX(self.png.dotsPerMeterX() * resolutionScale)
+                # self.png.setDotsPerMeterY(self.png.dotsPerMeterY() * resolutionScale)
+
+                painter = QtGui.QPainter(self.png)
+                # dtr = painter.deviceTransform()
+                try:
+                    self.setExportMode(True, {
+                        'antialias': self.params['antialias'],
+                        'background': self.params['background'],
+                        'painter': painter,
+                        'resolutionScale': resolutionScale})
+                    painter.setRenderHint(
+                        QtGui.QPainter.RenderHint.Antialiasing,
+                        self.params['antialias'])
+                    self.getScene().render(painter, QtCore.QRectF(targetRect),
+                                           QtCore.QRectF(sourceRect))
+                finally:
+                    self.setExportMode(False)
+                painter.end()
+
+                if self.params['invertValue']:
+                    bg = fn.ndarray_from_qimage(self.png)
+                    if sys.byteorder == 'little':
+                        cv = slice(0, 3)
+                    else:
+                        cv = slice(1, 4)
+                    mn = bg[..., cv].min(axis=2)
+                    mx = bg[..., cv].max(axis=2)
+                    d = (255 - mx) - mn
+                    bg[..., cv] += d[..., np.newaxis]
+
+                if copy:
+                    QtWidgets.QApplication.clipboard().setImage(self.png)
+                elif toBytes:
+                    return self.png
+                else:
+                    return self.png.save(fileName)
+
+        return PngExporter
 
     @staticmethod
     def _export(exporter, filename):

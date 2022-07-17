@@ -7,7 +7,7 @@ from AnyQt import QtGui, QtCore, QtSvg, QtWidgets
 from AnyQt.QtCore import QMarginsF, Qt
 from AnyQt.QtGui import QPalette
 from AnyQt.QtWidgets import (
-    QGraphicsScene, QGraphicsView, QWidget, QApplication
+    QGraphicsScene, QGraphicsView, QApplication
 )
 
 from orangewidget.utils.matplotlib_export import scene_code
@@ -108,22 +108,26 @@ class ImgFormat(metaclass=_Registry):
             scene.setBackgroundBrush(backgroundbrush)  # reset scene background brush
             scene.setSceneRect(scenerect)   # reset scene bounding rectangle
         except Exception:
-            if isinstance(scene, (QGraphicsScene, QGraphicsView)):
-                rect = scene.sceneRect()
-            elif isinstance(scene, QWidget):
-                rect = scene.rect()
+            if isinstance(scene, QGraphicsScene):
+                view = scene.views()[0]
+            else:
+                view = scene
+            rect = view.rect()
             rect = rect.adjusted(-15, -15, 15, 15)
-            buffer = cls._get_buffer(rect.size(), filename)
+            ratio = view.devicePixelRatio()
+            try:
+                buffer = cls._get_buffer(rect.size(), filename, ratio)
+            except TypeError:
+                buffer = cls._get_buffer(rect.size(), filename)
 
             painter = QtGui.QPainter()
             painter.begin(buffer)
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            if QtCore.QT_VERSION >= 0x050D00:
-                painter.setRenderHint(QtGui.QPainter.LosslessImageRendering)
+            painter.setRenderHint(QtGui.QPainter.LosslessImageRendering)
 
             target = cls._get_target(scene, painter, buffer, rect)
             try:
-                scene.render(painter, target, rect)
+                scene.render(painter, target)
             except TypeError:
                 scene.render(painter)  # QWidget.render() takes different params
             painter.end()
@@ -157,8 +161,11 @@ class PngFormat(ImgFormat):
     PRIORITY = 50
 
     @staticmethod
-    def _get_buffer(size, filename):
-        return QtGui.QPixmap(int(size.width()), int(size.height()))
+    def _get_buffer(size, filename, ratio=1):
+        img = QtGui.QPixmap(int(size.width() * ratio),
+                            int(size.height() * ratio))
+        img.setDevicePixelRatio(ratio)
+        return img
 
     @staticmethod
     def _get_target(scene, painter, buffer, source):

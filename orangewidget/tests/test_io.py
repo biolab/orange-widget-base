@@ -150,3 +150,7 @@ class TestMatplotlib(GuiTest):
             with open(fname, "rb") as f:
                 code = f.read()
             self.assertTrue(code.startswith(b"%PDF"))
+
+
+if __name__ == "__main__":
+    unittest.main()

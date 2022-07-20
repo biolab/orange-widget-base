@@ -149,20 +149,25 @@ class ImgFormat(metaclass=_Registry):
 
             painter = QtGui.QPainter()
             painter.begin(buffer)
-            painter.setRenderHints(QtGui.QPainter.Antialiasing
-                                   | QtGui.QPainter.LosslessImageRendering)
-            cls._setup_painter(
-                painter, object,
-                QRectF(0, 0, buffer_size.width(), buffer_size.height()), buffer)
             try:
-                renderer.render(
-                    painter,
-                    QRectF(15, 15, size.width(), size.height()),
-                    source_rect)
-            except TypeError:
-                # QWidget.render() takes different params
-                renderer.render(painter, QPointF(15, 15))
-            painter.end()
+                painter.setRenderHint(QtGui.QPainter.Antialiasing)
+                if QtCore.QT_VERSION >= 0x050D00:
+                    painter.setRenderHint(QtGui.QPainter.LosslessImageRendering)
+                cls._setup_painter(
+                    painter, object,
+                    QRectF(0, 0, buffer_size.width(), buffer_size.height()), buffer)
+                try:
+                    renderer.render(
+                        painter,
+                        QRectF(15, 15, size.width(), size.height()),
+                        source_rect)
+                except TypeError:
+                    # QWidget.render() takes different params
+                    renderer.render(painter, QPointF(15, 15))
+            finally:
+                # In case of exception, end painting so that we get an exception
+                # not a core dump
+                painter.end()
             cls._save_buffer(buffer, filename)
 
         try:

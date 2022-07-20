@@ -4,7 +4,7 @@ import tempfile
 from collections import OrderedDict
 
 from AnyQt import QtGui, QtCore, QtSvg, QtWidgets
-from AnyQt.QtCore import QMarginsF, Qt, QRectF, QPointF
+from AnyQt.QtCore import QMarginsF, Qt, QRectF, QPointF, QRect
 from AnyQt.QtGui import QPalette
 from AnyQt.QtWidgets import (
     QGraphicsScene, QGraphicsView, QApplication, qApp
@@ -113,15 +113,8 @@ class ImgFormat(metaclass=_Registry):
             scene.setSceneRect(scenerect)   # reset scene bounding rectangle
 
         def save_scene():
-            rect = object.itemsBoundingRect()
             views = object.views()
-            target_rect = None
-            if views:
-                view = views[0]
-                ratio = views[0].devicePixelRatio()
-                if view.isTransformed() and not view.transform().isIdentity():
-                    target_rect = view.rect()
-            else:
+            if not views:
                 # It is unusual for scene not to be viewed - except in tests
                 # We still try to get ratio for (any) screen, otherwise
                 # assume 1 (the only consequence is lower resolution)
@@ -129,18 +122,29 @@ class ImgFormat(metaclass=_Registry):
                     ratio = qApp.screens()[0].devicePixelRatio()
                 except:  # pylint: disable=broad-except
                     ratio = 1
-            _render(rect, ratio, target_rect)
+                rect = object.itemsBoundingRect()
+                _render(rect, ratio, rect.size())
+                return
+
+            # Pick the first view. If there's a widget with multiple views that
+            # cares which one is used, it must set graph_name to view, not scene
+            view = views[0]
+            ratio = views[0].devicePixelRatio()
+            rect = view.sceneRect()
+            target_rect = view.mapFromScene(rect).boundingRect()
+            source_rect = QRect(
+                int(target_rect.x()), int(target_rect.y()),
+                int(target_rect.width()), int(target_rect.height()))
+            _render(source_rect, ratio, target_rect.size(), view)
 
         def save_widget():
-            _render(object.rect(), object.devicePixelRatio())
+            _render(object.rect(), object.devicePixelRatio(), object.size())
 
-        def _render(source_rect, pixel_ratio, target_rect=None):
-            if target_rect is None:
-                target_rect = source_rect
-            buffer_size = target_rect.adjusted(-15, -15, 15, 15).size()
+        def _render(source_rect, pixel_ratio, size, renderer=object):
+            buffer_size = size + type(size)(30, 30)
             try:
                 buffer = cls._get_buffer(buffer_size, filename, pixel_ratio)
-            except TypeError:
+            except TypeError:  # backward compatibility (with what?)
                 buffer = cls._get_buffer(buffer_size, filename)
 
             painter = QtGui.QPainter()
@@ -151,13 +155,13 @@ class ImgFormat(metaclass=_Registry):
                 painter, object,
                 QRectF(0, 0, buffer_size.width(), buffer_size.height()), buffer)
             try:
-                object.render(
+                renderer.render(
                     painter,
-                    QRectF(15, 15, target_rect.width(), target_rect.height()),
+                    QRectF(15, 15, size.width(), size.height()),
                     source_rect)
             except TypeError:
                 # QWidget.render() takes different params
-                object.render(painter, QPointF(15, 15))
+                renderer.render(painter, QPointF(15, 15))
             painter.end()
             cls._save_buffer(buffer, filename)
 

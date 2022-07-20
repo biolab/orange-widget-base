@@ -7,7 +7,7 @@ from AnyQt import QtGui, QtCore, QtSvg, QtWidgets
 from AnyQt.QtCore import QMarginsF, Qt, QRectF, QPointF, QRect
 from AnyQt.QtGui import QPalette
 from AnyQt.QtWidgets import (
-    QGraphicsScene, QGraphicsView, QApplication, qApp
+    QGraphicsScene, QGraphicsView, QApplication
 )
 
 from orangewidget.utils.matplotlib_export import scene_code
@@ -119,7 +119,7 @@ class ImgFormat(metaclass=_Registry):
                 # We still try to get ratio for (any) screen, otherwise
                 # assume 1 (the only consequence is lower resolution)
                 try:
-                    ratio = qApp.screens()[0].devicePixelRatio()
+                    ratio = QApplication.primaryScreen().devicePixelRatio()
                 except:  # pylint: disable=broad-except
                     ratio = 1
                 rect = object.itemsBoundingRect()

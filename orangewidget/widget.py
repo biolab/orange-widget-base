@@ -391,8 +391,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
     @classmethod
     def get_flags(cls):
-        return (Qt.Window if cls.resizing_enabled
-                else Qt.Dialog | Qt.MSWindowsFixedSizeDialogHint)
+        return Qt.Window if cls.resizing_enabled else Qt.Dialog
 
     class _Splitter(QSplitter):
         handleClicked = Signal()

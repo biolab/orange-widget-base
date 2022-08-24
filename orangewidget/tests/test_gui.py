@@ -229,12 +229,11 @@ class TestDateTimeEditWCalendarTime(GuiTest):
         self.assertEqual(c.dateTime(), poeh)
 
 
-class TestDeferred(GuiTest):
+class TestDeferred(WidgetTest):
     def test_deferred(self) -> None:
         class Widget(OWBaseWidget):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-
                 self.option = False
                 self.autocommit = False
 
@@ -247,9 +246,10 @@ class TestDeferred(GuiTest):
             real_apply = Mock()
             # Unlike real functions, mocks don't have names
             real_apply.__name__ = "apply"
+
             apply = gui.deferred(real_apply)
 
-        w = Widget()
+        w = self.create_widget(Widget)
 
         # clicked, but no autocommit
         w.checkbox.click()
@@ -282,7 +282,7 @@ class TestDeferred(GuiTest):
         # calling decorated method without `now` or `deferred` raises an expception
         self.assertRaises(RuntimeError, w.apply)
 
-        w2 = Widget()
+        w2 = self.create_widget(Widget)
         w.apply.now()
         w.real_apply.assert_called_with(w)
         w.real_apply.reset_mock()
@@ -291,6 +291,7 @@ class TestDeferred(GuiTest):
         class Widget(OWBaseWidget):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+
                 self.autocommit = False
                 self.commit_button = gui.auto_commit(
                     self, self, 'autocommit', 'Commit')
@@ -299,7 +300,7 @@ class TestDeferred(GuiTest):
                 pass
 
         with self.assertWarns(UserWarning):
-            _ = Widget()
+            _ = self.create_widget(Widget)
 
     def test_override(self):
         class Widget(OWBaseWidget, openclass=True):
@@ -322,7 +323,7 @@ class TestDeferred(GuiTest):
                 super().commit()
                 self.n()
 
-        w = Widget2()
+        w = self.create_widget(Widget2)
         w.commit.now()
         w.m.assert_called_once()
         w.n.assert_called_once()
@@ -334,7 +335,7 @@ class TestDeferred(GuiTest):
             def commit(self):
                 self.n()
 
-        w = Widget3()
+        w = self.create_widget(Widget3)
         w.commit.now()
         w.m.assert_not_called()
         w.n.assert_called_once()
@@ -346,7 +347,7 @@ class TestDeferred(GuiTest):
             def commit(self):
                 self.n()
 
-        self.assertRaises(RuntimeError, Widget4)
+        self.assertRaises(RuntimeError, lambda: self.create_widget(Widget4))
 
     def test_override_and_decorate(self):
         class Widget(OWBaseWidget, openclass=True):
@@ -368,7 +369,7 @@ class TestDeferred(GuiTest):
                 super().commit()
                 self.n()
 
-        w = Widget2()
+        w = self.create_widget(Widget2)
         w.commit.deferred()
         w.m.assert_not_called()
         w.n.assert_not_called()
@@ -400,7 +401,7 @@ class TestDeferred(GuiTest):
             def magog(self):
                 self.real_magog()
 
-        w = Widget()
+        w = self.create_widget(Widget)
 
         # Make a deffered call to commit; nothing should be called
         w.commit.deferred()

@@ -181,6 +181,10 @@ class GuiTest(unittest.TestCase):
             else:
                 appnope.nope()
         cls.tear_down_stack = ExitStack()
+        if "pyqtgraph" in sys.modules:
+            # undo pyqtgraph excepthook override, abort on exceptions in
+            # slots, event handlers, ...
+            sys.excepthook = sys.__excepthook__
         super().setUpClass()
 
     @classmethod
@@ -190,6 +194,14 @@ class GuiTest(unittest.TestCase):
             pyqtgraph.setConfigOption("exitCleanup", False)
         cls.tear_down_stack.close()
         super().tearDownClass()
+        QTest.qWait(0)
+
+    def tearDown(self) -> None:
+        """
+        Process any pending events before the next test is executed. This
+        includes deletes scheduled with `QObject.deleteLater`.
+        """
+        super().tearDown()
         QTest.qWait(0)
 
 
@@ -270,7 +282,6 @@ class WidgetTest(GuiTest):
     def tearDown(self):
         """Process any pending events before the next test is executed."""
         self.signal_manager.clear()
-        QTest.qWait(0)
         super().tearDown()
 
     def create_widget(self, cls, stored_settings=None, reset_default_settings=True):

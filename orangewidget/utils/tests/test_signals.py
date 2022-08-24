@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 
 from orangewidget.widget import \
     Single, Multiple, Default, NonDefault, Explicit, Dynamic
-from orangewidget.tests.base import GuiTest
+from orangewidget.tests.base import WidgetTest
 from orangewidget.utils.signals import _Signal, Input, Output, \
     WidgetSignalsMixin, InputSignal, OutputSignal, MultiInput, summarize, \
     PartialSummary
@@ -101,14 +101,14 @@ class OutputTest(unittest.TestCase):
             widget, "a name", value, id)
 
 
-class WidgetSignalsMixinTest(GuiTest):
+class WidgetSignalsMixinTest(WidgetTest):
     def test_init_binds_outputs(self):
         class MockWidget(OWBaseWidget):
             name = "foo"
             class Outputs:
                 an_output = Output("a name", int)
 
-        widget = MockWidget()
+        widget = self.create_widget(MockWidget)
         self.assertEqual(widget.Outputs.an_output.widget, widget)
         self.assertIsNone(MockWidget.Outputs.an_output.widget)
 
@@ -231,7 +231,7 @@ class WidgetSignalsMixinTest(GuiTest):
             @Inputs.input_a.remove
             def remove_a(self, index):
                 pass
-        w = TestWidget()
+        w = self.create_widget(TestWidget)
         w.insert_a(0, Str("00"))
         w.insert_a(1, Str("11"))
         self.assertSequenceEqual(

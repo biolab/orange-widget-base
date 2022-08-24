@@ -4,11 +4,10 @@ from unittest.mock import MagicMock, call
 
 from AnyQt.QtWidgets import QApplication
 
+from orangewidget.tests.base import WidgetTest
 from orangewidget.utils.widgetpreview import WidgetPreview
 from orangewidget.widget import OWBaseWidget, Input
 from orangewidget.utils import widgetpreview
-
-app = QApplication([])
 
 
 # MagicMocks have no names, so we patch Input.__call__ to use them
@@ -19,9 +18,11 @@ class MockInput(Input):
         return method
 
 
-class TestWidgetPreviewBase(unittest.TestCase):
+class TestWidgetPreviewBase(WidgetTest):
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
+        cls.app = app = QApplication.instance()
         cls.orig_sys_exit = sys.exit
         cls.orig_app_exec = app.exec
         cls.orig_qapplication = widgetpreview.QApplication
@@ -32,9 +33,12 @@ class TestWidgetPreviewBase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        app = QApplication.instance()
         sys.exit = cls.orig_sys_exit
         app.exec = cls.orig_app_exec
         widgetpreview.QApplication = cls.orig_qapplication
+        del cls.app
+        super().tearDownClass()
 
     def setUp(self):
         # Class is defined within setUp to reset mocks before each test
@@ -57,24 +61,31 @@ class TestWidgetPreviewBase(unittest.TestCase):
             show = MagicMock()
             saveSettings = MagicMock()
 
+        super().setUp()
         self.widgetClass = MockWidget
         sys.exit.reset_mock()
         widgetpreview.QApplication.reset_mock()
-        app.exec.reset_mock()
+        self.app.exec.reset_mock()
+
+    def tearDown(self) -> None:
+        super().tearDown()
+
+    def widget_constructor(self):
+        return self.create_widget(self.widgetClass)
 
 
 class TestWidgetPreview(TestWidgetPreviewBase):
     def test_widget_is_shown_and_ran(self):
         w = self.widgetClass
-        app.exec.reset_mock()
+        self.app.exec.reset_mock()
 
-        previewer = WidgetPreview(w)
+        previewer = WidgetPreview(self.widget_constructor)
 
         previewer.run()
         w.show.assert_called()
         w.show.reset_mock()
-        app.exec.assert_called()
-        app.exec.reset_mock()
+        self.app.exec.assert_called()
+        self.app.exec.reset_mock()
         w.saveSettings.assert_called()
         w.saveSettings.reset_mock()
         sys.exit.assert_called()
@@ -84,8 +95,8 @@ class TestWidgetPreview(TestWidgetPreviewBase):
         previewer.run(no_exit=True)
         w.show.assert_called()
         w.show.reset_mock()
-        app.exec.assert_called()
-        app.exec.reset_mock()
+        self.app.exec.assert_called()
+        self.app.exec.reset_mock()
         w.saveSettings.assert_not_called()
         sys.exit.assert_not_called()
         self.assertIsNotNone(previewer.widget)
@@ -93,14 +104,14 @@ class TestWidgetPreview(TestWidgetPreviewBase):
 
         previewer.run(no_exec=True, no_exit=True)
         w.show.assert_not_called()
-        app.exec.assert_not_called()
+        self.app.exec.assert_not_called()
         w.saveSettings.assert_not_called()
         sys.exit.assert_not_called()
         self.assertIs(widget, previewer.widget)
 
         previewer.run(no_exec=True)
         w.show.assert_not_called()
-        app.exec.assert_not_called()
+        self.app.exec.assert_not_called()
         w.saveSettings.assert_called()
         sys.exit.assert_called()
         self.assertIsNone(previewer.widget)
@@ -108,22 +119,22 @@ class TestWidgetPreview(TestWidgetPreviewBase):
     def test_single_signal(self):
         w = self.widgetClass
 
-        WidgetPreview(w).run(42)
+        WidgetPreview(self.widget_constructor).run(42)
         w.int1.assert_called_with(42)
 
-        WidgetPreview(w).run(3.14)
+        WidgetPreview(self.widget_constructor).run(3.14)
         w.float1.assert_called_with(3.14)
         self.assertEqual(w.float2.call_count, 0)
 
         with self.assertRaises(ValueError):
-            WidgetPreview(w).run("foo")
+            WidgetPreview(self.widget_constructor).run("foo")
 
         with self.assertRaises(ValueError):
-            WidgetPreview(w).run([])
+            WidgetPreview(self.widget_constructor).run([])
 
     def test_named_signals(self):
         w = self.widgetClass
-        WidgetPreview(w).run(42, float2=2.7, str1="foo")
+        WidgetPreview(self.widget_constructor).run(42, float2=2.7, str1="foo")
         w.int1.assert_called_with(42)
         self.assertEqual(w.float1.call_count, 0)
         w.float2.assert_called_with(2.7)
@@ -132,7 +143,7 @@ class TestWidgetPreview(TestWidgetPreviewBase):
 
     def test_multiple_runs(self):
         w = self.widgetClass
-        previewer = WidgetPreview(w)
+        previewer = WidgetPreview(self.widget_constructor)
         previewer.run(42, no_exit=True)
         w.int1(43)
         previewer.send_signals([(44, 1), (45, 2)])
@@ -143,7 +154,7 @@ class TestWidgetPreview(TestWidgetPreviewBase):
 
 class TestWidgetPreviewInternal(TestWidgetPreviewBase):
     def test_find_handler_name(self):
-        previewer = WidgetPreview(self.widgetClass)
+        previewer = WidgetPreview(self.widget_constructor)
         previewer.create_widget()
         find_name = previewer._find_handler_name
         self.assertEqual(find_name(42), "int1")
@@ -173,13 +184,13 @@ class TestWidgetPreviewInternal(TestWidgetPreviewBase):
             [(42, 1), (65, 3)])
 
     def test_create_widget(self):
-        previewer = WidgetPreview(self.widgetClass)
+        previewer = WidgetPreview(self.widget_constructor)
         self.assertIsNone(previewer.widget)
         previewer.create_widget()
         self.assertIsInstance(previewer.widget, self.widgetClass)
 
     def test_send_signals(self):
-        previewer = WidgetPreview(self.widgetClass)
+        previewer = WidgetPreview(self.widget_constructor)
         previewer.create_widget()
         widget = previewer.widget
         previewer.send_signals(42)

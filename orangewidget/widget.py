@@ -1,3 +1,4 @@
+import pkgutil
 import sys
 import os
 import types
@@ -18,6 +19,8 @@ from AnyQt.QtCore import (
     Qt, QObject, QEvent, QRect, QMargins, QByteArray, QDataStream, QBuffer,
     QSettings, QUrl, QThread, pyqtSignal as Signal, QSize, QLine)
 from AnyQt.QtGui import QIcon, QKeySequence, QDesktopServices, QPainter, QColor, QPen
+
+from orangecanvas.gui.svgiconengine import StyledSvgIconEngine
 
 from orangewidget import settings, gui
 from orangewidget.report import Report
@@ -47,6 +50,10 @@ __all__ = [
     "OWBaseWidget", "Input", "Output", "MultiInput",
     "Message", "Msg", "StateInfo",
 ]
+
+
+def _load_styled_icon(name):
+    return QIcon(StyledSvgIconEngine(pkgutil.get_data(__name__, "icons/" + name)))
 
 
 class Message:
@@ -326,7 +333,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
         self.__help_action = QAction(
             "Help", self, objectName="action-help", toolTip="Show help",
-            enabled=False, visible=False, shortcut=QKeySequence(Qt.Key_F1)
+            enabled=False, visible=False,
+            shortcut=QKeySequence(Qt.Key_F1)
         )
         self.addAction(self.__help_action)
         self.__statusbar = None  # type: Optional[QStatusBar]
@@ -656,12 +664,14 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             buttonsLayout.setSpacing(5)
 
             help = self.__help_action
-            icon = QIcon(gui.resource_filename("icons/help.svg"))
-            icon.addFile(gui.resource_filename("icons/help-hover.svg"), mode=QIcon.Active)
-            help_button = SimpleButton(
+            icon = _load_styled_icon("help.svg")
+            bsp = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            help_button = _StatusBarButton(
                 icon=icon,
                 toolTip="Show widget help", visible=help.isVisible(),
+                sizePolicy=bsp,
             )
+            help_button.setMouseTracking(True)
 
             @help.changed.connect
             def _():
@@ -672,37 +682,40 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             buttonsLayout.addWidget(help_button)
 
             if self.graph_name is not None:
-                icon = QIcon(gui.resource_filename("icons/chart.svg"))
-                icon.addFile(gui.resource_filename("icons/chart-hover.svg"), mode=QIcon.Active)
-                b = SimpleButton(
+                icon = _load_styled_icon("chart.svg")
+                b = _StatusBarButton(
                     icon=icon,
                     toolTip="Save Image",
+                    sizePolicy=bsp
                 )
                 b.clicked.connect(self.save_graph)
                 buttonsLayout.addWidget(b)
             if hasattr(self, "send_report"):
-                icon = QIcon(gui.resource_filename("icons/report.svg"))
-                icon.addFile(gui.resource_filename("icons/report-hover.svg"), mode=QIcon.Active)
-                b = SimpleButton(
+                icon = _load_styled_icon("report.svg")
+                b = _StatusBarButton(
                     icon=icon,
-                    toolTip="Report"
+                    toolTip="Report",
+                    sizePolicy=bsp
+
                 )
                 b.clicked.connect(self.show_report)
                 buttonsLayout.addWidget(b)
             if hasattr(self, "reset_settings"):
-                icon = QIcon(gui.resource_filename("icons/reset.svg"))
-                icon.addFile(gui.resource_filename("icons/reset-hover.svg"), mode=QIcon.Active)
-                b = SimpleButton(
+                icon = _load_styled_icon("reset.svg")
+                b = _StatusBarButton(
                     icon=icon,
-                    toolTip="Reset settings to defaults"
+                    toolTip="Reset settings to defaults",
+                    sizePolicy=bsp
                 )
                 b.clicked.connect(self.reset_settings)
                 buttonsLayout.addWidget(b)
             if hasattr(self, "set_visual_settings"):
-                icon = QIcon(gui.resource_filename("icons/visual-settings.svg"))
-                icon.addFile(gui.resource_filename("icons/visual-settings-hover.svg"),
-                             mode=QIcon.Active)
-                b = SimpleButton(icon=icon, toolTip="Set visual settings")
+                icon = _load_styled_icon("visual-settings.svg")
+                b = _StatusBarButton(
+                    icon=icon,
+                    toolTip="Set visual settings",
+                    sizePolicy=bsp
+                )
                 b.clicked.connect(self.openVisualSettingsClicked)
                 buttonsLayout.addWidget(b)
 
@@ -1520,6 +1533,19 @@ class _StatusBar(QStatusBar):
         painter.end()
 
 
+class _StatusBarButton(SimpleButton):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # match top/bottom margins of MessagesWidget
+        self.setContentsMargins(1, 1, 1, 1)
+
+    def sizeHint(self):
+        # Ensure the button has at least font height dimensions.
+        sh = super().sizeHint()
+        h = self.fontMetrics().lineSpacing()
+        return sh.expandedTo(QSize(h, h))
+
+
 #: Input/Output flags (deprecated).
 #: --------------------------------
 #:
@@ -1644,7 +1670,7 @@ class StateInfo(QObject):
             -------
             icon: QIcon
             """
-            return QIcon(gui.resource_filename("icons/{}.svg".format(role)))
+            return _load_styled_icon(f"{role}.svg")
 
     class Empty(Summary):
         """
@@ -1652,7 +1678,7 @@ class StateInfo(QObject):
         """
         @classmethod
         def default_icon(cls, role):
-            return QIcon(gui.resource_filename("icons/{}-empty.svg".format(role)))
+            return _load_styled_icon(f"{role}-empty.svg")
 
     class Partial(Summary):
         """
@@ -1663,7 +1689,7 @@ class StateInfo(QObject):
         """
         @classmethod
         def default_icon(cls, role):
-            return QIcon(gui.resource_filename("icons/{}-partial.svg".format(role)))
+            return _load_styled_icon(f"{role}-partial.svg")
 
     #: Signal emitted when the input summary changes
     input_summary_changed = Signal(Summary)

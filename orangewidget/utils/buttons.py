@@ -146,7 +146,7 @@ def flat_button_hover_background(
     if option.state & QStyle.State_HasFocus:
         pen = palette.color(cg, QPalette.Highlight)
     elif option.state & QStyle.State_MouseOver:
-        pen = palette.color(cg, QPalette.Foreground)
+        pen = palette.color(cg, QPalette.WindowText)
         pen.setAlpha(50)
     else:
         pen = Qt.NoPen

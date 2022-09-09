@@ -559,6 +559,9 @@ class PyListModel(QAbstractListModel):
                 and self._is_index_valid(index):
             return self[row]
         elif self._is_index_valid(row):
+            if self[row] is self.Separator \
+                    and role == Qt.AccessibleDescriptionRole:
+                return 'separator'
             return self._other_data[row].get(role, None)
 
     def itemData(self, index):
@@ -604,7 +607,10 @@ class PyListModel(QAbstractListModel):
 
     def flags(self, index):
         if self._is_index_valid(index):
-            return self._other_data[index.row()].get("flags", self._flags)
+            row = index.row()
+            default = Qt.NoItemFlags \
+                if self[row] is self.Separator else self._flags
+            return self._other_data[row].get("flags", default)
         else:
             return self._flags | Qt.ItemIsDropEnabled
 
@@ -736,13 +742,9 @@ class PyListModel(QAbstractListModel):
                 value = list(value)
             if len(value) == 0:
                 return
-            separators = [start + i for i, v in enumerate(value) if v is self.Separator]
             self.beginInsertRows(QModelIndex(), start, start + len(value) - 1)
             self._list[start:start] = value
             self._other_data[start:start] = (_store() for _ in value)
-            for idx in separators:
-                self._other_data[idx]['flags'] = Qt.NoItemFlags
-                self._other_data[idx][Qt.AccessibleDescriptionRole] = 'separator'
             self.endInsertRows()
         else:
             s = operator.index(s)

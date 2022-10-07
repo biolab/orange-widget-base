@@ -1,10 +1,12 @@
 import unittest
+from unittest.mock import Mock
 
 from AnyQt.QtCore import QStringListModel, Qt
 from AnyQt.QtTest import QTest
 from AnyQt.QtWidgets import QLineEdit
 
 from orangewidget.tests.base import GuiTest
+from orangewidget.utils.itemmodels import PyListModel
 from orangewidget.utils.listview import ListViewSearch
 
 
@@ -87,6 +89,20 @@ class TestListViewSearch(GuiTest):
 
         QTest.keyClick(filter_row, Qt.Key_T)
         QTest.keyClick(filter_row, Qt.Key_Backspace)
+
+    def test_PyListModel(self):
+        model = PyListModel()
+        view = ListViewSearch()
+        view.setFilterString("two")
+        view.setRowHidden = Mock(side_effect=view.setRowHidden)
+        view.setModel(model)
+        view.setRowHidden.assert_not_called()
+        model.wrap(["one", "two", "three", "four"])
+        view.setRowHidden.assert_called()
+        self.assertTrue(view.isRowHidden(0))
+        self.assertFalse(view.isRowHidden(1))
+        self.assertTrue(view.isRowHidden(2))
+        self.assertTrue(view.isRowHidden(3))
 
 
 if __name__ == "__main__":

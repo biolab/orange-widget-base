@@ -68,6 +68,12 @@ class ListViewSearch(QListView):
         self.__pmodel.setSourceModel(model)
         self.__filter_reset()
         self.model().rowsInserted.connect(self.__model_rowInserted)
+        self.model().modelReset.connect(self.__on_modelReset)
+
+    def __on_modelReset(self):
+        self.__filter_reset()
+        self.__pmodel.setFilterFixedString("")
+        self.__pmodel.setFilterFixedString(self.__search.text())
 
     def setRootIndex(self, index: QModelIndex) -> None:
         super().setRootIndex(index)

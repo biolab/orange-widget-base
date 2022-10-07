@@ -28,7 +28,7 @@ from orangewidget.utils.combobox import (
     ComboBox as OrangeComboBox, ComboBoxSearch as OrangeComboBoxSearch
 )
 from orangewidget.utils.itemdelegates import text_color_for_state
-from orangewidget.utils.itemmodels import PyListModel
+from orangewidget.utils.itemmodels import PyListModel, signal_blocking
 
 __re_label = re.compile(r"(^|[^%])%\((?P<value>[a-zA-Z]\w*)\)")
 
@@ -860,7 +860,8 @@ class CheckBoxWithDisabledState(QtWidgets.QCheckBox):
     def changeEvent(self, event):
         super().changeEvent(event)
         if event.type() == event.EnabledChange:
-            self._updateChecked()
+            with signal_blocking(self):
+                self._updateChecked()
 
     def setCheckState(self, state):
         self.trueState = state

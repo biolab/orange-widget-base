@@ -101,7 +101,7 @@ class TestPdf(GuiTest):
         graph.addItem(pyqtgraph.PlotCurveItem(x=list(range(100)), y=list(range(100))))
         try:
             imgio.PdfFormat.write(fname, graph)
-            self.assertGreater(os.path.getsize(fname), size_empty + 1000)
+            self.assertGreater(os.path.getsize(fname), size_empty + 600)
         finally:
             os.unlink(fname)
 

@@ -252,6 +252,19 @@ class TestAbstractSortTableModel(unittest.TestCase):
         self.assertSequenceEqual(model.mapToSourceRows(...).tolist(), [0, 2, 1])
         self.assertSequenceEqual(model.mapFromSourceRows(...).tolist(), [0, 2, 1])
 
+    def test_sorting_fallback(self):
+        class TableModel(PyTableModel):
+            def sortColumnData(self, column):
+                raise NotImplementedError
+
+        model = TableModel([[1, 4],
+                            [2, 2],
+                            [3, 3]])
+        model.sort(1, Qt.DescendingOrder)
+        self.assertSequenceEqual(model.mapToSourceRows(...).tolist(), [0, 2, 1])
+        model.sort(1, Qt.AscendingOrder)
+        self.assertSequenceEqual(model.mapToSourceRows(...).tolist(), [1, 2, 0])
+
     def test_sorting_2d(self):
         class Model(AbstractSortTableModel):
             def rowCount(self):

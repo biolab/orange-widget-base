@@ -88,13 +88,12 @@ class AbstractSortTableModel(QAbstractTableModel):
         try:
             # Call the overridden implementation if available
             data = numpy.asarray(self.sortColumnData(column))
+            data = data[self.mapToSourceRows(Ellipsis)]
         except NotImplementedError:
             # Fallback to slow implementation
             data = numpy.array([self.index(row, column).data()
                                 for row in range(self.rowCount())])
-
         assert data.ndim in (1, 2), 'Data should be 1- or 2-dimensional'
-        data = data[self.mapToSourceRows(Ellipsis)]
         return data
 
     def sortColumn(self):

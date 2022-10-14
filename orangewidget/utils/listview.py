@@ -1,4 +1,5 @@
-from typing import Iterable
+from typing import Iterable, Optional
+import warnings
 
 from AnyQt.QtWidgets import QListView, QLineEdit, QStyle
 from AnyQt.QtGui import QResizeEvent
@@ -8,7 +9,68 @@ from AnyQt.QtCore import (
     QModelIndex,
     QSortFilterProxyModel,
     QItemSelection,
+    QSize,
 )
+
+
+class ListViewFilter(QListView):
+    """
+    A QListView with implicit and transparent row filtering.
+    """
+
+    def __init__(
+            self,
+            *args,
+            model: Optional[QAbstractItemModel] = None,
+            proxy: Optional[QSortFilterProxyModel] = None,
+            preferred_size: Optional[QSize] = None,
+            **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.__search = QLineEdit(self, placeholderText="Filter...")
+        self.__search.textEdited.connect(self.__on_text_edited)
+        self.__preferred_size = preferred_size
+        self.__layout()
+        self.setMinimumHeight(100)
+
+        if proxy is None:
+            proxy = QSortFilterProxyModel(
+                self, filterCaseSensitivity=Qt.CaseInsensitive
+            )
+        assert isinstance(proxy, QSortFilterProxyModel)
+        super().setModel(proxy)
+        self.set_source_model(model)
+
+    def __on_text_edited(self, string: str):
+        self.model().setFilterFixedString(string)
+
+    def setModel(self, _):
+        raise TypeError("The model cannot be changed. "
+                        "Use set_source_model() instead.")
+
+    def set_source_model(self, model: QAbstractItemModel):
+        self.model().setSourceModel(model)
+
+    def updateGeometries(self):
+        super().updateGeometries()
+        self.__layout()
+
+    def __layout(self):
+        margins = self.viewportMargins()
+        sh = self.__search.sizeHint()
+        margins.setTop(sh.height())
+        vscroll = self.verticalScrollBar()
+        transient = self.style().styleHint(QStyle.SH_ScrollBar_Transient,
+                                           None, vscroll)
+        w = self.size().width()
+        if vscroll.isVisibleTo(self) and not transient:
+            w = w - vscroll.width() - 1
+        self.__search.setGeometry(0, 0, w, sh.height())
+        self.setViewportMargins(margins)
+
+    def sizeHint(self) -> QSize:
+        size = self.__preferred_size
+        return size if size is not None else super().sizeHint()
 
 
 class ListViewSearch(QListView):
@@ -17,6 +79,9 @@ class ListViewSearch(QListView):
     """
 
     def __init__(self, *a, preferred_size=None, **ak):
+        warnings.warn("ListViewSearch is deprecated and will be removed "
+                      "in upcoming releases. Use ListViewFilter instead.",
+                      DeprecationWarning)
         super().__init__(*a, **ak)
         self.__search = QLineEdit(self, placeholderText="Filter...")
         self.__search.textEdited.connect(self.__setFilterString)
@@ -173,13 +238,13 @@ def main():
     app = QApplication([])
     w = QWidget()
     w.setLayout(QVBoxLayout())
-    lv = ListViewSearch()
+    lv = ListViewFilter()
     lv.setUniformItemSizes(True)
     w.layout().addWidget(lv)
     c = cycle(list(map(chr, range(ord("A"), ord("Z")))))
     s = [f"{next(c)}{next(c)}{next(c)}{next(c)}" for _ in range(50000)]
     model = QStringListModel(s)
-    lv.setModel(model)
+    lv.set_source_model(model)
     w.show()
     app.exec()
 

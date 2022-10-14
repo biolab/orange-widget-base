@@ -1,13 +1,13 @@
 import unittest
 from unittest.mock import Mock
 
-from AnyQt.QtCore import QStringListModel, Qt
+from AnyQt.QtCore import QStringListModel, Qt, QSortFilterProxyModel
 from AnyQt.QtTest import QTest
 from AnyQt.QtWidgets import QLineEdit
 
 from orangewidget.tests.base import GuiTest
 from orangewidget.utils.itemmodels import PyListModel
-from orangewidget.utils.listview import ListViewSearch
+from orangewidget.utils.listview import ListViewSearch, ListViewFilter
 
 
 class TestListViewSearch(GuiTest):
@@ -103,6 +103,35 @@ class TestListViewSearch(GuiTest):
         self.assertFalse(view.isRowHidden(1))
         self.assertTrue(view.isRowHidden(2))
         self.assertTrue(view.isRowHidden(3))
+
+
+class TestListViewFilter(GuiTest):
+    def test_filter(self):
+        model = PyListModel()
+        view = ListViewFilter()
+        view._ListViewFilter__search.textEdited.emit("two")
+        view.model().setSourceModel(model)
+        model.wrap(["one", "two", "three", "four"])
+        self.assertEqual(view.model().rowCount(), 1)
+        self.assertEqual(model.rowCount(), 4)
+
+    def test_set_model(self):
+        view = ListViewFilter()
+        self.assertRaises(Exception, view.setModel, PyListModel())
+
+    def test_set_source_model(self):
+        model = PyListModel()
+        view = ListViewFilter()
+        view.set_source_model(model)
+        self.assertIs(view.model().sourceModel(), model)
+
+    def test_set_proxy(self):
+        proxy = QSortFilterProxyModel()
+        view = ListViewFilter(proxy=proxy)
+        self.assertIs(view.model(), proxy)
+
+    def test_set_proxy_raises(self):
+        self.assertRaises(Exception, ListViewFilter, proxy=PyListModel())
 
 
 if __name__ == "__main__":

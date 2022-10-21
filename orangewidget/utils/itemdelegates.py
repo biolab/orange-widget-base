@@ -47,12 +47,20 @@ class ModelItemCache(QObject):
     {0: ...
 
     """
+    #: The cache key is a tuple of the persistent index of the *parent*,
+    #: row and column. The parent is used because of performance regression in
+    #: Qt6 ~QPersistentModelIndex destructor when there are many (different)
+    #: persistent indices registered with a model. Using parent, row, column
+    #: coalesces these.
+    #: NOTE: QPersistentModelIndex's hash changes when it is invalidated;
+    #: it must be purged from __cache_data before that (see `__connect_helper`)
+    __KEY = Tuple[QPersistentModelIndex, int, int]
     __slots__ = ("__model", "__cache_data")
 
     def __init__(self, *args, maxsize=100 * 200, **kwargs):
         super().__init__(*args, **kwargs)
         self.__model: Optional[QAbstractItemModel] = None
-        self.__cache_data: 'LRUCache[QPersistentModelIndex, Any]' = LRUCache(maxsize)
+        self.__cache_data: 'LRUCache[ModelItemCache.__KEY, Any]' = LRUCache(maxsize)
 
     def __connect_helper(self, model: QAbstractItemModel) -> None:
         model.dataChanged.connect(self.invalidate)
@@ -108,9 +116,7 @@ class ModelItemCache(QObject):
         model = index.model()
         if model is not self.__model:
             self.setModel(model)
-        # NOTE: QPersistentModelIndex's hash changes when it is invalidated;
-        # it must be purged from __cache_data before that (`__connect_helper`)
-        key = QPersistentModelIndex(index)
+        key = QPersistentModelIndex(index.parent()), index.row(), index.column()
         try:
             item = self.__cache_data[key]
         except KeyError:
@@ -129,7 +135,7 @@ class ModelItemCache(QObject):
         model = index.model()
         if model is not self.__model:
             self.setModel(model)
-        key = QPersistentModelIndex(index)
+        key = QPersistentModelIndex(index.parent()), index.row(), index.column()
         try:
             item = self.__cache_data[key]
         except KeyError:

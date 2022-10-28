@@ -18,27 +18,27 @@ jobs:
         include:
           # Linux
           - os: ubuntu-20.04
-            python-version: 3.6
+            python-version: 3.7
             test-env: "PyQt5~=5.9.2"
 
           - os: ubuntu-18.04
-            python-version: 3.7
+            python-version: 3.8
             test-env: "PyQt5~=5.12.1 PyQtWebEngine~=5.12.1"
 
           - os: ubuntu-20.04
-            python-version: 3.8
+            python-version: 3.9
             test-env: "PyQt5~=5.14.0 PyQtWebEngine~=5.14.0"
 
           - os: ubuntu-20.04
-            python-version: 3.9
-            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
-
-          - os: ubuntu-20.04
             python-version: "3.10"
             test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
 
           - os: ubuntu-20.04
-            python-version: "3.10"
+            python-version: "3.11"
+            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
+
+          - os: ubuntu-20.04
+            python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
             extra-system-packages: "libegl1-mesa"
 
@@ -60,32 +60,32 @@ jobs:
             test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
 
           - os: macos-12
-            python-version: "3.10"
+            python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-WebEngine~=6.2.1"
 
           # Windows
           - os: windows-2019
-            python-version: 3.6
+            python-version: 3.7
             test-env: "PyQt5~=5.9.2"
 
           - os: windows-2019
-            python-version: 3.7
+            python-version: 3.8
             test-env: "PyQt5~=5.12.1 PyQtWebEngine~=5.12.1"
 
           - os: windows-2019
-            python-version: 3.8
+            python-version: 3.9
             test-env: "PyQt5~=5.14.0 PyQtWebEngine~=5.14.0 pyqtgraph>=0.11a0"
 
           - os: windows-2019
-            python-version: 3.9
-            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0 pyqtgraph>=0.11a0"
-
-          - os: windows-2019
             python-version: "3.10"
             test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0 pyqtgraph>=0.11a0"
 
           - os: windows-2019
-            python-version: "3.10"
+            python-version: "3.11"
+            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0 pyqtgraph>=0.11a0"
+
+          - os: windows-2019
+            python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
 
     steps:

@@ -16,7 +16,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-18.04
-            python: 3.6
+            python: 3.8
 
     steps:
       - uses: actions/checkout@v2

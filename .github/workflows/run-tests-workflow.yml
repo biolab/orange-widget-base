@@ -19,7 +19,7 @@ jobs:
           # Linux
           - os: ubuntu-20.04
             python-version: 3.7
-            test-env: "PyQt5~=5.9.2"
+            test-env: "PyQt5~=5.9.2 pyqtgraph~=0.11.0"
 
           - os: ubuntu-18.04
             python-version: 3.8
@@ -66,7 +66,7 @@ jobs:
           # Windows
           - os: windows-2019
             python-version: 3.7
-            test-env: "PyQt5~=5.9.2"
+            test-env: "PyQt5~=5.9.2 pyqtgraph~=0.11.0"
 
           - os: windows-2019
             python-version: 3.8
@@ -74,15 +74,15 @@ jobs:
 
           - os: windows-2019
             python-version: 3.9
-            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0 pyqtgraph>=0.11a0"
+            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
 
           - os: windows-2019
             python-version: "3.10"
-            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0 pyqtgraph>=0.11a0"
+            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
 
           - os: windows-2019
             python-version: "3.11"
-            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0 pyqtgraph>=0.11a0"
+            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
 
           - os: windows-2019
             python-version: "3.11"

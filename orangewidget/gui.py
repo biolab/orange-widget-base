@@ -627,7 +627,8 @@ class SpinBoxMixin:
             exponent = 1 + min(normalizedDiff / 10, 3)
             valueOffset = int(normalizedDiff ** exponent) * stepSize
             valueOffset = math.copysign(valueOffset, diff)
-
+            # Need to preserve the value type
+            valueOffset = type(self.preDragValue)(valueOffset)
             self.setValue(self.preDragValue + valueOffset)
 
         elif event.type() == QEvent.MouseButtonRelease:

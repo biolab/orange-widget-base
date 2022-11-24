@@ -46,7 +46,7 @@ from orangewidget.utils.signals import (
 )  # pylint: disable=unused-import
 from orangewidget.utils.overlay import MessageOverlayWidget, OverlayWidget
 from orangewidget.utils.buttons import SimpleButton
-from orangewidget.utils.combobox import dropdown_popup_geometry
+from orangewidget.utils import dropdown_popup_geometry
 
 # Msg is imported and renamed, so widgets can import it from this module rather
 # than the one with the mixin (orangewidget.utils.messages).
@@ -1282,9 +1282,10 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             b.mapToGlobal(QPoint(0, 0)), b.size()
         )
         menu.ensurePolished()
-        menu_rect = QRect(QPoint(0, 0), menu.sizeHint())
         screen_rect = QApplication.desktop().availableGeometry(b)
-        menu_rect = dropdown_popup_geometry(menu_rect, popup_rect, screen_rect)
+        menu_rect = dropdown_popup_geometry(
+            menu.sizeHint(), popup_rect, screen_rect, preferred_direction="up"
+        )
         menu.popup(menu_rect.topLeft())
 
     def setCaption(self, caption):

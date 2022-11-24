@@ -489,6 +489,15 @@ class WidgetTestInfoSummary(WidgetTest):
         self.assertEqual(outmsg.message.text, "1234")
         self.assertEqual(outmsg.message.informativeText, "Bar")
 
+    def test_info_no_basic_layout(self):
+        with patch.object(MyWidget, "want_basic_layout", False):
+            w = MyWidget()
+
+        w.info.set_input_summary(w.info.NoInput)
+        inmsg = w.findChild(InOutStateWidget, "input-summary")  # type: InOutStateWidget
+        self.assertTrue(inmsg.isVisibleTo(w))
+        self.assertTrue(inmsg.message)
+
     def test_format_number(self):
         self.assertEqual(StateInfo.format_number(9999), "9999")
         self.assertEqual(StateInfo.format_number(12_345), "12.3k")

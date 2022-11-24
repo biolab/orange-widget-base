@@ -8,7 +8,7 @@ from functools import partial
 from operator import attrgetter
 from math import log10
 
-from typing import Optional, Union, List
+from typing import Optional, Union, List, cast
 
 from AnyQt.QtWidgets import (
     QWidget, QDialog, QVBoxLayout, QSizePolicy, QApplication, QStyle,
@@ -22,7 +22,8 @@ from AnyQt.QtCore import (
     pyqtSignal as Signal
 )
 from AnyQt.QtGui import (
-    QIcon, QKeySequence, QDesktopServices, QPainter, QColor, QPen, QKeyEvent
+    QIcon, QKeySequence, QDesktopServices, QPainter, QColor, QPen, QKeyEvent,
+    QActionEvent
 )
 
 from orangecanvas.gui.svgiconengine import StyledSvgIconEngine
@@ -1710,6 +1711,19 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             version of the saved context
             or None if context was created before migrations
         """
+
+    def actionEvent(self, event: QActionEvent) -> None:
+        if event.type() in (QEvent.ActionAdded, QEvent.ActionRemoved):
+            event = cast(QActionEvent, event)
+            action = event.action()
+            if action.objectName().startswith("action-canvas-"):
+                menu = self.findChild(QMenu, "menu-window")
+                if menu is not None:
+                    if event.type() == QEvent.ActionAdded:
+                        menu.addAction(action)
+                    else:
+                        menu.removeAction(action)
+        super().actionEvent(event)
 
 
 class _StatusBar(QStatusBar):

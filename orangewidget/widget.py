@@ -733,7 +733,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             # enabled by default. Client classes can inspect self.actions
             # and enable it if necessary.
             self.__statusbar_action = statusbar_action = QAction(
-                "Show status bar", self, objectName="action-show-status-bar",
+                "Show Status Bar", self, objectName="action-show-status-bar",
                 toolTip="Show status bar", checkable=True,
                 enabled=False, visible=False,
                 shortcut=QKeySequence("Shift+Ctrl+\\")
@@ -804,7 +804,22 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             in_out_msg.setLayout(hlayout(5, left=5))
             statusbar.addWidget(buttons)
             statusbar.addWidget(in_out_msg)
+
+            # Ensure the status bar and the message widget are visible on
+            # warning and errors.
+            self.messageActivated.connect(self.__ensureStatusBarVisible)
+
+            if self.__menubar is not None:
+                viewm = self.findChild(QMenu, "menu-view")
+                if viewm is not None:
+                    viewm.addAction(statusbar_action)
+
         return statusbar
+
+    def __ensureStatusBarVisible(self, msg: Msg) -> None:
+        statusbar = self.__statusbar
+        if statusbar is not None and msg.group.severity >= 1:
+            statusbar.setVisible(True)
 
     def __updateStatusBarOnChange(self):
         statusbar = self.__statusbar

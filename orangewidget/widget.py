@@ -288,6 +288,11 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     savedWidgetGeometry = settings.Setting(None)
     controlAreaVisible = settings.Setting(True, schema_only=True)
 
+    __report_action = None  # type: Optional[QAction]
+    __save_image_action = None  # type: Optional[QAction]
+    __reset_action = None  # type: Optional[QAction]
+    __visual_settings_action = None  # type: Optional[QAction]
+
     # pylint: disable=protected-access, access-member-before-definition
     def __new__(cls, *args, captionTitle=None, **kwargs):
         self = super().__new__(cls, None, cls.get_flags())
@@ -331,38 +336,65 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.__msgwidget = None
         self.__msgchoice = 0
 
+        # this action is enabled by the canvas framework
         self.__help_action = QAction(
             "Help", self, objectName="action-help", toolTip="Show help",
             enabled=False, visible=False,
             shortcut=QKeySequence(Qt.Key_F1)
         )
+        if hasattr(self, "send_report"):
+            self.__report_action = QAction(
+                "Report", self, objectName="action-report",
+                toolTip="Create and display a report",
+                shortcut=QKeySequence(Qt.AltModifier | Qt.Key_R))
+            self.__report_action.triggered.connect(self.show_report)
+
+        if self.graph_name is not None:
+            self.__save_image_action = QAction(
+                "Save Image", self, objectName="action-save-image",)
+            self.__save_image_action.triggered.connect(self.save_graph)
+
+        if hasattr(self, "reset_settings"):
+            self.__reset_action = QAction(
+                "Reset", self, objectName="action-reset-settings",
+                toolTip="Reset settings to default state",)
+            self.__reset_action.triggered.connect(self.reset_settings)
+
+        if hasattr(self, "set_visual_settings"):
+            assert self.initial_visual_settings is not None
+            self.__visual_settings_action = QAction(
+                "Show View Options", self, objectName="action-visual-settings",
+                toolTip="Show View Options",)
+            self.__visual_settings_action.triggered.connect(
+                self.openVisualSettingsClicked)
+
         self.addAction(self.__help_action)
-        self.__statusbar = None  # type: Optional[QStatusBar]
-        self.__statusbar_action = None  # type: Optional[QAction]
-        self.__info_ns = None  # type: Optional[StateInfo]
+
+        self.__info_ns = None
 
         self.left_side = None
         self.controlArea = self.mainArea = self.buttonsArea = None
-        self.__progressBar = None
+
         self.__splitter = None
         if self.want_basic_layout:
             self.set_basic_layout()
             self.update_summaries()
 
-        sc = QShortcut(QKeySequence("Shift+F1"), self)
-        sc.activated.connect(self.__quicktip)
+        if self.UserAdviceMessages:
+            sc = QShortcut(QKeySequence("Shift+F1"), self)
+            sc.activated.connect(self.__quicktip)
 
-        sc = QShortcut(QKeySequence.Copy, self)
-        sc.activated.connect(self.copy_to_clipboard)
+        if type(self).copy_to_clipboard != OWBaseWidget.copy_to_clipboard \
+                or self.graph_name is not None:
+            sc = QShortcut(QKeySequence.Copy, self)
+            sc.activated.connect(self.copy_to_clipboard)
 
         if self.controlArea is not None:
             # Otherwise, the first control has focus
             self.controlArea.setFocus(Qt.ActiveWindowFocusReason)
 
         if self.__splitter is not None:
-            self.__splitter.handleClicked.connect(
-                self.__toggleControlArea
-            )
+            self.__splitter.handleClicked.connect(self.__toggleControlArea)
             sc = QShortcut(
                 QKeySequence("Ctrl+Shift+D"),
                 self, autoRepeat=False)
@@ -573,37 +605,13 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             self._insert_main_area()
 
         if self.want_message_bar:
-            sb = self.statusBar()
+            # statusBar() handles 'want_message_bar', 'send_report'
+            # 'graph_name' ...
+            _ = self.statusBar()
 
-            self.message_bar = MessagesWidget(
-                defaultStyleSheet=textwrap.dedent("""
-                div.field-text {
-                    white-space: pre;
-                }
-                div.field-detailed-text {
-                    margin-top: 0.5em;
-                    margin-bottom: 0.5em;
-                    margin-left: 1em;
-                    margin-right: 1em;
-                }"""),
-                elideText=True
-            )
-            self.message_bar.setSizePolicy(QSizePolicy.Preferred,
-                                           QSizePolicy.Preferred)
-            self.message_bar.hide()
-            self.__progressBar = pb = QProgressBar(
-                maximumWidth=120, minimum=0, maximum=100
-            )
-            pb.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Ignored)
-            pb.setAttribute(Qt.WA_LayoutUsesWidgetRect)
-            pb.setAttribute(Qt.WA_MacMiniSize)
-            pb.hide()
-            sb.addPermanentWidget(pb)
-            sb.addPermanentWidget(self.message_bar)
-
-            self.processingStateChanged.connect(self.__processingStateChanged)
-            self.blockingStateChanged.connect(self.__processingStateChanged)
-            self.progressBarValueChanged.connect(lambda v: pb.setValue(int(v)))
+    __progressBar = None  # type: Optional[QProgressBar]
+    __statusbar = None    # type: Optional[QStatusBar]
+    __statusbar_action = None  # type: Optional[QAction]
 
     def statusBar(self):
         # type: () -> QStatusBar
@@ -655,79 +663,71 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 enabled=False, visible=False,
                 shortcut=QKeySequence("Shift+Ctrl+\\")
             )
+            if self.want_message_bar:
+                self.message_bar = MessagesWidget(
+                    defaultStyleSheet=(
+                        "div.field-text { white-space: pre; }\n"
+                        "div.field-detailed-text {\n"
+                        "    margin-top: 0.5em; margin-bottom: 0.5em; \n"
+                        "    margin-left: 1em; margin-right: 1em;\n"
+                        "}"
+                    ),
+                    elideText=True,
+                    sizePolicy=QSizePolicy(QSizePolicy.Preferred,
+                                           QSizePolicy.Preferred),
+                    visible=False
+                )
+            self.__progressBar = pb = QProgressBar(
+                maximumWidth=120, minimum=0, maximum=100
+            )
+            pb.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Ignored)
+            pb.setAttribute(Qt.WA_LayoutUsesWidgetRect)
+            pb.setAttribute(Qt.WA_MacMiniSize)
+            pb.hide()
+            self.processingStateChanged.connect(self.__processingStateChanged)
+            self.blockingStateChanged.connect(self.__processingStateChanged)
+            self.progressBarValueChanged.connect(lambda v: pb.setValue(int(v)))
+
+            statusbar.addPermanentWidget(pb)
+            if self.message_bar is not None:
+                statusbar.addPermanentWidget(self.message_bar)
+
             statusbar_action.toggled[bool].connect(statusbar.setVisible)
             self.addAction(statusbar_action)
 
-            # Create buttons
-            buttonsLayout = QHBoxLayout()
-            buttonsLayout.setContentsMargins(7, 0, 0, 0)
-            buttonsLayout.setSpacing(5)
+            # reserve buttons and in_out_msg areas
+            def hlayout(spacing, left=0, right=0, ):
+                lay = QHBoxLayout(spacing=spacing)
+                lay.setContentsMargins(left, 0, right, 0)
+                return lay
 
-            help = self.__help_action
-            icon = _load_styled_icon("help.svg")
-            bsp = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-            help_button = _StatusBarButton(
-                icon=icon,
-                toolTip="Show widget help", visible=help.isVisible(),
-                sizePolicy=bsp,
-            )
-            help_button.setMouseTracking(True)
-
-            @help.changed.connect
-            def _():
-                help_button.setVisible(help.isVisible())
-                help_button.setEnabled(help.isEnabled())
-
-            help_button.clicked.connect(help.trigger)
-            buttonsLayout.addWidget(help_button)
-
-            if self.graph_name is not None:
-                icon = _load_styled_icon("chart.svg")
-                b = _StatusBarButton(
-                    icon=icon,
-                    toolTip="Save Image",
-                    sizePolicy=bsp
-                )
-                b.clicked.connect(self.save_graph)
+            buttons = QWidget(statusbar, objectName="buttons", visible=False)
+            buttons.setLayout(hlayout(5, 7))
+            buttonsLayout = buttons.layout()
+            simple_button = _StatusBar.simple_button
+            icon = _load_styled_icon
+            if self.__help_action is not None:
+                b = simple_button(buttons, self.__help_action, icon("help.svg"))
                 buttonsLayout.addWidget(b)
-            if hasattr(self, "send_report"):
-                icon = _load_styled_icon("report.svg")
-                b = _StatusBarButton(
-                    icon=icon,
-                    toolTip="Report",
-                    sizePolicy=bsp
-
-                )
-                b.clicked.connect(self.show_report)
+            if self.__save_image_action is not None:
+                b = simple_button(buttons, self.__save_image_action, icon("chart.svg"))
                 buttonsLayout.addWidget(b)
-            if hasattr(self, "reset_settings"):
-                icon = _load_styled_icon("reset.svg")
-                b = _StatusBarButton(
-                    icon=icon,
-                    toolTip="Reset settings to defaults",
-                    sizePolicy=bsp
-                )
-                b.clicked.connect(self.reset_settings)
+            if self.__report_action is not None:
+                b = simple_button(buttons, self.__report_action, icon("report.svg"))
                 buttonsLayout.addWidget(b)
-            if hasattr(self, "set_visual_settings"):
-                icon = _load_styled_icon("visual-settings.svg")
-                b = _StatusBarButton(
-                    icon=icon,
-                    toolTip="Set visual settings",
-                    sizePolicy=bsp
-                )
-                b.clicked.connect(self.openVisualSettingsClicked)
+            if self.__reset_action is not None:
+                b = simple_button(buttons, self.__reset_action, icon("reset.svg"))
+                buttonsLayout.addWidget(b)
+            if self.__visual_settings_action is not None:
+                b = simple_button(buttons, self.__visual_settings_action, icon("visual-settings.svg"))
                 buttonsLayout.addWidget(b)
 
-            buttons = QWidget(objectName="buttons")
-            buttons.setLayout(buttonsLayout)
+            if buttonsLayout.count():
+                buttons.setVisible(True)
+
+            in_out_msg = QWidget(objectName="in-out-msg", visible=False)
+            in_out_msg.setLayout(hlayout(5, left=5))
             statusbar.addWidget(buttons)
-
-            in_out_msg = QWidget(objectName="in-out-msg")
-            in_out_msg.setLayout(QHBoxLayout())
-            in_out_msg.layout().setContentsMargins(5, 0, 0, 0)
-            in_out_msg.layout().setSpacing(5)
-            in_out_msg.setVisible(False)
             statusbar.addWidget(in_out_msg)
         return statusbar
 
@@ -754,6 +754,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         elif self.processingState:
             pb.setRange(0, 100)  # determinate pb
 
+    __info_ns = None  # type: Optional[StateInfo]
+
     def __info(self):
         # Create and return the StateInfo object
         if self.__info_ns is None:
@@ -773,6 +775,9 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
             sb = self.statusBar()
             if sb is not None:
+                in_out_msg = sb.findChild(QWidget, "in-out-msg")
+                assert in_out_msg is not None
+                in_out_msg.setVisible(True)
                 in_msg = InOutStateWidget(
                     objectName="input-summary", visible=False,
                     defaultStyleSheet=css,
@@ -788,10 +793,9 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 in_msg.clicked.connect(partial(self.show_preview, self.input_summaries))
                 out_msg.clicked.connect(partial(self.show_preview, self.output_summaries))
 
-                in_out_msg = sb.findChild(QWidget, "in-out-msg")
-
                 # Insert a separator if these are not the first elements
                 buttons = sb.findChild(QWidget, "buttons")
+                assert buttons is not None
                 if buttons.layout().count() != 0:
                     sep = QFrame(frameShape=QFrame.VLine)
                     sep.setContentsMargins(0, 0, 2, 0)
@@ -1532,12 +1536,35 @@ class _StatusBar(QStatusBar):
         # Do not draw any PE_FrameStatusBarItem frames.
         painter.end()
 
+    @staticmethod
+    def simple_button(
+            parent: QWidget, action: QAction, icon=QIcon()
+    ) -> SimpleButton:
+        if icon.isNull():
+            icon = action.icon()
+        button = _StatusBarButton(
+            parent,
+            icon=icon,
+            toolTip=action.toolTip(), whatsThis=action.whatsThis(),
+            visible=action.isVisible(), enabled=action.isEnabled(), )
+
+        def update():
+            button.setVisible(action.isVisible())
+            button.setEnabled(action.isEnabled())
+            button.setToolTip(action.toolTip())
+            button.setWhatsThis(action.whatsThis())
+
+        action.changed.connect(update)
+        button.clicked.connect(action.triggered)
+        return button
+
 
 class _StatusBarButton(SimpleButton):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # match top/bottom margins of MessagesWidget
         self.setContentsMargins(1, 1, 1, 1)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
     def sizeHint(self):
         # Ensure the button has at least font height dimensions.

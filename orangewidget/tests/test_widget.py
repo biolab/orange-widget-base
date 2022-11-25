@@ -342,7 +342,7 @@ class WidgetMsgTestCase(WidgetTest):
         self.assertEqual(len(messages), 0)
 
 
-class TestWidgetStateTracking(WidgetTestCase):
+class TestWidgetStateTracking(WidgetTest):
     def test_blocking_state(self):
         w = MyWidget()
         spy = QSignalSpy(w.blockingStateChanged)

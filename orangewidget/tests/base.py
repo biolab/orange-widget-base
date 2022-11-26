@@ -21,7 +21,8 @@ from AnyQt import sip
 
 from orangewidget.report.owreport import OWReport
 from orangewidget.settings import SettingsHandler
-from orangewidget.utils.signals import get_input_meta, notify_input_helper
+from orangewidget.utils.signals import get_input_meta, notify_input_helper, \
+    Output, Input
 from orangewidget.widget import OWBaseWidget
 
 if hasattr(sip, "setdestroyonexit"):
@@ -204,6 +205,8 @@ class GuiTest(unittest.TestCase):
         super().tearDown()
         QTest.qWait(0)
 
+
+NO_VALUE = object()
 
 class WidgetTest(GuiTest):
     """Base class for widget tests
@@ -396,7 +399,7 @@ class WidgetTest(GuiTest):
         widget.show()
         app.exec()
 
-    def send_signal(self, input, value, *args, widget=None, wait=-1):
+    def send_signal(self, input, value=NO_VALUE, *args, widget=None, wait=-1):
         """ Send signal to widget by calling appropriate triggers.
 
         Parameters
@@ -410,6 +413,13 @@ class WidgetTest(GuiTest):
         wait : int
             The amount of time to wait for the widget to complete.
         """
+        if value is NO_VALUE:
+            value = input
+            wid = widget or self.widget
+            inputs = wid.inputs or wid.Inputs.__dict__.values()
+            assert len(inputs) == 1
+            input = next(iter(inputs))
+
         return self.send_signals([(input, value)], *args,
                                  widget=widget, wait=wait)
 
@@ -517,7 +527,7 @@ class WidgetTest(GuiTest):
             widget.unconditional_commit()
         self.wait_until_finished(widget=widget, timeout=wait)
 
-    def get_output(self, output, widget=None, wait=DEFAULT_TIMEOUT):
+    def get_output(self, output=None, widget=None, wait=DEFAULT_TIMEOUT):
         """Return the last output that has been sent from the widget.
 
         Parameters
@@ -537,10 +547,13 @@ class WidgetTest(GuiTest):
             # In this case, we use `self.widget`.
             widget = getattr(output, "widget", self.widget) or self.widget
 
-        if not isinstance(output, str):
+        outputs = widget.outputs or widget.Outputs.__dict__.values()
+        if output is None:
+            assert len(outputs) == 1
+            output = next(iter(outputs)).name
+        elif not isinstance(output, str):
             output = output.name
         # widget.outputs are old-style signals; if empty, use new style
-        outputs = widget.outputs or widget.Outputs.__dict__.values()
         assert output in (out.name for out in outputs), \
             "widget {} has no output {}".format(widget.name, output)
         return widget.signalManager.get_output(widget, output, wait)
@@ -619,6 +632,26 @@ class TestWidgetTest(WidgetTest):
         self.check_msg_base_class(B())
         self.check_msg_base_class(C())  # It is unfortunate that this passes...
         self.assertRaises(AssertionError, self.check_msg_base_class, D())
+
+    def test_get_single_output(self):
+        class A(OWBaseWidget):
+            name = "A"
+
+            class Inputs(OWBaseWidget.Inputs):
+                question = Input("Question", str, auto_summary=False)
+
+            class Outputs(OWBaseWidget.Outputs):
+                answer = Output("Answer", int, auto_summary=False)
+
+            @Inputs.question
+            def question(self, s):
+                self.Outputs.answer.send(eval(s))
+
+        self.widget = self.create_widget(A)
+
+        self.assertIsNone(self.get_output())
+        self.send_signal("6 * 7")
+        self.assertEquals(self.get_output(), 42)
 
 
 class BaseParameterMapping:

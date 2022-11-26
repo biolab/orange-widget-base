@@ -18,6 +18,8 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal
 
+from orangecanvas.utils.localization import pl
+
 from orangewidget.utils.buttons import flat_button_hover_background
 
 __all__ = ["Message", "MessagesWidget"]
@@ -273,19 +275,16 @@ def summarize(messages):
     elif warnings:
         severity = Severity.Warning
 
-    def format_plural(fstr, items, *args, **kwargs):
-        return fstr.format(len(items), *args,
-                           s="s" if len(items) != 1 else "",
-                           **kwargs)
+    nerrors, nwarnings, ninfo = len(errors), len(warnings), len(info)
     if errors:
-        text_parts.append(format_plural("{} error{s}", errors))
+        text_parts.append(f"{nerrors} {pl(nerrors, 'error')}")
     if warnings:
-        text_parts.append(format_plural("{} warning{s}", warnings))
+        text_parts.append(f"{nwarnings} {pl(nwarnings, 'warning')}")
     if info:
         if not (errors and warnings and lead):
-            text_parts.append(format_plural("{} message{s}", info))
+            text_parts.append(f"{ninfo} {pl(ninfo, 'message')}")
         else:
-            text_parts.append(format_plural("{} other", info))
+            text_parts.append(f"{ninfo} other {pl(ninfo, 'message')}")
 
     if leading_text:
         text = leading_text

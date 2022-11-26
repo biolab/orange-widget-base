@@ -1,6 +1,7 @@
 import itertools
 import math
 import time
+import warnings
 from collections.abc import Iterable
 from typing import Optional
 
@@ -432,6 +433,8 @@ def plural(s, number, suffix="s"):
     :type suffix: str
     :rtype: str
     """
+    warnings.warn("Plural formed by this function is difficult to translate. "
+                  "Use orangecanvas.utils.localization.pl instead.")
     return s.format(number=number, s=suffix if number % 100 != 1 else "")
 
 

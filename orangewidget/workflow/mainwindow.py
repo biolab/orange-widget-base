@@ -154,11 +154,9 @@ class OWCanvasMainWindow(CanvasMainWindow):
         mb = QMessageBox(
             self,
             windowTitle="Clear settings",
-            text="{} needs to be restarted for the changes to take effect."
-                 .format(name),
+            text=f"{name} needs to be restarted for the changes to take effect.",
             icon=QMessageBox.Information,
-            informativeText="Press OK to restart {} now."
-                            .format(name),
+            informativeText=f"Press OK to restart {name} now.",
             standardButtons=QMessageBox.Ok | QMessageBox.Cancel,
         )
         res = mb.exec()
@@ -184,8 +182,7 @@ class OWCanvasMainWindow(CanvasMainWindow):
                     QApplication.setQuitOnLastWindowClosed(quit_temp_val)
                     QMessageBox(
                         text="Restart Cancelled",
-                        informativeText="Settings will be reset on {}'s next restart"
-                                        .format(name),
+                        informativeText=f"Settings will be reset on {name}'s next restart",
                         icon=QMessageBox.Information
                     ).exec()
                 else:

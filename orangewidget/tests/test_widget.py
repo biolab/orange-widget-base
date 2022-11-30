@@ -112,7 +112,7 @@ class WidgetTestCase(WidgetTest):
 
         w = Widget()
         w._OWBaseWidget__setControlAreaVisible(False)
-        geom = QRect(51, 52, 53, 54)
+        geom = QRect(151, 152, 53, 54)
         geom.setSize(geom.size().expandedTo(w.minimumSize()))
         w.setGeometry(geom)
         state = w.saveGeometryAndLayoutState()

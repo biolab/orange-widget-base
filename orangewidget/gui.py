@@ -2015,7 +2015,7 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
         if checkbox_label:
             auto_label = label
         else:
-            auto_label = label.title() + " Automatically"
+            auto_label = f"{label.title()} Automatically"
     if isinstance(box, QWidget):
         b = box
         addToLayout = False

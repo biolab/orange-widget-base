@@ -39,12 +39,12 @@ def fix_extension(ext, format, suggested_ext, suggested_format):
     dlg = QMessageBox(
         QMessageBox.Warning,
         "Mismatching extension",
-        "Extension '{}' does not match the chosen file format, {}.\n\n"
-        "Would you like to fix this?".format(ext, format))
+        f"Extension '{ext}' does not match the chosen file format, {format}."
+        "\n\nWould you like to fix this?")
     role = QMessageBox.AcceptRole
     change_ext = \
         suggested_ext and \
-        dlg.addButton("Change extension to " + suggested_ext, role)
+        dlg.addButton(f"Change extension to {suggested_ext}", role)
     change_format =\
         suggested_format and \
         dlg.addButton("Save as " + suggested_format, role)

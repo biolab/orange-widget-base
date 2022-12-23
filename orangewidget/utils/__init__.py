@@ -6,7 +6,7 @@ import sys
 import warnings
 from operator import attrgetter
 
-from AnyQt.QtCore import QObject
+from AnyQt.QtCore import QObject, QRect, QSize, QPoint
 
 
 def progress_bar_milestones(count, iterations=100):
@@ -106,3 +106,52 @@ def enum_as_int(value: Union[int, enum.Enum]) -> int:
         return int(value.value)
     else:
         return int(value)
+
+
+def dropdown_popup_geometry(
+        size: QSize, origin: QRect, screen: QRect, preferred_direction="down"
+) -> QRect:
+    """
+    Move/constrain the geometry for a drop down popup.
+
+    Parameters
+    ----------
+    size : QSize
+        The base popup size if not constrained.
+    origin : QRect
+        The origin rect from which the popup extends (in screen coords.).
+    screen : QRect
+        The available screen geometry into which the popup must fit.
+    preferred_direction : str
+        'up' or 'down'
+
+    Returns
+    -------
+    geometry: QRect
+        Constrained drop down list geometry to fit into screen
+    """
+    if preferred_direction == "down":
+        # if the popup  geometry extends bellow the screen and there is more
+        # room above the popup origin ...
+        geometry = QRect(origin.bottomLeft() + QPoint(0, 1), size)
+        if geometry.bottom() > screen.bottom() \
+                and origin.center().y() > screen.center().y():
+            # ...flip the rect about the origin so it extends upwards
+            geometry.moveBottom(origin.top() - 1)
+    elif preferred_direction == "up":
+        geometry = QRect(origin.topLeft() - QPoint(0, 1 + size.height()), size)
+        if geometry.top() < screen.top() \
+                and origin.center().y() < screen.center().y():
+            # ... flip, extend down
+            geometry.moveTop(origin.bottom() - 1)
+    else:
+        raise ValueError(f"Invalid 'preferred_direction' ({preferred_direction})")
+
+    # fixup horizontal position if it extends outside the screen
+    if geometry.left() < screen.left():
+        geometry.moveLeft(screen.left())
+    if geometry.right() > screen.right():
+        geometry.moveRight(screen.right())
+
+    # bounded by screen geometry
+    return geometry.intersected(screen)

@@ -8,17 +8,23 @@ from functools import partial
 from operator import attrgetter
 from math import log10
 
-from typing import Optional, Union, List
+from typing import Optional, Union, List, cast
 
 from AnyQt.QtWidgets import (
-    QWidget, QDialog, QVBoxLayout, QSizePolicy, QStyle,
-    QShortcut, QSplitter, QSplitterHandle, QPushButton, QStatusBar,
-    QProgressBar, QAction, QFrame, QStyleOption, QWIDGETSIZE_MAX,
-    QHBoxLayout)
+    QWidget, QDialog, QVBoxLayout, QSizePolicy, QApplication, QStyle,
+    QSplitter, QSplitterHandle, QPushButton, QStatusBar,
+    QProgressBar, QAction, QFrame, QStyleOption, QHBoxLayout, QMenuBar, QMenu,
+    QWIDGETSIZE_MAX
+)
 from AnyQt.QtCore import (
     Qt, QObject, QEvent, QRect, QMargins, QByteArray, QDataStream, QBuffer,
-    QSettings, QUrl, QThread, pyqtSignal as Signal, QSize, QLine)
-from AnyQt.QtGui import QIcon, QKeySequence, QDesktopServices, QPainter, QColor, QPen
+    QSettings, QUrl, QThread, QTimer, QSize, QPoint, QLine,
+    pyqtSignal as Signal
+)
+from AnyQt.QtGui import (
+    QIcon, QKeySequence, QDesktopServices, QPainter, QColor, QPen, QKeyEvent,
+    QActionEvent
+)
 
 from orangecanvas.gui.svgiconengine import StyledSvgIconEngine
 
@@ -40,6 +46,7 @@ from orangewidget.utils.signals import (
 )  # pylint: disable=unused-import
 from orangewidget.utils.overlay import MessageOverlayWidget, OverlayWidget
 from orangewidget.utils.buttons import SimpleButton
+from orangewidget.utils import dropdown_popup_geometry
 
 # Msg is imported and renamed, so widgets can import it from this module rather
 # than the one with the mixin (orangewidget.utils.messages).
@@ -288,6 +295,12 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     savedWidgetGeometry = settings.Setting(None)
     controlAreaVisible = settings.Setting(True, schema_only=True)
 
+    __report_action = None  # type: Optional[QAction]
+    __save_image_action = None  # type: Optional[QAction]
+    __reset_action = None  # type: Optional[QAction]
+    __visual_settings_action = None  # type: Optional[QAction]
+    __menuBar = None  # type: QMenuBar
+
     # pylint: disable=protected-access, access-member-before-definition
     def __new__(cls, *args, captionTitle=None, **kwargs):
         self = super().__new__(cls, None, cls.get_flags())
@@ -327,47 +340,226 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.__was_shown = False
 
         self.__statusMessage = ""
-
-        self.__msgwidget = None
+        self.__info_ns = None  # type: Optional[StateInfo]
+        self.__msgwidget = None  # type: Optional[MessageOverlayWidget]
         self.__msgchoice = 0
-
-        self.__help_action = QAction(
-            "Help", self, objectName="action-help", toolTip="Show help",
-            enabled=False, visible=False,
-            shortcut=QKeySequence(Qt.Key_F1)
-        )
-        self.addAction(self.__help_action)
         self.__statusbar = None  # type: Optional[QStatusBar]
         self.__statusbar_action = None  # type: Optional[QAction]
-        self.__info_ns = None  # type: Optional[StateInfo]
+        self.__menubar_action = None
+        self.__menubar_visible_timer = None
+
+        # this action is enabled by the canvas framework
+        self.__help_action = QAction(
+            "Help", self, objectName="action-help", toolTip="Show help",
+            enabled=False, shortcut=QKeySequence(Qt.Key_F1)
+        )
+        self.__report_action = QAction(
+            "Report", self, objectName="action-report",
+            toolTip="Create and display a report",
+            enabled=False, visible=False,
+            shortcut=QKeySequence("alt+r")
+        )
+        if hasattr(self, "send_report"):
+            self.__report_action.triggered.connect(self.show_report)
+            self.__report_action.setEnabled(True)
+            self.__report_action.setVisible(True)
+
+        self.__save_image_action = QAction(
+            "Save Image", self, objectName="action-save-image",
+            toolTip="Save image",
+            shortcut=QKeySequence("alt+s"),
+        )
+        self.__save_image_action.triggered.connect(self.save_graph)
+        self.__save_image_action.setEnabled(bool(self.graph_name))
+        self.__save_image_action.setVisible(bool(self.graph_name))
+
+        self.__reset_action = QAction(
+            "Reset", self, objectName="action-reset-settings",
+            toolTip="Reset settings to default state",
+            enabled=False, visible=False,
+        )
+        if hasattr(self, "reset_settings"):
+            self.__reset_action.triggered.connect(self.reset_settings)
+            self.__reset_action.setEnabled(True)
+            self.__reset_action.setVisible(True)
+
+        self.__visual_settings_action = QAction(
+            "Show View Options", self, objectName="action-visual-settings",
+            toolTip="Show View Options",
+            enabled=False, visible=False,
+        )
+        self.__visual_settings_action.triggered.connect(
+            self.openVisualSettingsClicked)
+        if hasattr(self, "set_visual_settings"):
+            self.__visual_settings_action.setEnabled(True)
+            self.__visual_settings_action.setVisible(True)
+
+        self.addAction(self.__help_action)
+
+        self.__copy_action = QAction(
+            "Copy to Clipboard", self, objectName="action-copy-to-clipboard",
+            shortcut=QKeySequence.Copy, enabled=False, visible=False
+        )
+        self.__copy_action.triggered.connect(self.copy_to_clipboard)
+        if type(self).copy_to_clipboard != OWBaseWidget.copy_to_clipboard \
+                or self.graph_name is not None:
+            self.__copy_action.setEnabled(True)
+            self.__copy_action.setVisible(True)
+            self.__copy_action.setText("Copy Image to Clipboard")
+
+        # macOS Minimize action
+        self.__minimize_action = QAction(
+            "Minimize", self, shortcut=QKeySequence("ctrl+m")
+        )
+        self.__minimize_action.triggered.connect(self.showMinimized)
+        # macOS Close window action
+        self.__close_action = QAction(
+            "Close", self, objectName="action-close-window",
+            shortcut=QKeySequence("ctrl+w")
+        )
+        self.__close_action.triggered.connect(self.hide)
+
+        settings = QSettings()
+        settings.beginGroup(__name__ + "/menubar")
+        self.__menubar = mb = QMenuBar(self)
+        # do we have a native menubar
+        nativemb = mb.isNativeMenuBar()
+        if nativemb:
+            # force non native mb via. settings override
+            nativemb = settings.value(
+                "use-native", defaultValue=nativemb, type=bool
+            )
+        mb.setNativeMenuBar(nativemb)
+        if not nativemb:
+            # without native menu bar configure visibility
+            mbvisible = settings.value(
+                "visible", defaultValue=False, type=bool
+            )
+            mb.setVisible(mbvisible)
+            self.__menubar_action = QAction(
+                "Show Menu Bar",  self, objectName="action-show-menu-bar",
+                checkable=True,
+                shortcut=QKeySequence("ctrl+shift+m")
+            )
+            self.__menubar_action.setChecked(mbvisible)
+            self.__menubar_action.triggered[bool].connect(
+                self.__setMenuBarVisible
+            )
+            self.__menubar_visible_timer = QTimer(
+                self, objectName="menu-bar-visible-timer", singleShot=True,
+                interval=settings.value(
+                    "alt-key-timeout", defaultValue=50, type=int,
+                )
+            )
+            self.__menubar_visible_timer.timeout.connect(
+                self.__menuBarVisibleTimeout
+            )
+            self.addAction(self.__menubar_action)
+
+        fileaction = mb.addMenu(_Menu("&File", mb, objectName="menu-file"))
+        fileaction.setVisible(False)
+        fileaction.menu().addSeparator()
+        fileaction.menu().addAction(self.__report_action)
+        fileaction.menu().addAction(self.__save_image_action)
+        fileaction.menu().addAction(self.__reset_action)
+        editaction = mb.addMenu(_Menu("&Edit", mb, objectName="menu-edit"))
+        editaction.setVisible(False)
+
+        editaction.menu().addAction(self.__copy_action)
+        if sys.platform == "darwin" and mb.isNativeMenuBar():
+            # QTBUG-17291
+            editaction.menu().addAction(
+                QAction(
+                    "Cut", self, enabled=False,
+                    shortcut=QKeySequence(QKeySequence.Cut),
+            ))
+            editaction.menu().addAction(
+                QAction(
+                    "Copy", self, enabled=False,
+                    shortcut=QKeySequence(QKeySequence.Copy),
+            ))
+            editaction.menu().addAction(
+                QAction(
+                    "Paste", self, enabled=False,
+                    shortcut=QKeySequence(QKeySequence.Paste),
+            ))
+            editaction.menu().addAction(
+                QAction(
+                    "Select All", self, enabled=False,
+                    shortcut=QKeySequence(QKeySequence.SelectAll),
+            ))
+
+        viewaction = mb.addMenu(_Menu("&View", mb, objectName="menu-view"))
+        viewaction.setVisible(False)
+        viewaction.menu().addAction(self.__visual_settings_action)
+        windowaction = mb.addMenu(_Menu("&Window", mb, objectName="menu-window"))
+        windowaction.setVisible(False)
+
+        if sys.platform == "darwin":
+            windowaction.menu().addAction(self.__close_action)
+            windowaction.menu().addAction(self.__minimize_action)
+            windowaction.menu().addSeparator()
+
+        helpaction = mb.addMenu(_Menu("&Help", mb, objectName="help-menu"))
+        helpaction.menu().addAction(self.__help_action)
 
         self.left_side = None
         self.controlArea = self.mainArea = self.buttonsArea = None
-        self.__progressBar = None
+
         self.__splitter = None
         if self.want_basic_layout:
             self.set_basic_layout()
             self.update_summaries()
+            self.layout().setMenuBar(mb)
 
-        sc = QShortcut(QKeySequence("Shift+F1"), self)
-        sc.activated.connect(self.__quicktip)
+        self.__quick_help_action = QAction(
+            "Quick Help Tip", self, objectName="action-quick-help-tip",
+            shortcut=QKeySequence("shift+f1")
+        )
+        self.__quick_help_action.setEnabled(bool(self.UserAdviceMessages))
+        self.__quick_help_action.setVisible(bool(self.UserAdviceMessages))
+        self.__quick_help_action.triggered.connect(self.__quicktip)
+        helpaction.menu().addAction(self.__quick_help_action)
 
-        sc = QShortcut(QKeySequence.Copy, self)
-        sc.activated.connect(self.copy_to_clipboard)
+        if self.__splitter is not None and self.__splitter.count() > 1:
+            action = QAction(
+                "Show Control Area", self,
+                objectName="action-show-control-area",
+                shortcut=QKeySequence("Ctrl+Shift+D"),
+                checkable=True,
+                autoRepeat=False,
+            )
+            action.setChecked(True)
+            action.triggered[bool].connect(self.__setControlAreaVisible)
+            self.__splitter.handleClicked.connect(self.__toggleControlArea)
+            viewaction.menu().addAction(action)
+
+        if self.__menubar_action is not None:
+            viewaction.menu().addAction(self.__menubar_action)
 
         if self.controlArea is not None:
             # Otherwise, the first control has focus
-            self.controlArea.setFocus(Qt.ActiveWindowFocusReason)
-
-        if self.__splitter is not None:
-            self.__splitter.handleClicked.connect(
-                self.__toggleControlArea
-            )
-            sc = QShortcut(
-                QKeySequence("Ctrl+Shift+D"),
-                self, autoRepeat=False)
-            sc.activated.connect(self.__toggleControlArea)
+            self.controlArea.setFocus(Qt.OtherFocusReason)
         return self
+
+    def menuBar(self) -> QMenuBar:
+        return self.__menubar
+
+    def __menuBarVisibleTimeout(self):
+        mb = self.__menubar
+        if mb is not None and mb.isHidden() \
+                and QApplication.mouseButtons() == Qt.NoButton:
+            mb.setVisible(True)
+            mb.setProperty("__visible_from_alt_key_press", True)
+
+    def __setMenuBarVisible(self, visible):
+        mb = self.__menubar
+        if mb is not None:
+            mb.setVisible(visible)
+            mb.setProperty("__visible_from_alt_key_press", False)
+            settings = QSettings()
+            settings.beginGroup(__name__ + "/menubar")
+            settings.setValue("visible", visible)
 
     # pylint: disable=super-init-not-called
     def __init__(self, *args, **kwargs):
@@ -573,37 +765,13 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             self._insert_main_area()
 
         if self.want_message_bar:
-            sb = self.statusBar()
+            # statusBar() handles 'want_message_bar', 'send_report'
+            # 'graph_name' ...
+            _ = self.statusBar()
 
-            self.message_bar = MessagesWidget(
-                defaultStyleSheet=textwrap.dedent("""
-                div.field-text {
-                    white-space: pre;
-                }
-                div.field-detailed-text {
-                    margin-top: 0.5em;
-                    margin-bottom: 0.5em;
-                    margin-left: 1em;
-                    margin-right: 1em;
-                }"""),
-                elideText=True
-            )
-            self.message_bar.setSizePolicy(QSizePolicy.Preferred,
-                                           QSizePolicy.Preferred)
-            self.message_bar.hide()
-            self.__progressBar = pb = QProgressBar(
-                maximumWidth=120, minimum=0, maximum=100
-            )
-            pb.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Ignored)
-            pb.setAttribute(Qt.WA_LayoutUsesWidgetRect)
-            pb.setAttribute(Qt.WA_MacMiniSize)
-            pb.hide()
-            sb.addPermanentWidget(pb)
-            sb.addPermanentWidget(self.message_bar)
-
-            self.processingStateChanged.connect(self.__processingStateChanged)
-            self.blockingStateChanged.connect(self.__processingStateChanged)
-            self.progressBarValueChanged.connect(lambda v: pb.setValue(int(v)))
+    __progressBar = None  # type: Optional[QProgressBar]
+    __statusbar = None    # type: Optional[QStatusBar]
+    __statusbar_action = None  # type: Optional[QAction]
 
     def statusBar(self):
         # type: () -> QStatusBar
@@ -650,86 +818,104 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             # enabled by default. Client classes can inspect self.actions
             # and enable it if necessary.
             self.__statusbar_action = statusbar_action = QAction(
-                "Show status bar", self, objectName="action-show-status-bar",
+                "Show Status Bar", self, objectName="action-show-status-bar",
                 toolTip="Show status bar", checkable=True,
                 enabled=False, visible=False,
                 shortcut=QKeySequence("Shift+Ctrl+\\")
             )
+            if self.want_message_bar:
+                self.message_bar = MessagesWidget(
+                    defaultStyleSheet=(
+                        "div.field-text { white-space: pre; }\n"
+                        "div.field-detailed-text {\n"
+                        "    margin-top: 0.5em; margin-bottom: 0.5em; \n"
+                        "    margin-left: 1em; margin-right: 1em;\n"
+                        "}"
+                    ),
+                    elideText=True,
+                    sizePolicy=QSizePolicy(QSizePolicy.Preferred,
+                                           QSizePolicy.Preferred),
+                    visible=False
+                )
+            self.__progressBar = pb = QProgressBar(
+                maximumWidth=120, minimum=0, maximum=100
+            )
+            pb.setSizePolicy(QSizePolicy.Maximum, QSizePolicy.Ignored)
+            pb.setAttribute(Qt.WA_LayoutUsesWidgetRect)
+            pb.setAttribute(Qt.WA_MacMiniSize)
+            pb.hide()
+            self.processingStateChanged.connect(self.__processingStateChanged)
+            self.blockingStateChanged.connect(self.__processingStateChanged)
+            self.progressBarValueChanged.connect(lambda v: pb.setValue(int(v)))
+
+            statusbar.addPermanentWidget(pb)
+            if self.message_bar is not None:
+                statusbar.addPermanentWidget(self.message_bar)
+
             statusbar_action.toggled[bool].connect(statusbar.setVisible)
             self.addAction(statusbar_action)
 
-            # Create buttons
-            buttonsLayout = QHBoxLayout()
-            buttonsLayout.setContentsMargins(7, 0, 0, 0)
-            buttonsLayout.setSpacing(5)
+            # reserve buttons and in_out_msg areas
+            def hlayout(spacing, left=0, right=0, ):
+                lay = QHBoxLayout(spacing=spacing)
+                lay.setContentsMargins(left, 0, right, 0)
+                return lay
 
-            help = self.__help_action
-            icon = _load_styled_icon("help.svg")
-            bsp = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-            help_button = _StatusBarButton(
-                icon=icon,
-                toolTip="Show widget help", visible=help.isVisible(),
-                sizePolicy=bsp,
-            )
-            help_button.setMouseTracking(True)
-
-            @help.changed.connect
-            def _():
-                help_button.setVisible(help.isVisible())
-                help_button.setEnabled(help.isEnabled())
-
-            help_button.clicked.connect(help.trigger)
-            buttonsLayout.addWidget(help_button)
-
-            if self.graph_name is not None:
-                icon = _load_styled_icon("chart.svg")
+            buttons = QWidget(statusbar, objectName="buttons", visible=False)
+            buttons.setLayout(hlayout(5, 7))
+            buttonsLayout = buttons.layout()
+            simple_button = _StatusBar.simple_button
+            icon = _load_styled_icon
+            if self.__menubar is not None \
+                    and not self.__menubar.isNativeMenuBar():
+                # damn millennials
                 b = _StatusBarButton(
-                    icon=icon,
-                    toolTip="Save Image",
-                    sizePolicy=bsp
+                    icon=icon("hamburger.svg"),
+                    toolTip="Menu",
+                    objectName="status-bar-menu-button"
                 )
-                b.clicked.connect(self.save_graph)
                 buttonsLayout.addWidget(b)
-            if hasattr(self, "send_report"):
-                icon = _load_styled_icon("report.svg")
-                b = _StatusBarButton(
-                    icon=icon,
-                    toolTip="Report",
-                    sizePolicy=bsp
+                b.clicked.connect(self.__showStatusBarMenu)
 
-                )
-                b.clicked.connect(self.show_report)
+            if self.__help_action is not None:
+                b = simple_button(buttons, self.__help_action, icon("help.svg"))
                 buttonsLayout.addWidget(b)
-            if hasattr(self, "reset_settings"):
-                icon = _load_styled_icon("reset.svg")
-                b = _StatusBarButton(
-                    icon=icon,
-                    toolTip="Reset settings to defaults",
-                    sizePolicy=bsp
-                )
-                b.clicked.connect(self.reset_settings)
+            if self.__save_image_action is not None:
+                b = simple_button(buttons, self.__save_image_action, icon("chart.svg"))
                 buttonsLayout.addWidget(b)
-            if hasattr(self, "set_visual_settings"):
-                icon = _load_styled_icon("visual-settings.svg")
-                b = _StatusBarButton(
-                    icon=icon,
-                    toolTip="Set visual settings",
-                    sizePolicy=bsp
-                )
-                b.clicked.connect(self.openVisualSettingsClicked)
+            if self.__report_action is not None:
+                b = simple_button(buttons, self.__report_action, icon("report.svg"))
+                buttonsLayout.addWidget(b)
+            if self.__reset_action is not None:
+                b = simple_button(buttons, self.__reset_action, icon("reset.svg"))
+                buttonsLayout.addWidget(b)
+            if self.__visual_settings_action is not None:
+                b = simple_button(buttons, self.__visual_settings_action, icon("visual-settings.svg"))
                 buttonsLayout.addWidget(b)
 
-            buttons = QWidget(objectName="buttons")
-            buttons.setLayout(buttonsLayout)
+            if buttonsLayout.count():
+                buttons.setVisible(True)
+
+            in_out_msg = QWidget(objectName="in-out-msg", visible=False)
+            in_out_msg.setLayout(hlayout(5, left=5))
             statusbar.addWidget(buttons)
-
-            in_out_msg = QWidget(objectName="in-out-msg")
-            in_out_msg.setLayout(QHBoxLayout())
-            in_out_msg.layout().setContentsMargins(5, 0, 0, 0)
-            in_out_msg.layout().setSpacing(5)
-            in_out_msg.setVisible(False)
             statusbar.addWidget(in_out_msg)
+
+            # Ensure the status bar and the message widget are visible on
+            # warning and errors.
+            self.messageActivated.connect(self.__ensureStatusBarVisible)
+
+            if self.__menubar is not None:
+                viewm = self.findChild(QMenu, "menu-view")
+                if viewm is not None:
+                    viewm.addAction(statusbar_action)
+
         return statusbar
+
+    def __ensureStatusBarVisible(self, msg: Msg) -> None:
+        statusbar = self.__statusbar
+        if statusbar is not None and msg.group.severity >= 1:
+            statusbar.setVisible(True)
 
     def __updateStatusBarOnChange(self):
         statusbar = self.__statusbar
@@ -754,6 +940,8 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         elif self.processingState:
             pb.setRange(0, 100)  # determinate pb
 
+    __info_ns = None  # type: Optional[StateInfo]
+
     def __info(self):
         # Create and return the StateInfo object
         if self.__info_ns is None:
@@ -773,6 +961,9 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
             sb = self.statusBar()
             if sb is not None:
+                in_out_msg = sb.findChild(QWidget, "in-out-msg")
+                assert in_out_msg is not None
+                in_out_msg.setVisible(True)
                 in_msg = InOutStateWidget(
                     objectName="input-summary", visible=False,
                     defaultStyleSheet=css,
@@ -788,10 +979,9 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
                 in_msg.clicked.connect(partial(self.show_preview, self.input_summaries))
                 out_msg.clicked.connect(partial(self.show_preview, self.output_summaries))
 
-                in_out_msg = sb.findChild(QWidget, "in-out-msg")
-
                 # Insert a separator if these are not the first elements
                 buttons = sb.findChild(QWidget, "buttons")
+                assert buttons is not None
                 if buttons.layout().count() != 0:
                     sep = QFrame(frameShape=QFrame.VLine)
                     sep.setContentsMargins(0, 0, 2, 0)
@@ -859,6 +1049,9 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if self.__splitter is None or self.__splitter.count() < 2:
             return
         self.controlAreaVisible = visible
+        action = self.findChild(QAction, "action-show-control-area")
+        if action is not None:
+            action.setChecked(visible)
         splitter = self.__splitter  # type: QSplitter
         w = splitter.widget(0)
         # Set minimum width to 1 (overrides minimumSizeHint) when control area
@@ -1089,6 +1282,35 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             self.__was_shown = True
         self.__quicktipOnce()
 
+    def __showStatusBarMenu(self):
+        # type: () -> None
+        sb = self.__statusbar
+        mb = self.__menubar
+        if sb is None or mb is None:
+            return
+        b = sb.findChild(SimpleButton, "status-bar-menu-button")
+        if b is None:
+            return
+
+        actions = []
+        for action in mb.actions():
+            if action.isVisible() and action.isEnabled() and action.menu():
+                actions.append(action)
+        if not actions:
+            return
+        menu = QMenu(self)
+        menu.setAttribute(Qt.WA_DeleteOnClose)
+        menu.addActions(actions)
+        popup_rect = QRect(
+            b.mapToGlobal(QPoint(0, 0)), b.size()
+        )
+        menu.ensurePolished()
+        screen_rect = QApplication.desktop().availableGeometry(b)
+        menu_rect = dropdown_popup_geometry(
+            menu.sizeHint(), popup_rect, screen_rect, preferred_direction="up"
+        )
+        menu.popup(menu_rect.topLeft())
+
     def setCaption(self, caption):
         # save caption title in case progressbar will change it
         self.captionTitle = str(caption)
@@ -1201,24 +1423,28 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         """
         return self.__statusMessage
 
-    def keyPressEvent(self, e):
-        """Handle default key actions or pass the event to the inherited method
-        """
-        if (e.modifiers(), e.key()) in OWBaseWidget.defaultKeyActions:
-            OWBaseWidget.defaultKeyActions[e.modifiers(), e.key()](self)
-        else:
-            QDialog.keyPressEvent(self, e)
+    def keyPressEvent(self, e: QKeyEvent) -> None:
+        mb = self.__menubar
+        if not mb.isNativeMenuBar() \
+                and e.modifiers() == Qt.AltModifier \
+                and e.key() in [Qt.Key_Alt, Qt.Key_AltGr] \
+                and QApplication.mouseButtons() == Qt.NoButton \
+                and mb.isHidden():
+            self.__menubar_visible_timer.start()
+        elif self.__menubar_visible_timer is not None:
+            # stop the timer on any other key press
+            self.__menubar_visible_timer.stop()
+        super().keyPressEvent(e)
 
-
-    defaultKeyActions = {}
-
-    if sys.platform == "darwin":
-        defaultKeyActions = {
-            (Qt.ControlModifier, Qt.Key_M):
-                lambda self: self.showMaximized
-                if self.isMinimized() else self.showMinimized(),
-            (Qt.ControlModifier, Qt.Key_W):
-                lambda self: self.setVisible(not self.isVisible())}
+    def keyReleaseEvent(self, event: QKeyEvent) -> None:
+        mb = self.__menubar
+        if not mb.isNativeMenuBar() \
+                and event.key() in [Qt.Key_Alt, Qt.Key_AltGr]:
+            self.__menubar_visible_timer.stop()
+            if mb.property("__visible_from_alt_key_press") is True:
+                mb.setVisible(False)
+                mb.setProperty("__visible_from_alt_key_press", False)
+        super().keyReleaseEvent(event)
 
     def setBlocking(self, state=True) -> None:
         """
@@ -1510,6 +1736,19 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             or None if context was created before migrations
         """
 
+    def actionEvent(self, event: QActionEvent) -> None:
+        if event.type() in (QEvent.ActionAdded, QEvent.ActionRemoved):
+            event = cast(QActionEvent, event)
+            action = event.action()
+            if action.objectName().startswith("action-canvas-"):
+                menu = self.findChild(QMenu, "menu-window")
+                if menu is not None:
+                    if event.type() == QEvent.ActionAdded:
+                        menu.addAction(action)
+                    else:
+                        menu.removeAction(action)
+        super().actionEvent(event)
+
 
 class _StatusBar(QStatusBar):
     #: Emitted on a change of geometry or visibility (explicit hide/show)
@@ -1532,18 +1771,57 @@ class _StatusBar(QStatusBar):
         # Do not draw any PE_FrameStatusBarItem frames.
         painter.end()
 
+    @staticmethod
+    def simple_button(
+            parent: QWidget, action: QAction, icon=QIcon()
+    ) -> SimpleButton:
+        if icon.isNull():
+            icon = action.icon()
+        button = _StatusBarButton(
+            parent,
+            icon=icon,
+            toolTip=action.toolTip(), whatsThis=action.whatsThis(),
+            visible=action.isVisible(), enabled=action.isEnabled(), )
+
+        def update():
+            button.setVisible(action.isVisible())
+            button.setEnabled(action.isEnabled())
+            button.setToolTip(action.toolTip())
+            button.setWhatsThis(action.whatsThis())
+
+        action.changed.connect(update)
+        button.clicked.connect(action.triggered)
+        return button
+
 
 class _StatusBarButton(SimpleButton):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # match top/bottom margins of MessagesWidget
         self.setContentsMargins(1, 1, 1, 1)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
     def sizeHint(self):
         # Ensure the button has at least font height dimensions.
         sh = super().sizeHint()
         h = self.fontMetrics().lineSpacing()
         return sh.expandedTo(QSize(h, h))
+
+
+class _Menu(QMenu):
+    """
+    A QMenu managing self-visibility in a parent menu or menu bar.
+
+    The menu is visible if it has at least one visible action.
+    """
+    def actionEvent(self, event):
+        super().actionEvent(event)
+        ma = self.menuAction()
+        if ma is not None:
+            ma.setVisible(
+                any(ac.isVisible() and not ac.isSeparator()
+                    for ac in self.actions())
+            )
 
 
 #: Input/Output flags (deprecated).

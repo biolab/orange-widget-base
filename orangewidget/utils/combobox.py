@@ -3,7 +3,7 @@ from typing import Optional
 
 from AnyQt.QtCore import (
     Qt, QEvent, QObject, QAbstractItemModel, QSortFilterProxyModel,
-    QModelIndex, QSize, QRect, QPoint, QMargins, QElapsedTimer,
+    QModelIndex, QSize, QRect, QMargins, QElapsedTimer,
     QTimer, QT_VERSION
 )
 from AnyQt.QtGui import QMouseEvent, QKeyEvent, QPainter, QPalette, QPen
@@ -13,6 +13,7 @@ from AnyQt.QtWidgets import (
     QStyledItemDelegate, QApplication
 )
 
+from orangewidget.utils import dropdown_popup_geometry
 
 # we want to have combo box maximally 25 characters wide
 MAXIMUM_CONTENTS_LENGTH = 25
@@ -276,10 +277,8 @@ class ComboBoxSearch(QComboBox):
                       .expandedTo(window.minimumSize())
                       .boundedTo(window.maximumSize())
                       .boundedTo(screenrect.size()))
-        popuprect = QRect(popuprect_origin.bottomLeft(), popup_size)
-
         popuprect = dropdown_popup_geometry(
-            popuprect, popuprect_origin, screenrect)
+            popup_size, popuprect_origin, screenrect)
         popup.setGeometry(popuprect)
 
         current = proxy.mapFromSource(
@@ -463,42 +462,3 @@ def qwidget_margin_within(widget, ancestor):
     return QMargins(topleft.x(), topleft.y(),
                     r2.right() - bottomright.x(),
                     r2.bottom() - bottomright.y())
-
-
-def dropdown_popup_geometry(geometry, origin, screen):
-    # type: (QRect, QRect, QRect) -> QRect
-    """
-    Move/constrain the geometry for a drop down popup.
-
-    Parameters
-    ----------
-    geometry : QRect
-        The base popup geometry if not constrained.
-    origin : QRect
-        The origin rect from which the popup extends.
-    screen : QRect
-        The available screen geometry into which the popup must fit.
-
-    Returns
-    -------
-    geometry: QRect
-        Constrained drop down list geometry to fit into  screen
-    """
-    # if the popup  geometry extends bellow the screen and there is more room
-    # above the popup origin ...
-    geometry = QRect(geometry)
-    geometry.moveTopLeft(origin.bottomLeft() + QPoint(0, 1))
-
-    if geometry.bottom() > screen.bottom() \
-            and origin.center().y() > screen.center().y():
-        # ...flip the rect about the origin so it extends upwards
-        geometry.moveBottom(origin.top() - 1)
-
-    # fixup horizontal position if it extends outside the screen
-    if geometry.left() < screen.left():
-        geometry.moveLeft(screen.left())
-    if geometry.right() > screen.right():
-        geometry.moveRight(screen.right())
-
-    # bounded by screen geometry
-    return geometry.intersected(screen)

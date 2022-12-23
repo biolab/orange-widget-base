@@ -112,17 +112,19 @@ class WidgetTestCase(WidgetTest):
 
         w = Widget()
         w._OWBaseWidget__setControlAreaVisible(False)
-        w.setGeometry(QRect(51, 52, 53, 54))
+        geom = QRect(151, 152, 53, 54)
+        geom.setSize(geom.size().expandedTo(w.minimumSize()))
+        w.setGeometry(geom)
         state = w.saveGeometryAndLayoutState()
         w1 = Widget()
         self.assertTrue(w1.restoreGeometryAndLayoutState(state))
-        self.assertEqual(w1.geometry(), QRect(51, 52, 53, 54))
+        self.assertEqual(w1.geometry(), geom)
         self.assertFalse(w1.controlAreaVisible)
 
         Widget.want_control_area = False
         w2 = Widget()
         self.assertTrue(w2.restoreGeometryAndLayoutState(state))
-        self.assertEqual(w1.geometry(), QRect(51, 52, 53, 54))
+        self.assertEqual(w1.geometry(), geom)
 
         self.assertFalse((w2.restoreGeometryAndLayoutState(QByteArray())))
         self.assertFalse(w2.restoreGeometryAndLayoutState(QByteArray(b'ab')))
@@ -340,7 +342,7 @@ class WidgetMsgTestCase(WidgetTest):
         self.assertEqual(len(messages), 0)
 
 
-class TestWidgetStateTracking(WidgetTestCase):
+class TestWidgetStateTracking(WidgetTest):
     def test_blocking_state(self):
         w = MyWidget()
         spy = QSignalSpy(w.blockingStateChanged)
@@ -488,6 +490,15 @@ class WidgetTestInfoSummary(WidgetTest):
         self.assertEqual(inmsg.message.informativeText, "Foo")
         self.assertEqual(outmsg.message.text, "1234")
         self.assertEqual(outmsg.message.informativeText, "Bar")
+
+    def test_info_no_basic_layout(self):
+        with patch.object(MyWidget, "want_basic_layout", False):
+            w = MyWidget()
+
+        w.info.set_input_summary(w.info.NoInput)
+        inmsg = w.findChild(InOutStateWidget, "input-summary")  # type: InOutStateWidget
+        self.assertTrue(inmsg.isVisibleTo(w))
+        self.assertTrue(inmsg.message)
 
     def test_format_number(self):
         self.assertEqual(StateInfo.format_number(9999), "9999")

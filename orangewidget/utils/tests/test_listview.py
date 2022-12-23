@@ -124,6 +124,7 @@ class TestListViewFilter(GuiTest):
         view = ListViewFilter()
         view.set_source_model(model)
         self.assertIs(view.model().sourceModel(), model)
+        self.assertIs(view.source_model(), model)
 
     def test_set_proxy(self):
         proxy = QSortFilterProxyModel()

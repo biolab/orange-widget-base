@@ -51,6 +51,9 @@ class ListViewFilter(QListView):
     def set_source_model(self, model: QAbstractItemModel):
         self.model().setSourceModel(model)
 
+    def source_model(self):
+        return self.model().sourceModel()
+
     def updateGeometries(self):
         super().updateGeometries()
         self.__layout()

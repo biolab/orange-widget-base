@@ -67,6 +67,27 @@ class WidgetTestCase(WidgetTest):
         with self.assertRaises(AttributeError):
             setattr(widget, 'unknown_field2.field', 6)
 
+    def test_keywords(self):
+        class Widget(OWBaseWidget):
+            pass
+
+        self.assertEqual(Widget.keywords, [])
+
+        class Widget(OWBaseWidget):
+            keywords = ["bar", "qux"]
+
+        self.assertEqual(Widget.keywords, ["bar", "qux"])
+
+        class Widget(OWBaseWidget):
+            keywords = "foo bar   baz"
+
+        self.assertEqual(Widget.keywords, ["foo", "bar", "baz"])
+
+        class Widget(OWBaseWidget):
+            keywords = "foo bar, baz"
+
+        self.assertEqual(Widget.keywords, ["foo bar", "baz"])
+
     def test_notify_controller_on_attribute_change(self):
         widget = self.create_widget(MyWidget)
 

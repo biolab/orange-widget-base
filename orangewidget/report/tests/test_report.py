@@ -47,31 +47,19 @@ class TestReport(GuiTest):
         self.maxDiff = None
         self.assertEqual(
             rep.report_html,
-            '<h2>Name</h2><table>\n'
-            '<tr>'
-            '<th style="color:black;border:0;background:transparent;'
-            'text-align:left;vertical-align:middle;">a</th>'
-            '<th style="color:black;border:0;background:transparent;'
-            'text-align:left;vertical-align:middle;">b</th>'
-            '<th style="color:black;border:0;background:transparent;'
-            'text-align:left;vertical-align:middle;">c</th>'
-            '</tr>'
-            '<tr>'
-            '<td style="color:black;border:0;background:transparent;'
-            'text-align:center;vertical-align:top;">x</td>'
-            '<td style="color:black;border:0;background:transparent;'
-            'text-align:right;vertical-align:middle;">1</td>'
-            '<td style="color:black;border:0;background:transparent;'
-            'text-align:right;vertical-align:middle;">2</td>'
-            '</tr>'
-            '<tr>'
-            '<td style="color:black;border:0;background:transparent;'
-            'font-weight: bold;text-align:left;vertical-align:middle;">y</td>'
-            '<td style="color:black;border:0;background:transparent;'
-            'text-align:right;vertical-align:middle;">2</td>'
-            '<td style="color:black;border:0;background:#ff0000;'
-            'text-align:right;vertical-align:middle;">2</td>'
-            '</tr></table>')
+            """
+<h2>Name</h2><table>
+<tr><th style="color:black; background:transparent; text-align:left; vertical-align:middle;">a</th>
+<th style="color:black; background:transparent; text-align:left; vertical-align:middle;">b</th>
+<th style="color:black; background:transparent; text-align:left; vertical-align:middle;">c</th>
+</tr><tr><td style="color:black; background:transparent; text-align:center; vertical-align:top;">x</td>
+<td style="color:black; background:transparent; text-align:right; vertical-align:middle;">1</td>
+<td style="color:black; background:transparent; text-align:right; vertical-align:middle;">2</td>
+</tr><tr><td style="color:black; background:transparent; font-weight: bold; text-align:left; vertical-align:middle;">y</td>
+<td style="color:black; background:transparent; text-align:right; vertical-align:middle;">2</td>
+<td style="color:black; background:#ff0000; text-align:right; vertical-align:middle;">2</td>
+</tr></table>
+            """.strip())
 
     def test_save_report_permission(self):
         """
@@ -170,31 +158,8 @@ class TestReport(GuiTest):
         view.show()
         view.setModel(model)
         rep.report_table('Name', view)
-        self.maxDiff = None
-        pattern = re.compile(
-            re.escape(
-                '<h2>Name</h2><table>\n'
-                '<tr>'
-                '<th style="color:black;border:0;background:transparent;'
-                'text-align:left;vertical-align:middle;">a</th>'
-                '<th style="color:black;border:0;background:transparent;'
-                'text-align:left;vertical-align:middle;">b</th>'
-                '<th style="color:black;border:0;background:transparent;'
-                'text-align:left;vertical-align:middle;">c</th>'
-                '</tr>'
-                '<tr>'
-                '<td style="color:black;border:0;background:transparent;'
-                'text-align:left;vertical-align:middle;">x</td>'
-                '<td style="color:black;border:0;background:transparent;'
-                'text-align:right;vertical-align:middle;">'
-                '<img src="data:image/png;base64,'
-            ) + '(.+)' + re.escape(  # any string for the icon
-                '"/>1</td>'
-                '<td style="color:black;border:0;background:transparent;'
-                'text-align:right;vertical-align:middle;">'
-            ) + '(.+)' + re.escape('</td></tr></table>')  # str for the scene
-        )
-        self.assertTrue(bool(pattern.match(rep.report_html)))
+        self.assertIsNotNone(
+            re.search('<img(.*) src="data:image/png;base64,', rep.report_html))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import copy
 import itertools
 import warnings
+from collections import defaultdict
 from functools import singledispatch
 import inspect
 from typing import (
@@ -462,9 +463,14 @@ class WidgetSignalsMixin:
     @classmethod
     def convert_signals(cls):
         """
-        Convert tuple descriptions into old-style signals for backwards
-        compatibility, and check the input handlers exist.
-        The method is called from the meta-class.
+        Maintenance and sanity checks for signals.
+
+        - Convert tuple descriptions into old-style signals for backwards compatibility
+        - For new-style in classes, copy attribute name to id, if id is not set explicitly
+        - Check that all input signals have handlers
+        - Check that the same name and/or does not refer to different signals.
+
+        This method is called from the meta-class.
         """
         def signal_from_args(args, signal_type):
             if isinstance(args, tuple):
@@ -479,7 +485,16 @@ class WidgetSignalsMixin:
             cls.outputs = [signal_from_args(output, OutputSignal)
                            for output in cls.outputs]
 
+        for direction in ("Inputs", "Outputs"):
+            klass = getattr(cls, direction, None)
+            if klass is None:
+                continue
+            for name, signal in klass.__dict__.items():
+                if isinstance(signal, (_Signal)) and signal.id is None:
+                    signal.id = name
+
         cls._check_input_handlers()
+        cls._check_ids_unique()
 
     @classmethod
     def _check_input_handlers(cls):
@@ -495,6 +510,32 @@ class WidgetSignalsMixin:
         if missing_handlers:
             raise ValueError("missing handlers in {}: {}".
                              format(cls.__name__, ", ".join(missing_handlers)))
+
+    @classmethod
+    def _check_ids_unique(cls):
+        for direction in ("input", "output"):
+            # Collect signals by name and by id, check for duplicates
+            by_name = {}
+            by_id = {}
+            for signal in cls.get_signals(direction + "s"):
+                if signal.name in by_name:
+                    raise RuntimeError(
+                        f"Name {signal.name} refers to different {direction} "
+                        f"signals of {cls.__name__}" )
+                by_name[signal.name] = signal
+                if signal.id is not None:
+                    if signal.id in by_id:
+                        raise RuntimeError(
+                            f"Id {signal.id} refers to different {direction} "
+                            f"signals of {cls.__name__}" )
+                    by_id[signal.id] = signal
+
+            # Warn the same name and id refer to different signal
+            for name in set(by_name) & set(by_id):
+                if by_name[name] is not by_id[name]:
+                    warnings.warn(
+                        f"{name} appears as a name and an id of two different "
+                        f"{direction} signals in {cls.__name__}")
 
     @classmethod
     def get_signals(cls, direction, ignore_old_style=False):

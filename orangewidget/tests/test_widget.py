@@ -550,8 +550,8 @@ class AutoSummarizeTest(WidgetTest):
 
                 class Outputs(OWBaseWidget.Inputs):
                     outputA1 = Output("a", SignalTypeA)
-                    outputA2 = Output("a", SignalTypeA, auto_summary=True)
-                    outputA3 = Output("a", SignalTypeA, auto_summary=False)
+                    outputA2 = Output("b", SignalTypeA, auto_summary=True)
+                    outputA3 = Output("c", SignalTypeA, auto_summary=False)
 
             self.assertTrue(TestWidget.Inputs.inputA1.auto_summary)
             self.assertTrue(TestWidget.Inputs.inputA2.auto_summary)
@@ -630,6 +630,75 @@ class AutoSummarizeTest(WidgetTest):
 
             warn.assert_not_called()
             self.assertTrue(TestWidget.Inputs.inputA.auto_summary)
+
+
+class TestSignals(WidgetTest):
+    @patch("orangewidget.widget.OWBaseWidget._check_input_handlers")
+    @patch("orangewidget.utils.signals.can_summarize")
+    def test_assign_ids(self, *_):
+        class TestWidget(OWBaseWidget):
+            class Inputs(OWBaseWidget.Inputs):
+                inputA = Input("a", int)
+                inputB = Input("b", int, id="c")
+
+            class Outputs(OWBaseWidget.Outputs):
+                outputA = Output("a", int)
+                outputB = Output("b", int, id="c")
+
+        self.assertEqual(TestWidget.Inputs.inputA.id, "inputA")
+        self.assertEqual(TestWidget.Inputs.inputB.id, "c")
+
+        self.assertEqual(TestWidget.Outputs.outputA.id, "outputA")
+        self.assertEqual(TestWidget.Outputs.outputB.id, "c")
+
+    @patch("orangewidget.widget.OWBaseWidget._check_input_handlers")
+    @patch("orangewidget.utils.signals.can_summarize")
+    def test_prevent_same_name_id(self, *_):
+        with self.assertRaises(RuntimeError):
+            class TestWidget(OWBaseWidget):
+                class Inputs(OWBaseWidget.Inputs):
+                    inputA = Input("a", int, id="c")
+                    inputB = Input("b", int, id="c")
+
+        with self.assertRaises(RuntimeError):
+            class TestWidget(OWBaseWidget):
+                class Inputs(OWBaseWidget.Inputs):
+                    inputA = Input("a", int)
+                    inputB = Input("a", int)
+
+        with self.assertRaises(RuntimeError):
+            class TestWidget(OWBaseWidget):
+                class Outputs(OWBaseWidget.Outputs):
+                    outputA = Output("a", int)
+                    outputB = Output("b", int, id="outputA")
+
+        with self.assertRaises(RuntimeError):
+            class TestWidget(OWBaseWidget):
+                inputs = [("name 1", int, "foo", 0, "x"),
+                          Input("name 2", int, id="x")]
+
+                def foo(self):
+                    pass
+
+        with self.assertWarns(UserWarning):
+            class TestWidget(OWBaseWidget):
+                class Outputs(OWBaseWidget.Outputs):
+                    outputA = Output("a", int)
+                    outputB = Output("b", int, id="a")
+
+        class TestWidget(OWBaseWidget):
+            class Inputs(OWBaseWidget.Inputs):
+                inputA = Input("a", int, id="x")
+
+            class Outputs(OWBaseWidget.Outputs):
+                outputA = Output("a", int, id="x")
+
+        class TestWidget(OWBaseWidget):
+            inputs = [("name 1", int, "foo"), Input("name 2", int, "foo")]
+
+            def foo(self):
+                pass
+
 
 
 if __name__ == "__main__":

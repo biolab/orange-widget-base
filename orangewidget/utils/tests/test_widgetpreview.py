@@ -49,8 +49,8 @@ class TestWidgetPreviewBase(WidgetTest):
                 input_int = MockInput("int1", int)
                 input_float1 = MockInput("float1", float, default=True)
                 input_float2 = MockInput("float2", float)
-                input_str1 = MockInput("float1", str)
-                input_str2 = MockInput("float2", str)
+                input_str1 = MockInput("str1", str)
+                input_str2 = MockInput("str2", str)
 
             int1 = Inputs.input_int(MagicMock())
             float1 = Inputs.input_float1(MagicMock())

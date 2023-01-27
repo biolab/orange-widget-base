@@ -1972,7 +1972,7 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
                 do_commit()
         else:
             btn.setText(label)
-            btn.setEnabled(True)
+            btn.setEnabled(is_dirty())
         if callback:
             callback()
 
@@ -1982,6 +1982,7 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
 
         def set_dirty(state):
             commit.dirty = state
+            btn.setEnabled(state)
     else:
         dirty = False
 
@@ -1991,6 +1992,7 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
         def set_dirty(state):
             nonlocal dirty
             dirty = state
+            btn.setEnabled(state)
 
     def conditional_commit():
         if getattr(master, value):
@@ -2008,8 +2010,6 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
             set_dirty(False)
         finally:
             QApplication.restoreOverrideCursor()
-
-    set_dirty(False)
 
     if not auto_label:
         if checkbox_label:
@@ -2052,7 +2052,6 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
 
     if not checkbox_label:
         btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
-    checkbox_toggled()
 
     if decorated:
         commit.now = do_commit
@@ -2076,6 +2075,8 @@ def auto_commit(widget, master, value, label, auto_label=None, box=False,
         # and remove `if` that follows?
         setattr(master, 'unconditional_' + commit_name, commit)
         setattr(master, commit_name, conditional_commit)
+
+    checkbox_toggled()
 
     misc['addToLayout'] = addToLayout
     miscellanea(b, widget, widget, **misc)

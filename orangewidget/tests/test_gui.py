@@ -250,32 +250,57 @@ class TestDeferred(WidgetTest):
             apply = gui.deferred(real_apply)
 
         w = self.create_widget(Widget)
+        self.assertFalse(w.commit_button.button.isEnabled())
 
         # clicked, but no autocommit
         w.checkbox.click()
         w.real_apply.assert_not_called()
+        self.assertTrue(w.commit_button.button.isEnabled())
 
         # manual commit
         w.commit_button.button.click()
+        self.assertFalse(w.commit_button.button.isEnabled())
         w.real_apply.assert_called()
         w.real_apply.reset_mock()
 
         # enable auto commit - this should not trigger commit
         w.commit_button.checkbox.click()
+        self.assertFalse(w.commit_button.button.isEnabled())
         w.real_apply.assert_not_called()
 
         # clicking control should auto commit
         w.checkbox.click()
+        self.assertFalse(w.commit_button.button.isEnabled())
         w.real_apply.assert_called()
         w.real_apply.reset_mock()
 
-        # disabling and reenable auto commit without chenging the control
+        # disabling and reenable auto commit without changing the control
         # should not trigger commit
-        w.commit_button.checkbox.click()
+        w.commit_button.checkbox.click()  # now disabled
+        self.assertFalse(w.commit_button.button.isEnabled())
         w.real_apply.assert_not_called()
+
+        w.commit_button.checkbox.click()  # now enabled again
+        self.assertFalse(w.commit_button.button.isEnabled())
+        w.real_apply.assert_not_called()
+
+        # enabling auto-commit at dirty state should auto-commit and disable the button
+        w.commit_button.checkbox.click()  # now disabled
+        w.checkbox.click()  # State is dirty
+        w.real_apply.assert_not_called()  # ... but commit is not called
+        self.assertTrue(w.commit_button.button.isEnabled())  # ... so button is enabled.
+        w.commit_button.checkbox.click()  # Enabling auto commit
+        w.real_apply.assert_called()  # ... calls commit
+        self.assertFalse(w.commit_button.button.isEnabled())  # ... and disables the button
+        w.real_apply.reset_mock()
+        w.commit_button.checkbox.click()  # Disabling auto commit
+        self.assertFalse(w.commit_button.button.isEnabled())  # ... keeps the button disabled
+        w.commit_button.checkbox.click()  # Enabling auto commit ...
+        self.assertFalse(w.commit_button.button.isEnabled())  # ... keeps the button disabled
 
         # calling now should always call the apply
         w.apply.now()
+        self.assertFalse(w.commit_button.button.isEnabled())
         w.real_apply.assert_called_with(w)
         w.real_apply.reset_mock()
 

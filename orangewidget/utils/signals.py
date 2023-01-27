@@ -16,6 +16,8 @@ from orangecanvas.registry.description import (
     InputSignal, OutputSignal, Single, Multiple, Default, NonDefault,
     Explicit, Dynamic
 )
+# imported here for easier use by widgets, pylint: disable=unused-import
+from orangecanvas.scheme.signalmanager import LazyValue
 
 from orangewidget.utils.messagewidget import MessagesWidget
 from orangewidget.workflow.utils import WeakKeyDefaultDict

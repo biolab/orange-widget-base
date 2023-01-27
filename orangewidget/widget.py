@@ -111,9 +111,9 @@ class WidgetMetaClass(type(QDialog)):
     # pylint: disable=bad-classmethod-argument
     def __new__(mcs, name, bases, namespace, openclass=False, **kwargs):
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
+        cls.convert_signals()
         if not cls.name: # not a widget
             return cls
-        cls.convert_signals()
         cls.settingsHandler = \
             SettingsHandler.create(cls, template=cls.settingsHandler)
         return cls

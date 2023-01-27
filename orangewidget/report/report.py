@@ -6,9 +6,9 @@ from collections.abc import Iterable
 from typing import Optional
 
 from AnyQt.QtCore import (
-    Qt, QAbstractItemModel, QByteArray, QBuffer, QIODevice,
+    Qt, QAbstractItemModel, QByteArray, QBuffer, QIODevice, QLocale,
     QSize)
-from AnyQt.QtGui import QColor, QBrush, QIcon
+from AnyQt.QtGui import QColor, QBrush, QIcon, QPalette
 from AnyQt.QtWidgets import QGraphicsScene, QTableView, QMessageBox
 
 from orangewidget.io import PngFormat
@@ -175,7 +175,7 @@ class Report:
 
     # noinspection PyBroadException
     def report_table(self, name, table=None, header_rows=0, header_columns=0,
-                     num_format=None):
+                     num_format=None, indicate_selection=True):
         """
         Add content of a table to the report.
 
@@ -230,24 +230,50 @@ class Report:
                             max_height=view.verticalHeader().defaultSectionSize()
                         )
                     elif isinstance(data_, QIcon):
-                        data_ = get_icon_html(data_, size=decoration_size)
+                        data_ = get_icon_html(data_, size=decoration_size) + " "
                     return data_
+
+                value = data()
+                if view is not None and col is not None:
+                    delegate = view.itemDelegateForColumn(col)
+                    if delegate is None:
+                        delegate = view.itemDelegate()
+                    if hasattr(delegate, "displayText"):
+                        value = delegate.displayText(value, QLocale())
+                value = value or ""
+
+                decoration = data(role=Qt.DecorationRole) or ''
 
                 selected = (view.selectionModel().isSelected(model.index(row, col))
                             if view and row is not None and col is not None else False)
 
-                fgcolor = data(Qt.ForegroundRole)
-                fgcolor = (QBrush(fgcolor).color().name()
-                           if isinstance(fgcolor, (QBrush, QColor)) else 'black')
+                if indicate_selection and selected:
+                    report = self._get_designated_report_view()
+                    fgcolor = report.palette().color(
+                        QPalette.ColorGroup.Active,
+                        QPalette.ColorRole.HighlightedText
+                    ).name()
+                    bgcolor = report.palette().color(
+                        QPalette.ColorGroup.Active,
+                        QPalette.ColorRole.Highlight
+                    ).name()
+                else:
+                    fgcolor = data(Qt.ForegroundRole)
+                    if isinstance(fgcolor, (QBrush, QColor)):
+                        fgcolor = QBrush(fgcolor).color().name()
+                    else:
+                        fgcolor = 'black'
 
-                bgcolor = data(Qt.BackgroundRole)
-                bgcolor = (QBrush(bgcolor).color().name()
-                           if isinstance(bgcolor, (QBrush, QColor)) else 'transparent')
-                if bgcolor.lower() == '#ffffff':
-                    bgcolor = 'transparent'
+                    bgcolor = data(Qt.BackgroundRole)
+                    if isinstance(bgcolor, (QBrush, QColor)):
+                        bgcolor = QBrush(bgcolor).color().name()
+                        if bgcolor.lower() == '#ffffff':
+                            bgcolor = 'transparent'
+                    else:
+                        bgcolor = 'transparent'
 
                 font = data(Qt.FontRole)
-                weight = 'font-weight: bold;' if font and font.bold() else ''
+                weight = 'font-weight: bold; ' if font and font.bold() else ''
 
                 alignment = data(Qt.TextAlignmentRole) or Qt.AlignLeft
                 halign = ('left' if alignment & Qt.AlignLeft else
@@ -256,19 +282,12 @@ class Report:
                 valign = ('top' if alignment & Qt.AlignTop else
                           'bottom' if alignment & Qt.AlignBottom else
                           'middle')
-                return ('<{tag} style="'
-                        'color:{fgcolor};'
-                        'border:{border};'
-                        'background:{bgcolor};'
-                        '{weight}'
-                        'text-align:{halign};'
-                        'vertical-align:{valign};">{decoration}'
-                        '{text}</{tag}>'.format(
-                            tag='th' if row is None or col is None else 'td',
-                            border='1px solid black' if selected else '0',
-                            decoration=data(role=Qt.DecorationRole) or '',
-                            text=data() or '', weight=weight, fgcolor=fgcolor,
-                            bgcolor=bgcolor, halign=halign, valign=valign))
+
+                style = 'style="' \
+                    f'color:{fgcolor}; background:{bgcolor}; {weight}' \
+                    f'text-align:{halign}; vertical-align:{valign};"'
+                tag = 'th' if row is None or col is None else 'td'
+                return f'<{tag} {style}>{decoration}{value}</{tag}>\n'
 
             stream = []
 
@@ -642,7 +661,8 @@ def get_icon_html(icon: QIcon, size: QSize) -> str:
     else:
         size_part = ''
     img_encoded = byte_array.toBase64().data().decode("utf-8")
-    return '<img src="data:image/png;base64,{}"{}/>'.format(img_encoded, size_part)
+    return '<img style="display: inline; vertical-align: middle" ' \
+           f'src="data:image/png;base64,{img_encoded}"{size_part}/>'
 
 
 def colored_square(r, g, b):

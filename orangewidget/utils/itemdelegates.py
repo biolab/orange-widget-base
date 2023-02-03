@@ -423,11 +423,11 @@ class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
         # Keep ref to style wrapper. This is ugly, wrong but the wrapping of
         # C++ QStyle instance takes ~5% unless the wrapper already exists.
         self.__style = style
-        text = opt.text
-        opt.text = ""
-        style.drawControl(QStyle.CE_ItemViewItem, opt, painter, widget)
-        trect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, widget)
-        opt.text = text
+        # Draw empty item cell
+        opt_c = QStyleOptionViewItem(opt)
+        opt_c.text = ""
+        style.drawControl(QStyle.CE_ItemViewItem, opt_c, painter, widget)
+        trect = style.subElementRect(QStyle.SE_ItemViewItemText, opt_c, widget)
         self.drawViewItemText(style, painter, opt, trect)
 
     def drawViewItemText(
@@ -441,8 +441,9 @@ class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
             QStyle.PM_FocusFrameHMargin, None, option.widget) + 1
         rect = rect.adjusted(margin, 0, -margin, 0)
         font = option.font
+        text = option.text
         st = self.__static_text_elided_cache(
-            option.text, font, option.fontMetrics, option.textElideMode,
+            text, font, option.fontMetrics, option.textElideMode,
             rect.width()
         )
         tsize = st.size()

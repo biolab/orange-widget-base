@@ -112,6 +112,11 @@ class WidgetMetaClass(type(QDialog)):
     def __new__(mcs, name, bases, namespace, openclass=False, **kwargs):
         cls = super().__new__(mcs, name, bases, namespace, **kwargs)
         cls.convert_signals()
+        if isinstance(cls.keywords, str):
+            if "," in cls.keywords:
+                cls.keywords = [kw.strip() for kw in cls.keywords.split(",")]
+            else:
+                cls.keywords = cls.keywords.split()
         if not cls.name: # not a widget
             return cls
         cls.settingsHandler = \
@@ -240,7 +245,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     settingsHandler: SettingsHandler = None
 
     #: Widget keywords, used for finding it in the quick menu.
-    keywords: List[str] = []
+    keywords: Union[str, List[str]] = []
 
     #: Widget priority, used for sorting within a category.
     priority: int = sys.maxsize

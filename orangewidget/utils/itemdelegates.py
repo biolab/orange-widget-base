@@ -22,8 +22,7 @@ from AnyQt.QtWidgets import QStyledItemDelegate, QStyleOptionViewItem, \
     QApplication, QStyle
 
 from orangewidget.utils.cache import LRUCache
-from orangewidget.utils import enum_as_int
-
+from orangewidget.utils import enum_as_int, grapheme_slice
 
 A = TypeVar("A")
 
@@ -399,6 +398,7 @@ class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
         self.__static_text_lru_cache = LRUCache(100 * 200)
         self.__pen_lru_cache: LRUCache[_PenKey, QPen] = LRUCache(100)
         self.__style = None
+        self.__max_text_length = 500
 
     def initStyleOption(
             self, option: QStyleOptionViewItem, index: QModelIndex
@@ -478,12 +478,22 @@ class DataDelegate(CachedDataItemDelegate, StyledItemDelegate):
         try:
             return self.__static_text_lru_cache[text, font, elideMode, width]
         except KeyError:
-            st = QStaticText(fontMetrics.elidedText(text, elideMode, width))
+            # limit text to some sensible length in case it is a whole epic
+            # tale or similar. elidedText will parse all of it to glyphs which
+            # can be slow.
+            text_limited = self.__cut_text(text)
+            st = QStaticText(fontMetrics.elidedText(text_limited, elideMode, width))
             st.prepare(QTransform(), font)
             # take a copy of the font for cache key
             key = text, QFont(font), elideMode, width
             self.__static_text_lru_cache[key] = st
             return st
+
+    def __cut_text(self, text):
+        if len(text) > self.__max_text_length:
+            return grapheme_slice(text, end=self.__max_text_length)
+        else:
+            return text
 
     def __pen_cache(self, palette: QPalette, state: QStyle.State) -> QPen:
         """Return a QPen from the `palette` for `state`."""

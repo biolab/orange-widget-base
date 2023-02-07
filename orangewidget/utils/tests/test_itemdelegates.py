@@ -13,6 +13,7 @@ from AnyQt.QtWidgets import (
 
 from orangecanvas.gui.svgiconengine import SvgIconEngine
 from orangewidget.tests.base import GuiTest
+from orangewidget.utils import graphemes, grapheme_slice
 from orangewidget.utils.itemdelegates import ModelItemCache, \
     CachedDataItemDelegate, StyledItemDelegate, DataDelegate, \
     BarItemDataDelegate
@@ -184,6 +185,13 @@ class TestDataDelegate(GuiTest):
         paint_with_data({Qt.DisplayRole: "AA",
                          Qt.TextAlignmentRole: Qt.AlignRight | Qt.AlignBottom})
 
+    def test_paint_long_combining(self):
+        text = "ABC" * 1000
+        opt = self.view.viewOptions()
+        paint_with_data(self.delegate, {Qt.DisplayRole: text}, opt)
+        text = "\N{TAMIL LETTER NA}\N{TAMIL VOWEL SIGN I}" * 10000
+        paint_with_data(self.delegate, {Qt.DisplayRole: text}, opt)
+
 
 class TestBarItemDataDelegate(GuiTest):
     def setUp(self) -> None:
@@ -252,3 +260,33 @@ def paint_with_data(
         delegate.paint(p, opt, index)
     finally:
         p.end()
+
+
+class TestGraphemes(unittest.TestCase):
+    def test_grapheme(self):
+        self.assertEqual(list(graphemes("")), [])
+        self.assertEqual(list(graphemes("a")), ["a"])
+        self.assertEqual(list(graphemes("ab")), ["a", "b"])
+        text = "\N{TAMIL LETTER NA}\N{TAMIL VOWEL SIGN I}"
+        self.assertEqual(list(graphemes(text)), [text])
+        self.assertEqual(list(graphemes("a" + text)), ["a", text])
+        self.assertEqual(list(graphemes(text + "b")), [text, "b"])
+        self.assertEqual(list(graphemes("a" + text + "b")), ["a", text, "b"])
+        self.assertEqual(list(graphemes("a" + text + "b" + text)), ["a", text, "b", text])
+        self.assertEqual(list(graphemes("a" + text + text + "b")), ["a", text, text, "b"])
+
+    def test_grapheme_slice(self):
+        self.assertEqual(grapheme_slice(""), "")
+        self.assertEqual(grapheme_slice("", start=1), "")
+        self.assertEqual(grapheme_slice("", end=1), "")
+        self.assertEqual(grapheme_slice("a"), "a")
+        self.assertEqual(grapheme_slice("a", start=1), "")
+        self.assertEqual(grapheme_slice("ab"), "ab")
+        self.assertEqual(grapheme_slice("ab", start=1), "b")
+        self.assertEqual(grapheme_slice("ab", end=1), "a")
+        self.assertEqual(grapheme_slice("ab", start=1, end=1), "")
+        self.assertEqual(grapheme_slice("abc", start=1, end=2), "b")
+        text = "\N{TAMIL LETTER NA}\N{TAMIL VOWEL SIGN I}"
+        self.assertEqual(grapheme_slice(text * 3, end=2), text * 2)
+        self.assertEqual(grapheme_slice("a" + text + "b" + text, end=3),
+                         "a" + text + "b")

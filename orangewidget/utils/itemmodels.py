@@ -15,8 +15,10 @@ from AnyQt.QtCore import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal
 from AnyQt.QtWidgets import (
-    QWidget, QBoxLayout, QToolButton, QAbstractButton, QAction
+    QWidget, QBoxLayout, QToolButton, QAbstractButton, QAction,
+    QStyledItemDelegate
 )
+from AnyQt.QtGui import QPalette, QPen
 
 import numpy
 
@@ -496,11 +498,48 @@ class PyTableModel(AbstractSortTableModel):
         del self[self._table.index(val)]
 
 
+class SeparatorItem:
+    pass
+
+
+class LabelledSeparator(SeparatorItem):
+    def __init__(self, label=None):
+        self.label = label
+
+
+class SeparatedListDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        # type: (QPainter, QStyleOptionViewItem, QModelIndex) -> None
+        super().paint(painter, option, index)
+        data = index.data(Qt.EditRole)
+        if not isinstance(data, LabelledSeparator):
+            return
+
+        painter.save()
+        palette = option.palette  # type: QPalette
+        rect = option.rect  # type: QRect
+        if data.label:
+            y = int(rect.bottom() - 0.1 * rect.height())
+            brush = palette.brush(QPalette.Active, QPalette.WindowText)
+            font = painter.font()
+            font.setPointSizeF(font.pointSizeF() * 0.9)
+            font.setBold(True)
+            painter.setFont(font)
+            painter.setPen(QPen(brush, 1.0))
+            painter.drawText(rect, Qt.AlignCenter, data.label)
+        else:
+            y = rect.center().y()
+        brush = palette.brush(QPalette.Disabled, QPalette.WindowText)
+        painter.setPen(QPen(brush, 1.0))
+        painter.drawLine(rect.left(), y, rect.left() + rect.width(), y)
+        painter.restore()
+
+
 class PyListModel(QAbstractListModel):
     """ A model for displaying python list like objects in Qt item view classes
     """
     MIME_TYPE = "application/x-Orange-PyListModelData"
-    Separator = object()
+    Separator = SeparatorItem()
     removed = Signal()
 
     def __init__(self, iterable=None, parent=None,
@@ -558,7 +597,7 @@ class PyListModel(QAbstractListModel):
                 and self._is_index_valid(index):
             return self[row]
         elif self._is_index_valid(row):
-            if self[row] is self.Separator \
+            if isinstance(self[row], SeparatorItem) \
                     and role == Qt.AccessibleDescriptionRole:
                 return 'separator'
             return self._other_data[row].get(role, None)
@@ -608,7 +647,7 @@ class PyListModel(QAbstractListModel):
         if self._is_index_valid(index):
             row = index.row()
             default = Qt.NoItemFlags \
-                if self[row] is self.Separator else self._flags
+                if isinstance(self[row], SeparatorItem) else self._flags
             return self._other_data[row].get("flags", default)
         else:
             return self._flags | Qt.ItemIsDropEnabled

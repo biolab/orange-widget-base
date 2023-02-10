@@ -2,15 +2,17 @@
 # pylint: disable=missing-docstring
 
 import unittest
+from unittest.mock import patch, Mock
 
 import numpy as np
 
-from AnyQt.QtCore import Qt, QModelIndex
+from AnyQt.QtCore import Qt, QModelIndex, QRect
 from AnyQt.QtTest import QSignalSpy
+from AnyQt.QtGui import QPalette, QFont
 
 from orangewidget.utils.itemmodels import \
     AbstractSortTableModel, PyTableModel, PyListModel, \
-    _argsort, _as_contiguous_range
+    _argsort, _as_contiguous_range, SeparatedListDelegate, LabelledSeparator
 
 
 class TestArgsort(unittest.TestCase):
@@ -645,6 +647,36 @@ class TestPyListModel(unittest.TestCase):
         for i in range(len(model)):
             self.assertIs(model.flags(model.index(i)) == Qt.NoItemFlags,
                           i % 2 != 0, f"in row {i}")
+
+
+class TestSeparatedListDelegate(unittest.TestCase):
+    @patch("AnyQt.QtWidgets.QStyledItemDelegate.paint")
+    def test_paint(self, _):
+        delegate = SeparatedListDelegate()
+        painter = Mock()
+        font = QFont()
+        font.setPointSizeF(10)
+        painter.font = lambda: font
+        option = Mock()
+        option.palette = QPalette()
+        option.rect = QRect(10, 20, 50, 5)
+        index = Mock()
+
+        index.data = Mock(return_value="foo")
+        delegate.paint(painter, option, index)
+        painter.drawText.assert_not_called()
+        painter.drawLine.assert_not_called()
+
+        index.data = Mock(return_value=LabelledSeparator())
+        delegate.paint(painter, option, index)
+        painter.drawLine.assert_called_with(10, 22, 60, 22)
+        painter.drawLine.reset_mock()
+        painter.drawText.assert_not_called()
+
+        index.data = Mock(return_value=LabelledSeparator("bar"))
+        delegate.paint(painter, option, index)
+        painter.drawLine.assert_called()
+        painter.drawText.assert_called_with(option.rect, Qt.AlignCenter, "bar")
 
 
 if __name__ == "__main__":

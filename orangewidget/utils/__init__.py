@@ -1,12 +1,12 @@
 import enum
 import inspect
-from typing import Union
+from typing import Union, Iterator, Optional
 
 import sys
 import warnings
 from operator import attrgetter
 
-from AnyQt.QtCore import QObject, QRect, QSize, QPoint
+from AnyQt.QtCore import QObject, QRect, QSize, QPoint, QTextBoundaryFinder
 
 
 def progress_bar_milestones(count, iterations=100):
@@ -155,3 +155,43 @@ def dropdown_popup_geometry(
 
     # bounded by screen geometry
     return geometry.intersected(screen)
+
+
+def graphemes(text: str) -> Iterator[str]:
+    """
+    Return an iterator over grapheme clusters of text
+    """
+    # match internal QString encoding
+    text_encoded = text.encode("utf-16-le")
+    finder = QTextBoundaryFinder(QTextBoundaryFinder.Grapheme, text)
+    start = 0
+    while True:
+        pos = finder.toNextBoundary()
+        if pos == -1:
+            return
+        yield text_encoded[start*2: pos*2].decode("utf-16-le")
+        start = pos
+
+
+def grapheme_slice(text: str, start: int = 0, end: int = None) -> str:
+    """
+    Return a substring of text counting grapheme clusters not codepoints.
+    """
+    if start < 0 or (end is not None and end < 0):
+        raise ValueError("negative start or end")
+
+    s = 0
+    slice_start: Optional[int] = None
+    slice_end: Optional[int] = None
+    for i, g in enumerate(graphemes(text)):
+        if i == start:
+            slice_start = s
+        if i + 1 == end:
+            slice_end = s + len(g)
+            break
+        s += len(g)
+    if slice_start is None:
+        return ""
+    if slice_end is None:
+        slice_end = len(text)
+    return text[slice_start: slice_end]

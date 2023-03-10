@@ -163,12 +163,16 @@ class AbstractSortTableModel(QAbstractTableModel):
         Return indices of sorted data. May be reimplemented to handle
         sorting in a certain way, e.g. to sort NaN values last.
         """
+        if order == Qt.DescendingOrder:
+            # to ensure stable descending order, sort reversed data ...
+            data = data[::-1]
         if data.ndim == 1:
             indices = numpy.argsort(data, kind="mergesort")
         else:
             indices = numpy.lexsort(data.T[::-1])
         if order == Qt.DescendingOrder:
-            indices = indices[::-1]
+            # ... and reverse (as well as invert) resulting indices
+            indices = len(data) - 1 - indices[::-1]
         return indices
 
     def sort(self, column: int, order: Qt.SortOrder = Qt.AscendingOrder):

@@ -159,6 +159,7 @@ class GuiTest(unittest.TestCase):
     GuiTest ensures that a QApplication exists before tests are run an
     """
     tear_down_stack: ExitStack
+    LANGUAGE = "English"
 
     @classmethod
     def setUpClass(cls):
@@ -205,8 +206,21 @@ class GuiTest(unittest.TestCase):
         super().tearDown()
         QTest.qWait(0)
 
+    @classmethod
+    def skipNonEnglish(cls, f):
+        return cls.runOnLanguage("English")(f)
+
+    @classmethod
+    def runOnLanguage(cls, lang):
+        def decorator(f):
+            if cls.LANGUAGE != lang:
+                f = unittest.skip(f"Test is valid only for {lang} release")(f)
+            return f
+        return decorator
+
 
 NO_VALUE = object()
+
 
 class WidgetTest(GuiTest):
     """Base class for widget tests
@@ -220,7 +234,6 @@ class WidgetTest(GuiTest):
     widgets = []  # type: List[OWBaseWidget]
 
     def __init_subclass__(cls, **kwargs):
-
         def test_minimum_size(self):
             widget = getattr(self, "widget", None)
             if widget is None:

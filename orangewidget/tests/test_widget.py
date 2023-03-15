@@ -7,13 +7,14 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 from AnyQt.QtCore import Qt, QPoint, QRect, QByteArray, QObject, pyqtSignal
-from AnyQt.QtGui import QShowEvent
-from AnyQt.QtWidgets import QAction
+from AnyQt.QtGui import QShowEvent, QKeyEvent
+from AnyQt.QtWidgets import QAction, QMenu, QApplication
 from AnyQt.QtTest import QSignalSpy, QTest
 
 from orangewidget.gui import OWComponent
 from orangewidget.settings import Setting, SettingProvider
 from orangewidget.tests.base import WidgetTest
+from orangewidget.utils.buttons import SimpleButton
 from orangewidget.utils.signals import summarize, PartialSummary
 from orangewidget.widget import OWBaseWidget, Msg, StateInfo, Input, Output
 from orangewidget.utils.messagewidget import InOutStateWidget
@@ -720,6 +721,41 @@ class TestSignals(WidgetTest):
             def foo(self):
                 pass
 
+
+class TestWidgetMenu(WidgetTest):
+    def test_menu(self):
+        class Widget(OWBaseWidget):
+            def __init__(self):
+                super().__init__()
+                menubar = self.menuBar()
+                test = menubar.addMenu("Test")
+                test.addAction("Test")
+
+        w = self.create_widget(Widget)
+        mb = w.menuBar()
+        native = mb.isNativeMenuBar()
+        if native:
+            self.skipTest("Native menu bar in use")
+        sb = w.statusBar()
+        button = sb.findChild(SimpleButton, "status-bar-menu-button")
+        with patch.object(QMenu, "popup") as popup:
+            button.click()
+            QTest.qWait(0)
+            popup.assert_called_once()
+            # close the menu
+            menu = QApplication.activePopupWidget()
+            if menu is not None:
+                menu.close()
+
+        # Simulate show menu bar on Alt key press
+        QTest.keyPress(w, Qt.Key_Alt, Qt.NoModifier)
+        timer = w._OWBaseWidget__menubar_visible_timer
+        self.assertTrue(timer.isActive())
+        spy = QSignalSpy(timer.timeout)
+        spy.wait()
+        self.assertTrue(mb.isVisibleTo(w))
+        QTest.keyRelease(w, Qt.Key_Alt, Qt.NoModifier)
+        self.assertFalse(mb.isVisibleTo(w))
 
 
 if __name__ == "__main__":

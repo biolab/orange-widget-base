@@ -1310,7 +1310,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
             b.mapToGlobal(QPoint(0, 0)), b.size()
         )
         menu.ensurePolished()
-        screen_rect = QApplication.desktop().availableGeometry(b)
+        screen_rect = b.screen().availableGeometry()
         menu_rect = dropdown_popup_geometry(
             menu.sizeHint(), popup_rect, screen_rect, preferred_direction="up"
         )

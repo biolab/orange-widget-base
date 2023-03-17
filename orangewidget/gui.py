@@ -2581,19 +2581,27 @@ class IndicatorItemDelegate(QtWidgets.QStyledItemDelegate):
         super().paint(painter, option, index)
         rect = option.rect
         indicator = index.data(self.role)
+        # We exit on `indicator is None`, essentially. But for backward compat,
+        # we also exit on other falsy values, except False, which now indicates
+        # an empty indicator.
+        if not indicator and indicator is not False:
+            return
 
-        if indicator:
+        color_for_state = text_color_for_state(option.palette, option.state)
+        pen = QtGui.QPen(color_for_state, 1)
+        if indicator is False:
+            brush = Qt.NoBrush
+        else:
             brush = index.data(Qt.ForegroundRole)
             if brush is None:
-                brush = QtGui.QBrush(
-                    text_color_for_state(option.palette, option.state))
-            painter.save()
-            painter.setRenderHints(QtGui.QPainter.Antialiasing)
-            painter.setBrush(brush)
-            painter.setPen(QtGui.QPen(brush, 1))
-            painter.drawEllipse(rect.center(),
-                                self.indicatorSize, self.indicatorSize)
-            painter.restore()
+                brush = QtGui.QBrush(color_for_state)
+        painter.save()
+        painter.setRenderHints(QtGui.QPainter.Antialiasing)
+        painter.setBrush(brush)
+        painter.setPen(pen)
+        painter.drawEllipse(rect.center(),
+                            self.indicatorSize, self.indicatorSize)
+        painter.restore()
 
 
 class LinkStyledItemDelegate(QStyledItemDelegate):

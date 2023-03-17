@@ -254,6 +254,20 @@ class TestAbstractSortTableModel(unittest.TestCase):
         self.assertSequenceEqual(model.mapToSourceRows(...).tolist(), [0, 2, 1])
         self.assertSequenceEqual(model.mapFromSourceRows(...).tolist(), [0, 2, 1])
 
+    def test_stable_descending_sort(self):
+        def assert_indices_equal(indices):
+            self.assertSequenceEqual(model.mapToSourceRows(...).tolist(),
+                                     indices)
+        model = PyTableModel([[1, 4],
+                              [2, 2],
+                              [2, 3],
+                              [2, 2],
+                              [3, 3]])
+        model.sort(0, Qt.DescendingOrder)
+        assert_indices_equal([4, 1, 2, 3, 0])
+        model.sort(1, Qt.DescendingOrder)
+        assert_indices_equal([0, 4, 2, 1, 3])
+
     def test_sorting_fallback(self):
         class TableModel(PyTableModel):
             def sortColumnData(self, column):

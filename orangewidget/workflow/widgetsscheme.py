@@ -40,7 +40,7 @@ from AnyQt.QtCore import pyqtSlot as Slot
 from orangecanvas.registry import WidgetDescription, OutputSignal
 
 from orangecanvas.scheme.signalmanager import (
-    SignalManager, Signal, compress_signals
+    SignalManager, Signal, compress_signals, LazyValue
 )
 from orangecanvas.scheme import Scheme, SchemeNode
 from orangecanvas.scheme.node import UserMessage
@@ -850,6 +850,8 @@ def process_signal_input_default(
     link = signal.link
     index = signal.index
     value = signal.value
+    if LazyValue.is_lazy(value):
+        value = value.get_value()
 
     index_existing = index_of(inputs, signal, eq=same_input_slot)
     if index < 0 and index_existing is not None:

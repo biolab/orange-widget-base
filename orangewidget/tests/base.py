@@ -22,7 +22,8 @@ from AnyQt import sip
 from orangewidget.report.owreport import OWReport
 from orangewidget.settings import SettingsHandler
 from orangewidget.utils.signals import get_input_meta, notify_input_helper, \
-    Output, Input
+    Output, Input, LazyValue
+
 from orangewidget.widget import OWBaseWidget
 
 if hasattr(sip, "setdestroyonexit"):
@@ -569,7 +570,10 @@ class WidgetTest(GuiTest):
         # widget.outputs are old-style signals; if empty, use new style
         assert output in (out.name for out in outputs), \
             "widget {} has no output {}".format(widget.name, output)
-        return widget.signalManager.get_output(widget, output, wait)
+        value = widget.signalManager.get_output(widget, output, wait)
+        if LazyValue.is_lazy(value):
+            value = value.get_value()
+        return value
 
     @contextmanager
     def modifiers(self, modifiers):
@@ -664,6 +668,19 @@ class TestWidgetTest(WidgetTest):
 
         self.assertIsNone(self.get_output())
         self.send_signal("6 * 7")
+        self.assertEquals(self.get_output(), 42)
+
+    def test_compute_lazy_signals(self):
+        class A(OWBaseWidget):
+            name = "A"
+
+            class Outputs(OWBaseWidget.Outputs):
+                answer = Output("Answer", int, auto_summary=False)
+
+            def __init__(self):
+                self.Outputs.answer.send(LazyValue[int](lambda: 42))
+
+        self.widget = self.create_widget(A)
         self.assertEquals(self.get_output(), 42)
 
 

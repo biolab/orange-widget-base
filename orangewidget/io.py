@@ -4,7 +4,7 @@ import tempfile
 from collections import OrderedDict
 
 from AnyQt import QtGui, QtCore, QtSvg, QtWidgets
-from AnyQt.QtCore import QMarginsF, Qt, QRectF, QPointF, QRect
+from AnyQt.QtCore import QMarginsF, Qt, QRectF, QPoint, QRect
 from AnyQt.QtGui import QPalette
 from AnyQt.QtWidgets import (
     QGraphicsScene, QGraphicsView, QApplication
@@ -163,7 +163,7 @@ class ImgFormat(metaclass=_Registry):
                         source_rect)
                 except TypeError:
                     # QWidget.render() takes different params
-                    renderer.render(painter, QPointF(15, 15))
+                    renderer.render(painter, QPoint(15, 15))
             finally:
                 # In case of exception, end painting so that we get an exception
                 # not a core dump

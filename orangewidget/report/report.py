@@ -9,7 +9,8 @@ from AnyQt.QtCore import (
     Qt, QAbstractItemModel, QByteArray, QBuffer, QIODevice, QLocale,
     QSize)
 from AnyQt.QtGui import QColor, QBrush, QIcon, QPalette
-from AnyQt.QtWidgets import QGraphicsScene, QTableView, QMessageBox
+from AnyQt.QtWidgets import \
+    QGraphicsScene, QTableView, QMessageBox, QGraphicsWidget, QGraphicsView
 
 from orangewidget.io import PngFormat
 from orangewidget.utils import getdeepattr
@@ -162,9 +163,9 @@ class Report:
             self.report_html += get_html_img(plot)
         elif isinstance(plot, PlotWidget):
             self.report_html += get_html_img(plot.plotItem)
-        elif isinstance(plot, GraphicsWidget):
+        elif isinstance(plot, QGraphicsWidget):
             self.report_html += get_html_img(plot.scene())
-        elif isinstance(plot, GraphicsView):
+        elif isinstance(plot, QGraphicsView):
             self.report_html += get_html_img(plot)
         elif WebviewWidget is not None and isinstance(plot, WebviewWidget):
             try:

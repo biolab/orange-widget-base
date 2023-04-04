@@ -259,8 +259,9 @@ class PngFormat(ImgFormat):
                 targetRect = QtCore.QRect(0, 0, w, h)
                 sourceRect = self.getSourceRect()
 
-                self.png = QtGui.QImage(w * self.ratio, h * self.ratio,
-                                        QtGui.QImage.Format.Format_ARGB32)
+                self.png = QtGui.QImage(
+                    int(w * self.ratio), int(h * self.ratio),
+                    QtGui.QImage.Format.Format_ARGB32)
                 self.png.fill(self.params['background'])
                 self.png.setDevicePixelRatio(self.ratio)
 

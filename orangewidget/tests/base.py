@@ -241,6 +241,12 @@ class WidgetTest(GuiTest):
                 self.skipTest("minimum size not tested as .widget was not set")
             self.check_minimum_size(widget)
 
+        def test_image_export(self):
+            widget = getattr(self, "widget", None)
+            if widget is None:
+                self.skipTest("image exporting not tested as .widget was not set")
+            self.check_export_image(widget)
+
         def test_msg_base_class(self):
             widget = getattr(self, "widget", None)
             if widget is None:
@@ -251,6 +257,8 @@ class WidgetTest(GuiTest):
             cls.test_minimum_size = test_minimum_size
         if not hasattr(cls, "test_msg_base_class"):
             cls.test_msg_base_class = test_msg_base_class
+        if not hasattr(cls, "test_image_export"):
+            cls.test_image_export = test_image_export
 
     @classmethod
     def setUpClass(cls):
@@ -619,6 +627,8 @@ class WidgetTest(GuiTest):
         inspect("Warning")
         inspect("Information")
 
+    def check_export_image(self, widget):
+        widget.copy_to_clipboard()
 
 class TestWidgetTest(WidgetTest):
     """Meta tests for widget test helpers"""

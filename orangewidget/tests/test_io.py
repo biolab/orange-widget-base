@@ -29,11 +29,12 @@ class TestIO(GuiTest):
 class TestImgFormat(GuiTest):
 
     def test_pyqtgraph_exporter(self):
-        graph = pyqtgraph.PlotWidget()
-        with patch("orangewidget.io.ImgFormat._get_exporter",
-                   Mock()) as mfn:
-            with self.assertRaises(Exception):
-                imgio.ImgFormat.write("", graph)
+        scene = QGraphicsScene()
+        graph = pyqtgraph.ScatterPlotItem()
+        scene.addItem(graph)
+        with patch("orangewidget.io.ImgFormat._get_exporter") as mfn, \
+                patch("orangewidget.io.ImgFormat._export"):
+            imgio.ImgFormat.write("", graph)
             self.assertEqual(1, mfn.call_count)  # run pyqtgraph exporter
 
     def test_other_exporter(self):
@@ -90,9 +91,10 @@ class TestPdf(GuiTest):
 
         # does a ScatterPlotItem increases file size == is it drawn
         graph = pyqtgraph.PlotWidget()
-        graph.addItem(pyqtgraph.ScatterPlotItem(x=list(range(100)), y=list(range(100))))
+        plot = pyqtgraph.ScatterPlotItem(x=list(range(100)), y=list(range(100)))
+        graph.addItem(plot)
         try:
-            imgio.PdfFormat.write(fname, graph)
+            imgio.PdfFormat.write(fname, plot)
             self.assertGreater(os.path.getsize(fname), size_empty + 5000)
         finally:
             os.unlink(fname)

@@ -2,12 +2,13 @@ import os
 import sys
 import tempfile
 from collections import OrderedDict
+from typing import Union
 
 from AnyQt import QtGui, QtCore, QtSvg, QtWidgets
-from AnyQt.QtCore import QMarginsF, Qt, QRectF, QPointF, QRect
+from AnyQt.QtCore import QMarginsF, Qt, QRectF, QPoint, QRect, QSize
 from AnyQt.QtGui import QPalette
 from AnyQt.QtWidgets import (
-    QGraphicsScene, QGraphicsView, QApplication
+    QGraphicsScene, QGraphicsView, QApplication, QWidget
 )
 
 from orangewidget.utils.matplotlib_export import scene_code
@@ -16,6 +17,13 @@ try:
     from orangewidget.utils.webview import WebviewWidget
 except ImportError:
     WebviewWidget = None
+
+# This is needed just for type annotation
+try:
+    from pyqtgraph import GraphicsItem
+except:
+    class GraphicsItem:
+        pass
 
 __all__ = [
     "ImgFormat", "Compression", "PngFormat", "ClipboardFormat", "SvgFormat",
@@ -81,7 +89,7 @@ class ImgFormat(metaclass=_Registry):
         return QtCore.QRectF(0, 0, source.width(), source.height())
 
     @classmethod
-    def _setup_painter(cls, scene, painter, source_rect, buffer):
+    def _setup_painter(cls, painter, object, source_rect, buffer):
         pass
 
     @staticmethod
@@ -97,39 +105,62 @@ class ImgFormat(metaclass=_Registry):
         raise NotImplementedError
 
     @classmethod
-    def write_image(cls, filename, object):
+    def write_image(
+            cls, filename,
+            object: Union[GraphicsItem,  # via save_pyqtgraph
+                          QGraphicsScene,  # via save_scene
+                          QGraphicsView,  # via save_widget
+                          QWidget  # via save_widget, but with different render
+                          ]):
+        def get_scene_pixel_ratio(scene: QGraphicsScene):
+            views = scene.views()
+            if views:
+                return views[0].devicePixelRatio()
+            try:
+                # It is unusual for scene not to be viewed, except in tests.
+                # As a fallback, we get ratio for (any) screen
+                return QApplication.primaryScreen().devicePixelRatio()
+            except:  # pylint: disable=broad-except
+                # If there is no screen (in tests on headless server?) assume 1;
+                # the worst that can happen is low resolution of images
+                return 1
+
         def save_pyqtgraph():
-            scene = object.scene()
-            scenerect = scene.sceneRect()   #preserve scene bounding rectangle
-            view = scene.views()[0]
-            viewrect = view.sceneRect()
-            scene.setSceneRect(viewrect)
-            backgroundbrush = scene.backgroundBrush()  #preserve scene background brush
-            brush = effective_background(scene, view)
-            scene.setBackgroundBrush(brush)
+            assert isinstance(object, GraphicsItem)
             exporter = cls._get_exporter()
-            cls._export(exporter(scene), filename)
-            scene.setBackgroundBrush(backgroundbrush)  # reset scene background brush
-            scene.setSceneRect(scenerect)   # reset scene bounding rectangle
+            scene = object.scene()
+            if scene is None:
+                cls._export(exporter(scene), filename)
+                return
+            views = scene.views()
+            if views:
+                # preserve scene rect and background brush
+                scenerect = scene.sceneRect()
+                backgroundbrush = scene.backgroundBrush()
+                try:
+                    view = scene.views()[0]
+                    scene.setSceneRect(view.sceneRect())
+                    scene.setBackgroundBrush(effective_background(scene, view))
+                    cls._export(exporter(scene), filename)
+                finally:
+                    # reset scene rect and background brush
+                    scene.setBackgroundBrush(backgroundbrush)
+                    scene.setSceneRect(scenerect)
+            else:
+                cls._export(exporter(scene), filename)
 
         def save_scene():
+            assert isinstance(object, QGraphicsScene)
+            ratio = get_scene_pixel_ratio(object)
             views = object.views()
             if not views:
-                # It is unusual for scene not to be viewed - except in tests
-                # We still try to get ratio for (any) screen, otherwise
-                # assume 1 (the only consequence is lower resolution)
-                try:
-                    ratio = QApplication.primaryScreen().devicePixelRatio()
-                except:  # pylint: disable=broad-except
-                    ratio = 1
                 rect = object.itemsBoundingRect()
-                _render(rect, ratio, rect.size())
+                _render(rect, ratio, rect.size(), object)
                 return
 
             # Pick the first view. If there's a widget with multiple views that
             # cares which one is used, it must set graph_name to view, not scene
             view = views[0]
-            ratio = views[0].devicePixelRatio()
             rect = view.sceneRect()
             target_rect = view.mapFromScene(rect).boundingRect()
             source_rect = QRect(
@@ -138,9 +169,13 @@ class ImgFormat(metaclass=_Registry):
             _render(source_rect, ratio, target_rect.size(), view)
 
         def save_widget():
-            _render(object.rect(), object.devicePixelRatio(), object.size())
+            assert isinstance(object, QWidget)
+            _render(object.rect(), object.devicePixelRatio(), object.size(),
+                    object)
 
-        def _render(source_rect, pixel_ratio, size, renderer=object):
+        def _render(
+                source_rect: QRectF, pixel_ratio: float, size: QSize,
+                renderer: Union[QGraphicsScene, QGraphicsView, QWidget]):
             buffer_size = size + type(size)(30, 30)
             try:
                 buffer = cls._get_buffer(buffer_size, filename, pixel_ratio)
@@ -154,29 +189,30 @@ class ImgFormat(metaclass=_Registry):
                 if QtCore.QT_VERSION >= 0x050D00:
                     painter.setRenderHint(QtGui.QPainter.LosslessImageRendering)
                 cls._setup_painter(
-                    painter, object,
+                    painter, renderer,
                     QRectF(0, 0, buffer_size.width(), buffer_size.height()), buffer)
-                try:
-                    renderer.render(
-                        painter,
-                        QRectF(15, 15, size.width(), size.height()),
-                        source_rect)
-                except TypeError:
-                    # QWidget.render() takes different params
-                    renderer.render(painter, QPointF(15, 15))
+                if isinstance(renderer, (QGraphicsView, QGraphicsScene)):
+                    renderer.render(painter,
+                                    QRectF(15, 15, size.width(), size.height()),
+                                    source_rect)
+                else:
+                    assert isinstance(object, QWidget)
+                    renderer.render(painter, QPoint(15, 15))
             finally:
                 # In case of exception, end painting so that we get an exception
                 # not a core dump
                 painter.end()
             cls._save_buffer(buffer, filename)
 
-        try:
+        if isinstance(object, GraphicsItem):
             save_pyqtgraph()
-        except:
-            if isinstance(object, QGraphicsScene):
-                save_scene()
-            else:
-                save_widget()
+        elif isinstance(object, QGraphicsScene):
+            save_scene()
+        elif isinstance(object, QWidget):  # this includes QGraphicsView
+            save_widget()
+        else:
+            raise TypeError(f"{cls.__name__} "
+                            f"cannot imagine {type(object).__name__}")
 
     @classmethod
     def write(cls, filename, scene):
@@ -259,8 +295,9 @@ class PngFormat(ImgFormat):
                 targetRect = QtCore.QRect(0, 0, w, h)
                 sourceRect = self.getSourceRect()
 
-                self.png = QtGui.QImage(w * self.ratio, h * self.ratio,
-                                        QtGui.QImage.Format.Format_ARGB32)
+                self.png = QtGui.QImage(
+                    int(w * self.ratio), int(h * self.ratio),
+                    QtGui.QImage.Format.Format_ARGB32)
                 self.png.fill(self.params['background'])
                 self.png.setDevicePixelRatio(self.ratio)
 

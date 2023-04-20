@@ -42,6 +42,11 @@ jobs:
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
             extra-system-packages: "libegl1-mesa"
 
+          - os: ubuntu-20.04
+            python-version: "3.11"
+            test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
+            extra-system-packages: "libegl1-mesa libxcb-cursor0"
+
           # macOS
           - os: macos-11
             python-version: 3.7
@@ -62,6 +67,10 @@ jobs:
           - os: macos-12
             python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-WebEngine~=6.2.1"
+
+          - os: macos-12
+            python-version: "3.11"
+            test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
 
           # Windows
           - os: windows-2019
@@ -87,6 +96,10 @@ jobs:
           - os: windows-2019
             python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
+
+          - os: windows-2019
+            python-version: "3.11"
+            test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
 
     steps:
       - uses: actions/checkout@v3

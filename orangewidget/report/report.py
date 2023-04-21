@@ -627,13 +627,19 @@ def get_html_img(
     byte_array = QByteArray()
     filename = QBuffer(byte_array)
     filename.open(QIODevice.WriteOnly)
-    PngFormat.write(filename, scene)
+    img_data = PngFormat.write(filename, scene)
+
     img_encoded = byte_array.toBase64().data().decode("utf-8")
-    return '<img {} src="data:image/png;base64,{}"/>'.format(
-        ("" if max_height is None
-         else 'style="max-height: {}px"'.format(max_height)),
-        img_encoded
-    )
+
+    style_opts = []
+    if max_height is not None:
+        style_opts.append(f"max-height: {max_height}px")
+    if img_data is not None:
+        ratio = img_data.get("pixel_ratio", 1)
+        if ratio != 1:
+            style_opts.append(f"zoom: {1 / ratio:.1f}")
+    style = f' style="{"; ".join(style_opts)}"' if style_opts else ''
+    return f'<img{style} src="data:image/png;base64,{img_encoded}"/>'
 
 
 def get_icon_html(icon: QIcon, size: QSize) -> str:

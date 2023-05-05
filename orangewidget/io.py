@@ -97,6 +97,25 @@ class ImgFormat(metaclass=_Registry):
         raise NotImplementedError
 
     @staticmethod
+    def _meta_data(buffer):
+        meta_data = {}
+
+        try:
+            size = buffer.size()
+        except AttributeError:
+            pass
+        else:
+            meta_data["width"] = size.width()
+            meta_data["height"] = size.height()
+
+        try:
+            meta_data["pixel_ratio"] = buffer.devicePixelRatio()
+        except AttributeError:
+            pass
+
+        return meta_data
+
+    @staticmethod
     def _get_exporter():
         raise NotImplementedError
 
@@ -130,8 +149,7 @@ class ImgFormat(metaclass=_Registry):
             exporter = cls._get_exporter()
             scene = object.scene()
             if scene is None:
-                cls._export(exporter(scene), filename)
-                return
+                return cls._export(exporter(scene), filename)
             views = scene.views()
             if views:
                 # preserve scene rect and background brush
@@ -141,13 +159,13 @@ class ImgFormat(metaclass=_Registry):
                     view = scene.views()[0]
                     scene.setSceneRect(view.sceneRect())
                     scene.setBackgroundBrush(effective_background(scene, view))
-                    cls._export(exporter(scene), filename)
+                    return cls._export(exporter(scene), filename)
                 finally:
                     # reset scene rect and background brush
                     scene.setBackgroundBrush(backgroundbrush)
                     scene.setSceneRect(scenerect)
             else:
-                cls._export(exporter(scene), filename)
+                return cls._export(exporter(scene), filename)
 
         def save_scene():
             assert isinstance(object, QGraphicsScene)
@@ -155,8 +173,7 @@ class ImgFormat(metaclass=_Registry):
             views = object.views()
             if not views:
                 rect = object.itemsBoundingRect()
-                _render(rect, ratio, rect.size(), object)
-                return
+                return _render(rect, ratio, rect.size(), object)
 
             # Pick the first view. If there's a widget with multiple views that
             # cares which one is used, it must set graph_name to view, not scene
@@ -166,11 +183,11 @@ class ImgFormat(metaclass=_Registry):
             source_rect = QRect(
                 int(target_rect.x()), int(target_rect.y()),
                 int(target_rect.width()), int(target_rect.height()))
-            _render(source_rect, ratio, target_rect.size(), view)
+            return _render(source_rect, ratio, target_rect.size(), view)
 
         def save_widget():
             assert isinstance(object, QWidget)
-            _render(object.rect(), object.devicePixelRatio(), object.size(),
+            return _render(object.rect(), object.devicePixelRatio(), object.size(),
                     object)
 
         def _render(
@@ -203,13 +220,14 @@ class ImgFormat(metaclass=_Registry):
                 # not a core dump
                 painter.end()
             cls._save_buffer(buffer, filename)
+            return cls._meta_data(buffer)
 
         if isinstance(object, GraphicsItem):
-            save_pyqtgraph()
+            return save_pyqtgraph()
         elif isinstance(object, QGraphicsScene):
-            save_scene()
+            return save_scene()
         elif isinstance(object, QWidget):  # this includes QGraphicsView
-            save_widget()
+            return save_widget()
         else:
             raise TypeError(f"{cls.__name__} "
                             f"cannot imagine {type(object).__name__}")
@@ -218,7 +236,7 @@ class ImgFormat(metaclass=_Registry):
     def write(cls, filename, scene):
         if type(scene) == dict:
             scene = scene['scene']
-        cls.write_image(filename, scene)
+        return cls.write_image(filename, scene)
 
     @classproperty
     def img_writers(cls):  # type: () -> Mapping[str, Type[ImgFormat]]
@@ -260,7 +278,11 @@ class PngFormat(ImgFormat):
 
     @staticmethod
     def _save_buffer(buffer, filename):
-        buffer.save(filename, "png")
+        image = buffer.toImage()
+        dpm = int(2835 * image.devicePixelRatio())
+        image.setDotsPerMeterX(dpm)
+        image.setDotsPerMeterY(dpm)
+        image.save(filename, "png")
 
     @staticmethod
     def _get_exporter():
@@ -300,6 +322,9 @@ class PngFormat(ImgFormat):
                     QtGui.QImage.Format.Format_ARGB32)
                 self.png.fill(self.params['background'])
                 self.png.setDevicePixelRatio(self.ratio)
+                dpm = int(2835 * self.ratio)
+                self.png.setDotsPerMeterX(dpm)
+                self.png.setDotsPerMeterY(dpm)
 
                 ## set resolution of image:
                 origTargetRect = self.getTargetRect()
@@ -344,10 +369,11 @@ class PngFormat(ImgFormat):
 
         return PngExporter
 
-    @staticmethod
-    def _export(exporter, filename):
+    @classmethod
+    def _export(cls, exporter, filename):
         buffer = exporter.export(toBytes=True)
         buffer.save(filename, "png")
+        return cls._meta_data(buffer)
 
 
 class ClipboardFormat(PngFormat):
@@ -355,9 +381,16 @@ class ClipboardFormat(PngFormat):
     DESCRIPTION = 'System Clipboard'
     PRIORITY = 50
 
-    @staticmethod
-    def _save_buffer(buffer, _):
-        QApplication.clipboard().setPixmap(buffer)
+    @classmethod
+    def _save_buffer(cls, buffer, _):
+        meta_data = cls._meta_data(buffer)
+        image = buffer.toImage()
+        if meta_data is not None:
+            ratio = meta_data.get("pixel_ratio", 1)
+            dpm = int(2835 * ratio)
+            image.setDotsPerMeterX(dpm)
+            image.setDotsPerMeterY(dpm)
+        QApplication.clipboard().setImage(image)
 
     @staticmethod
     def _export(exporter, _):

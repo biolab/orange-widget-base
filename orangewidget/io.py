@@ -301,6 +301,7 @@ class PngFormat(ImgFormat):
 
             # Copied verbatim from super;
             # changes are in three lines that define self.png
+            # and lines related to setDotsPerMeterX after painter.end()
             def export(self, fileName=None, toBytes=False, copy=False):
                 if fileName is None and not toBytes and not copy:
                     filter = self.getSupportedImageFormats()
@@ -322,9 +323,6 @@ class PngFormat(ImgFormat):
                     QtGui.QImage.Format.Format_ARGB32)
                 self.png.fill(self.params['background'])
                 self.png.setDevicePixelRatio(self.ratio)
-                dpm = int(2835 * self.ratio)
-                self.png.setDotsPerMeterX(dpm)
-                self.png.setDotsPerMeterY(dpm)
 
                 ## set resolution of image:
                 origTargetRect = self.getTargetRect()
@@ -348,6 +346,11 @@ class PngFormat(ImgFormat):
                 finally:
                     self.setExportMode(False)
                 painter.end()
+
+                # setDotsPerMeter* after painting avoids missized axes problem
+                dpm = int(2835 * self.ratio)
+                self.png.setDotsPerMeterX(dpm)
+                self.png.setDotsPerMeterY(dpm)
 
                 if self.params['invertValue']:
                     bg = fn.ndarray_from_qimage(self.png)

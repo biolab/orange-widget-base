@@ -4,6 +4,8 @@ import tempfile
 from collections import OrderedDict
 from typing import Union
 
+import numpy as np
+
 from AnyQt import QtGui, QtCore, QtSvg, QtWidgets
 from AnyQt.QtCore import QMarginsF, Qt, QRectF, QPoint, QRect, QSize
 from AnyQt.QtGui import QPalette

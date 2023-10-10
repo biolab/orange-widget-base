@@ -434,9 +434,9 @@ class PyTableModel(AbstractSortTableModel):
             # Signal changes
             parent = QModelIndex()
             if newstop > stop:
-                self.rowsAboutToBeInserted.emit(parent, stop, newstop - 1)
+                self.beginInsertRows(parent, stop, newstop - 1)
             elif newstop < stop:
-                self.rowsAboutToBeRemoved.emit(parent, newstop, stop - 1)
+                self.beginRemoveRows(parent, newstop, stop - 1)
 
             # Make changes
             self._table[i] = value
@@ -447,9 +447,9 @@ class PyTableModel(AbstractSortTableModel):
                     self.index(start, 0),
                     self.index(min(stop, newstop) - 1, self.columnCount() - 1))
             if newstop > stop:
-                self.rowsInserted.emit(parent, stop, newstop - 1)
+                self.endInsertRows()
             elif newstop < stop:
-                self.rowsRemoved.emit(parent, newstop, stop - 1)
+                self.endRemoveRows()
         else:
             self._table[i] = value
             i %= len(self)

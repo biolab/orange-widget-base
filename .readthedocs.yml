@@ -1,9 +1,7 @@
 version: 2
 
 python:
-   version: 3.8
+   version: "3.8"
    install:
       - requirements: doc/requirements-rtd.txt
         # no - method: pip here, -e . is already in doc/requirements-rtd.txt
-
-   system_packages: true

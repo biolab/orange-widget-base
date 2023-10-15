@@ -117,6 +117,19 @@ class WidgetMetaClass(type(QDialog)):
                 cls.keywords = [kw.strip() for kw in cls.keywords.split(",")]
             else:
                 cls.keywords = cls.keywords.split()
+
+        # Qt may call eventFilter for objects that have already been destroyed
+        # and have an empty `__dict__`. Redirecting such calls to inherited
+        # filter may prevent some crashes, especially in unit tests.
+        if event_filter := cls.__dict__.get("eventFilter", None):
+            def safe_event_filter(self, *args, **kwargs):
+                if self.__dict__:
+                    return event_filter(self, *args, **kwargs)
+                else:
+                    return QDialog.eventFilter(self, *args, **kwargs)
+
+            cls.eventFilter = safe_event_filter
+
         if not cls.name: # not a widget
             return cls
         cls.settingsHandler = \

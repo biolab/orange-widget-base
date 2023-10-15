@@ -758,5 +758,36 @@ class TestWidgetMenu(WidgetTest):
         self.assertFalse(mb.isVisibleTo(w))
 
 
+class MetaClassTest(WidgetTest):
+    @patch("AnyQt.QtWidgets.QDialog.eventFilter")
+    def test_eventFilter(self, eventFilter):
+        class NoFilter(OWBaseWidget):
+            pass
+
+        class HasFilter(OWBaseWidget):
+            def __init__(self):
+                self.myprop = 42
+
+            def eventFilter(self, *args ,**kwargs):
+                super().eventFilter(*args, **kwargs)
+                self.myprop += 1  # will crash on empty dict
+
+        nf = NoFilter()
+        nf.eventFilter()
+        eventFilter.assert_called()
+        eventFilter.reset_mock()
+
+        hf = HasFilter()
+        hf.eventFilter()
+        self.assertEqual(hf.myprop, 43)
+        eventFilter.assert_called()
+        eventFilter.reset_mock()
+
+        hf.__dict__.clear()
+        hf.eventFilter()
+        eventFilter.assert_called()
+        eventFilter.reset_mock()
+
+
 if __name__ == "__main__":
     unittest.main()

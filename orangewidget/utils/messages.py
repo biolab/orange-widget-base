@@ -36,7 +36,6 @@ from typing import Optional
 
 from AnyQt.QtWidgets import QStyle, QSizePolicy
 
-from orangewidget import gui
 from orangewidget.utils.messagewidget import MessagesWidget
 
 
@@ -323,21 +322,18 @@ class WidgetMessagesMixin(MessagesMixin):
     class Error(MessageGroup):
         """Base class for groups of error messages in widgets"""
         severity = 3
-        icon_path = gui.resource_filename("icons/error.png")
         bar_background = "#ffc6c6"
         bar_icon = QStyle.SP_MessageBoxCritical
 
     class Warning(MessageGroup):
         """Base class for groups of warning messages in widgets"""
         severity = 2
-        icon_path = gui.resource_filename("icons/warning.png")
         bar_background = "#ffffc9"
         bar_icon = QStyle.SP_MessageBoxWarning
 
     class Information(MessageGroup):
         """Base class for groups of information messages in widgets"""
         severity = 1
-        icon_path = gui.resource_filename("icons/information.png")
         bar_background = "#ceceff"
         bar_icon = QStyle.SP_MessageBoxInformation
 

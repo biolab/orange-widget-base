@@ -33,7 +33,7 @@ from orangewidget.report import Report
 from orangewidget.gui import OWComponent, VerticalScrollArea
 from orangewidget.io import ClipboardFormat, ImgFormat
 from orangewidget.settings import SettingsHandler
-from orangewidget.utils import saveplot, getdeepattr
+from orangewidget.utils import saveplot, getdeepattr, load_styled_icon
 from orangewidget.utils.messagewidget import InOutStateWidget
 from orangewidget.utils.progressbar import ProgressBarMixin
 from orangewidget.utils.messages import (
@@ -60,7 +60,7 @@ __all__ = [
 
 
 def _load_styled_icon(name):
-    return QIcon(StyledSvgIconEngine(pkgutil.get_data(__name__, "icons/" + name)))
+    return load_styled_icon(__package__, "icons/" + name)
 
 
 class Message:

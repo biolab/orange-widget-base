@@ -17,8 +17,8 @@ import sys
 import os
 import shlex
 
-import pkg_resources
-dist = pkg_resources.get_distribution("orange-widget-base")
+from importlib.metadata import distribution
+dist = distribution("orange-widget-base")
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the

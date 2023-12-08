@@ -63,7 +63,7 @@ jobs:
 
           - os: macos-12
             python-version: "3.11"
-            test-env: "PyQt6~=6.2.3 PyQt6-WebEngine~=6.2.1"
+            test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
 
           - os: macos-12
             python-version: "3.11"

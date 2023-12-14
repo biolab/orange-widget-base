@@ -8,12 +8,12 @@ import sys
 import itertools
 from typing import Dict, Any, Optional, Iterable, List
 
-import pkg_resources
 import requests
 
 from AnyQt.QtCore import QStandardPaths, QCoreApplication
 
 from orangecanvas import config
+from orangecanvas.utils.pkgmeta import entry_points, EntryPoint
 
 
 # generated from biolab/orange3-addons repository
@@ -39,7 +39,7 @@ class Config(config.Default):
         Return an `EntryPoint` iterator for all registered 'orange.widgets'
         entry points.
         """
-        return pkg_resources.iter_entry_points(WIDGETS_ENTRY)
+        return entry_points(group=WIDGETS_ENTRY)
 
     @staticmethod
     def addon_entry_points():
@@ -70,23 +70,11 @@ class Config(config.Default):
 
     @staticmethod
     def examples_entry_points():
-        # type: () -> Iterable[pkg_resources.EntryPoint]
+        # type: () -> Iterable[EntryPoint]
         """
         Return an iterator over the entry points yielding 'Example Workflows'
         """
-        # `iter_entry_points` yields them in unspecified order, so we insert
-        # our first
-        try:
-            default_ep = (pkg_resources.EntryPoint(
-                "Orange3", "Orange.canvas.workflows",
-                dist=pkg_resources.get_distribution("Orange3")),)
-        except pkg_resources.DistributionNotFound:
-            default_ep = tuple()
-
-        return itertools.chain(
-            default_ep,
-            pkg_resources.iter_entry_points("orange.widgets.tutorials")
-        )
+        return entry_points(group="orange.widgets.tutorials")
 
     @staticmethod
     def widget_discovery(*args, **kwargs):

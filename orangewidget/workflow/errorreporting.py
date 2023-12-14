@@ -15,8 +15,7 @@ from urllib.parse import urljoin, urlencode
 from urllib.request import pathname2url, urlopen, build_opener
 from urllib.error import URLError
 from unittest.mock import patch
-
-import pkg_resources
+from importlib.metadata import distributions
 
 from AnyQt.QtCore import pyqtSlot, QSettings, Qt
 from AnyQt.QtGui import QDesktopServices, QFont
@@ -35,8 +34,8 @@ log = logging.getLogger()
 
 
 def get_installed_distributions():
-    for dist in pkg_resources.working_set:  # type: pkg_resources.Distribution
-        name = dist.project_name
+    for dist in distributions():
+        name = dist.name
         try:
             version = dist.version
         except ValueError:

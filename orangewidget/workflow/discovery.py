@@ -57,6 +57,6 @@ class WidgetDiscovery(discovery.WidgetDiscovery):
             desc.category = category_name
 
         if distribution is not None:
-            desc.project_name = distribution.project_name
+            desc.project_name = distribution.name
 
         return desc

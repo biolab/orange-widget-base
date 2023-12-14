@@ -1,12 +1,15 @@
 import enum
 import inspect
-from typing import Union, Iterator, Optional
-
+import pkgutil
 import sys
 import warnings
 from operator import attrgetter
+from typing import Union, Iterator, Optional
 
 from AnyQt.QtCore import QObject, QRect, QSize, QPoint, QTextBoundaryFinder
+from AnyQt.QtGui import QIcon
+
+from orangecanvas.gui.svgiconengine import StyledSvgIconEngine
 
 
 def progress_bar_milestones(count, iterations=100):
@@ -195,3 +198,7 @@ def grapheme_slice(text: str, start: int = 0, end: int = None) -> str:
     if slice_end is None:
         slice_end = len(text)
     return text[slice_start: slice_end]
+
+
+def load_styled_icon(package: str, path: str) -> QIcon:
+    return QIcon(StyledSvgIconEngine(pkgutil.get_data(package, path)))

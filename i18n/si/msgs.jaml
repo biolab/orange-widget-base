@@ -1,0 +1,1648 @@
+gui.py:
+    (^|[^%])%\((?P<value>[a-zA-Z]\w*)\): false
+    _lambda_{i}: false
+    def `is_macstyle`:
+        QMacStyle: false
+    def `resource_filename`:
+        "'resource_filename' is deprecated.": false
+    class `OWComponent`:
+        def `connect_control`:
+            .: false
+        def `__setattr__`:
+            .: false
+            controlled_attributes: false
+    def `miscellanea`:
+        addSpace: false
+        "'addSpace' has been deprecated. Use gui.separator instead.": false
+        set: false
+        box: false
+    def `_is_horizontal`:
+        string literals for orientation are deprecated: false
+        boolean values for orientation are deprecated: false
+        horizontal: false
+    def `widgetBox`:
+        ' ': false
+        addSpaceBefore: false
+    def `label`:
+        value: false
+    class `SpinBoxMixin`:
+        def `onEnter`:
+            "Testing by calling a spinbox's 'onEnter' method is deprecated, ": false
+            a call to 'setValue' should be sufficient.: false
+    def `spin`:
+        "'callbackOnReturn' is deprecated, all spinboxes callback ": false
+        only when the user is finished editing the value.: false
+        upButton: false
+    class `LineEditWFocusOut`:
+        def `__callback_if_changed`:
+            cback: false
+    def `lineEdit`:
+        baseClass: false
+    def `radioButtons`:
+        addToLayout: false
+    def `appendRadioButton`:
+        "'addSpace' has been deprecated. Use gui.separator instead.": false
+        buttons: false
+    def `hSlider`:
+        ' %d': false
+        addToLayout: false
+    def `labeledSlider`:
+        ' %d': false
+    def `valueSlider`:
+        ' %d': false
+    def `comboBox`:
+        addToLayout: false
+        "'editable' is ignored for searchable combo box.": false
+        valueType: false
+        comboBox no longer accepts argument 'valueType': false
+    def `deferred`:
+        class `DeferrerProperty`:
+            def `__get__`:
+                __{name}_data: false
+                class `Deferred`:
+                    def `__call__`:
+                        'This function is deferred; explicitly call ': false
+                        {name}.deferred or {name}.now: false
+                    def `__setattr__`:
+                        now: false
+                        deferred: false
+                    def `__getattribute__`:
+                        now: false
+                        deferred: false
+                    def `__delattr__`:
+                        now: false
+                        deferred: false
+            def `__set__`:
+                "decorated {name} can't be mocked; ": false
+                mock '{name}.now' and/or '{name}.deferred'.: false
+    def `auto_commit`:
+        commit: false
+        deferred: false
+        {label.title()} Automatically: {label.title()} samodejno
+        addToLayout: false
+        decorated: false
+        {type(master).__name__}.{commit_name} must be: false
+        decorated with gui.deferred because it overrides: false
+        a decorated {supertype.__name__}.: false
+        'decorate {type(master).__name__}.{commit_name} ': false
+        'with @gui.deferred and then explicitly call ': false
+        {commit_name}.now or {commit_name}.deferred.: false
+        unconditional_: false
+    def `auto_send`:
+        auto_send: false
+        Send Selection: Pošlji izbor
+        Send Automatically: Pošlji samodejno
+    def `auto_apply`:
+        auto_apply: false
+        Apply: Uveljavi
+        Apply Automatically: Uveljavi samodejno
+    def `disable_opposite`:
+        opposite: false
+    class `ControlledCallback`:
+        def `__init__`:
+            callbackDeposit: false
+        def `acyclic_setattr`:
+            +-: false
+    class `SetLabelCallback`:
+        def `__init__`:
+            %5.2f: false
+            callbackDeposit: false
+    class `FunctionCallback`:
+        def `__init__`:
+            callbackDeposit: false
+        def `__call__`:
+            id: false
+            widget: false
+    class `ControlledCallFront`:
+        def `__call__`:
+            opposite: false
+    class `CallFrontComboBox`:
+        def `action`:
+            def `action_str`:
+                "Combo '{combo.objectName()}' has no item '{value}'; ": false
+                current items are {', '.join(map(repr, items))}.: false
+                combo '{combo.objectName()}' is empty.: false
+            def `action_int`:
+                'index {value} is out of range ': false
+                "for combo box '{combo.objectName()}' ": false
+                with {combo.count()} item(s).: false
+                combo box '{combo.objectName()}' is empty.: false
+    class `CallFrontComboBoxModel`:
+        def `action`:
+            'Combo box does not contain item ': false
+    class `CallFrontLogSlider`:
+        def `action`:
+            unable to set %s to %s (value too small): false
+    class `Disabler`:
+        def `__call__`:
+            makeConsistent: false
+    class `ColoredBarItemDelegate`:
+        def `__init__`:
+            %%.%if: false
+        def `displayText`:
+            NA: ??
+    class `VisibleHeaderSectionContextEventFilter`:
+        def `eventFilter`:
+            Visible headers: false
+    def `checkButtonOffsetHint`:
+        macintosh (aqua): false
+        macintosh(aqua): false
+        plastique: false
+        cde: false
+        motif: false
+    class `ControlGetter`:
+        def `__getattr__`:
+            "'{}' is not an attribute related to a gui element or ": false
+            component: false
+    class `CalendarWidgetWithTime`:
+        def `__init__`:
+            hh:mm:ss: true
+            'Time: ': 'Čas: '
+    class `DateTimeEditWCalendarTime`:
+        def `__init__`:
+            yyyy-MM-dd hh:mm:ss: true
+io.py:
+    ImgFormat: false
+    Compression: false
+    PngFormat: false
+    ClipboardFormat: false
+    SvgFormat: false
+    MatplotlibPDFFormat: false
+    MatplotlibFormat: false
+    PdfFormat: false
+    class `Compression`:
+        .gz: false
+        .bz2: false
+        .xz: false
+    class `_Registry`:
+        def `__new__`:
+            registry: false
+        def `__str__`:
+            {}({{{}}}): false
+            ', ': false
+    class `ImgFormat`:
+        def `_meta_data`:
+            width: false
+            height: false
+            pixel_ratio: false
+        def `write_image`:
+            '{cls.__name__} ': false
+            cannot imagine {type(object).__name__}: false
+        def `write`:
+            scene: false
+        def `img_writers`:
+            EXTENSIONS: false
+    class `PngFormat`:
+        .png: false
+        Portable Network Graphics: false
+        def `_save_buffer`:
+            png: false
+        def `_get_exporter`:
+            class `PngExporter`:
+                def `export`:
+                    width: false
+                    height: false
+                    'Cannot export image with size=0 (requested ': false
+                    export size is %dx%d): false
+                    background: false
+                    antialias: false
+                    painter: false
+                    resolutionScale: false
+                    invertValue: false
+                    little: false
+        def `_export`:
+            png: false
+    class `ClipboardFormat`:
+        System Clipboard: Odložišče
+        def `_save_buffer`:
+            pixel_ratio: false
+    class `SvgFormat`:
+        .svg: false
+        Scalable Vector Graphics: false
+        def `_export`:
+            background: false
+        def `write_image`:
+            '<svg ': false
+            '<svg style="image-rendering:optimizeSpeed;image-rendering:pixelated" ': false
+            w: false
+    class `MatplotlibFormat`:
+        .py: false
+        Python Code (with Matplotlib): false
+        def `write_image`:
+            \n\nplt.show(): false
+            wt: false
+        def `write`:
+            scene: false
+    class `MatplotlibPDFFormat`:
+        .pdf: false
+        Portable Document Format (from Matplotlib): false
+        def `write_image`:
+            backend: false
+            pdf: false
+            \n\nplt.savefig({}): false
+    class `PdfFormat`:
+        .pdf: false
+        Portable Document Format: false
+        def `write_image`:
+            .svg: false
+            rb: false
+settings.py:
+    Setting: false
+    SettingsHandler: false
+    SettingProvider: false
+    ContextSetting: false
+    Context: false
+    ContextHandler: false
+    IncompatibleContext: false
+    SettingsPrinter: false
+    rename_setting: false
+    widget_settings_dir: false
+    __version__: false
+    def `widget_settings_dir`:
+        widgets: false
+    class `Setting`:
+        def `__str__`:
+            {0} "{1}": false
+    def `_apply_setting`:
+        clear: false
+        update: false
+    class `SettingProvider`:
+        def `_default_packer`:
+            '{0} is declared as setting on {1} ': false
+            but not present on instance.: false
+    class `SettingsHandler`:
+        def `analyze_settings`:
+            {0}{1}.: false
+        def `read_defaults`:
+            rb: false
+            Could not read defaults for widget {0}\n: false
+            The following error occurred:\n\n{1}: false
+        def `write_defaults`:
+            wb: false
+            Could not write default settings for %s (%s).: false
+        def `_get_settings_filename`:
+            {0.__module__}.{0.__qualname__}.pickle: false
+        def `_select_provider`:
+            '{0} has not been declared as setting provider in {1}. ': false
+            Settings will not be saved/loaded properly. Defaults will be used instead.: false
+    class `ContextHandler`:
+        def `initialize`:
+            context_settings: false
+        def `pack_data`:
+            context_settings: false
+        def `update_packed_data`:
+            .: false
+    class `SettingsPrinter`:
+        def `_format`:
+            Context(: false
+            values: false
+            =: false
+            ,\n: false
+            ' ': false
+            values=: false
+            ): false
+version.py:
+    4.24.0: false
+    4.24.0.dev0+31e1b65: false
+    31e1b655e24581af44ab5f14523ace5a364f57a8: false
+    .dev: false
+widget.py:
+    OWBaseWidget: false
+    Input: false
+    Output: false
+    MultiInput: false
+    Message: false
+    Msg: false
+    StateInfo: false
+    def `_load_styled_icon`:
+        icons/: false
+    class `WidgetMetaClass`:
+        def `__new__`:
+            ,: false
+        def `__prepare__`:
+            _final_class: false
+    class `OWBaseWidget`:
+        icons/Unknown.png: false
+        write_image: false
+        EXTENSIONS: false
+        def `__new__`:
+            left_side_scrolling: false
+            "'OWBaseWidget.left_side_scrolling' is deprecated.": false
+            stored_settings: false
+            signal_manager: false
+            env: false
+            Help: Pomoč
+            action-help: false
+            Show help: Pokaži pomoč
+            Report: Poročilo
+            action-report: false
+            Create and display a report: Ustvari in prikaži poročilo
+            alt+r: false
+            send_report: false
+            Save Image: Shrani sliko
+            action-save-image: false
+            Save image: Shrani sliko
+            alt+s: false
+            Reset: Ponastavi
+            action-reset-settings: false
+            Reset settings to default state: Ponastavi privzete nastavitve
+            reset_settings: false
+            Show View Options: Pokaži možnosti pogleda
+            action-visual-settings: false
+            set_visual_settings: false
+            Copy to Clipboard: Kopiraj v odložišče
+            action-copy-to-clipboard: false
+            Copy Image to Clipboard: Kopiraj sliko v odložišče
+            Minimize: Pomanjšaj
+            ctrl+m: false
+            Close: Zapri
+            action-close-window: false
+            ctrl+w: false
+            /menubar: false
+            use-native: false
+            visible: false
+            Show Menu Bar: Pokaži menijsko vrstico
+            action-show-menu-bar: false
+            ctrl+shift+m: false
+            menu-bar-visible-timer: false
+            alt-key-timeout: false
+            &File: &Datoteka
+            menu-file: false
+            &Edit: &Uredi
+            menu-edit: false
+            darwin: false
+            Cut: Izreži
+            Copy: Kopiraj
+            Paste: Prilepi
+            Select All: Izberi vse
+            &View: &Pogled
+            menu-view: false
+            &Window: &Okno
+            menu-window: false
+            &Help: Pomoč
+            help-menu: false
+            Quick Help Tip: Nasvet za hitro pomoč
+            action-quick-help-tip: false
+            shift+f1: false
+            Show Control Area: Pokaži območje nadzora
+            action-show-control-area: false
+            Ctrl+Shift+D: true
+        def `__menuBarVisibleTimeout`:
+            __visible_from_alt_key_press: false
+        def `__setMenuBarVisible`:
+            __visible_from_alt_key_press: false
+            /menubar: false
+            visible: false
+        def `__init_subclass__`:
+            _final_class: false
+            'subclassing of widget classes is deprecated and will be ': false
+            disabled in the future.\n: false
+            'Extract code from {base.__name__} or explicitly open it ': false
+            by adding `openclass=True` to class definition.: false
+        def `get_widget_description`:
+            name: false
+            icon: false
+            description: false
+            priority: false
+            keywords: false
+            replaces: false
+            short_name: false
+            category: false
+            id: false
+            inputs: false
+            outputs: false
+            qualified_name: false
+            {cls.__module__}.{cls.__name__}: false
+        class `_Splitter`:
+            def `sizeHint`:
+                sizeHint: false
+            def `minimumSizeHint`:
+                minimumSizeHint: false
+        def `_create_default_buttons`:
+            &Save Image: &Shrani sliko
+            send_report: false
+            &Report: &Poročilo
+        def `statusBar`:
+            owwidget-status-bar: false
+            Show Status Bar: Pokaži statusno vrstico
+            action-show-status-bar: false
+            Show status bar: Pokaži statusno vrstico
+            Shift+Ctrl+\\: false
+            'div.field-text { white-space: pre; }\n': false
+            div.field-detailed-text {\n: false
+            '    margin-top: 0.5em; margin-bottom: 0.5em; \n': false
+            '    margin-left: 1em; margin-right: 1em;\n': false
+            }: false
+            buttons: false
+            hamburger.svg: false
+            Menu: Meni
+            status-bar-menu-button: false
+            help.svg: false
+            chart.svg: false
+            report.svg: false
+            reset.svg: false
+            visual-settings.svg: false
+            in-out-msg: false
+            menu-view: false
+        def `__info`:
+            '
+            /* vertical row header cell */
+            tr > th.field-name {
+                text-align: right;
+                padding-right: 0.2em;
+                font-weight: bold;
+            }
+            dt {
+                font-weight: bold;
+            }
+            ': false
+            in-out-msg: false
+            input-summary: false
+            output-summary: false
+            buttons: false
+        def `info`:
+            "'OWBaseWidget.info' is a property since 3.19 and will be made read ": false
+            only in v4.0.: false
+            info: false
+        def `__setControlAreaVisible`:
+            action-show-control-area: false
+        def `__showStatusBarMenu`:
+            status-bar-menu-button: false
+            up: false
+        def `keyReleaseEvent`:
+            __visible_from_alt_key_press: false
+        def `__showMessage`:
+            Ok, got it: Aha, razumem!
+            '
+            MessageOverlayWidget {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 0, y2: 1,
+                    stop:0 #666, stop:0.3 #6D6D6D, stop:1 #666)
+            }
+            MessageOverlayWidget QLabel#text-label {
+                color: white;
+            }': false
+            Learn more\N{HORIZONTAL ELLIPSIS}: Preberi več\N{HORIZONTAL ELLIPSIS}
+        def `__quicktipOnce`:
+            user-session-state.ini: false
+            user-message-history/{0.__module__}.{0.__qualname__}: false
+            def `_ispending`:
+                {}/confirmed: false
+            def `_userconfirmed`:
+                {}/confirmed: false
+        def `actionEvent`:
+            action-canvas-: false
+            menu-window: false
+    k: false
+    M: false
+    G: false
+    T: false
+    P: false
+    class `StateInfo`:
+        class `Summary`:
+            def `default_icon`:
+                {role}.svg: false
+        class `Empty`:
+            def `default_icon`:
+                {role}-empty.svg: false
+        class `Partial`:
+            def `default_icon`:
+                {role}-partial.svg: false
+        def `set_input_summary`:
+            def `assert_single_arg`:
+                'No extra arguments expected when `summary` ': false
+                is `None` or `Message`: false
+            No data on input: Ni vhodnih podatkov
+            -: true
+            input: false
+            "'None', 'str' or 'Message' instance expected, ": false
+            got '{}': false
+        def `set_output_summary`:
+            def `assert_single_arg`:
+                'No extra arguments expected when `summary` ': false
+                is `None` or `Message`: false
+            No data on output: Ni izhodnih podatkov
+            -: true
+            output: false
+            "'None', 'str' or 'Message' instance expected, ": false
+            got '{}': false
+        def `format_number`:
+            {n:.3g}{metric_suffix[mag]}: false
+report/owreport.py:
+    class `ReportItemModel`:
+        def `add_item`:
+            Remove: Odstrani
+            Open Scheme: Odpri delotok
+    class `ReportTable`:
+        def `__init__`:
+            icons/delete.svg: false
+            icons/scheme.svg: false
+    class `OWReport`:
+        Report: Poročilo
+        def `__init__`:
+            index.html: false
+            utf-8: true
+        def `_setup_ui_`:
+            Back to Last Scheme: Vrni se na zadnji delotok
+            Save: Shrani
+            Print: Natisni
+        def `_add_item`:
+            {} - {}: true
+        def `_build_html`:
+            (function (id) {{: false
+            '     setSelectedId(id); scrollToId(id); ': false
+            }}: false
+            (\"{selected_id}\"));: false
+            '': false
+            <body onload='{onload}'>: false
+            <body>: false
+            "<div id='{}' class='normal' ": false
+            "onClick='pybridge._select_item(this.id)'>{}<div ": false
+            "class='textwrapper'><textarea ": false
+            placeholder='Write a comment...': placeholder='Dodaj komentar...'
+            onInput='this.innerHTML = this.value;: false
+            pybridge._add_comment(this.parentNode.parentNode.id, this.value);': false
+            >{}</textarea></div>: false
+            </div>: false
+            </body></html>: false
+        def `_scroll_to_item`:
+            scrollToId('{item.id}'): false
+            scrollToId returned %s: false
+        def `_change_selected_item`:
+            setSelectedId('{item.id}');: false
+            setSelectedId returned %s: false
+        def `_get_scheme_str`:
+            utf-8: false
+        def `save_report`:
+            HTML (*.html): false
+            .html: false
+            PDF (*.pdf): false
+            .pdf: false
+            Report (*.report): false
+            .report: false
+            Save Report: Shrani poročilo
+            ;;: false
+            def `save_html`:
+                w: false
+                utf-8: false
+        def `_print_report`:
+            Print report: Natisni poročilo
+        def `save`:
+            last_scheme: false
+            open_dir: false
+            wb: false
+        def `load`:
+            rb: false
+            attributes: false
+            items: false
+        def `permission_error`:
+            PermissionError when trying to write report.: true
+            Error: Napaka
+            Permission error when trying to write report.: Napaka pri shranjevanju poročila.
+            'Permission error occurred ': "Napaka pri shranjevanju '{}': "
+            while saving '{}'.: shranjevanje v to mapo ni dovoljeno.
+        def `set_instance`:
+            OWReport.set_instance is deprecated: false
+        def `get_instance`:
+            OWReport.get_instance is deprecated: false
+            _report_window: false
+report/report.py:
+    Report: false
+    bool_str: false
+    colored_square: false
+    plural: false
+    plural_w: false
+    clip_string: false
+    clipped_list: false
+    get_html_img: false
+    get_html_section: false
+    get_html_subsection: false
+    list_legend: false
+    render_items: false
+    render_items_vert: false
+    class `Report`:
+        def `show_report`:
+            Missing Component: Manjkajoča komponenta
+            'Orange can not display reports, because your installation ': 'Orange ne more pokazati poročila, ker ne najde '
+            contains neither WebEngine nor WebKit.\n\n: komponente WabEngine ali WebKit.\n\n
+            'If you installed Orange with conda or pip, try using another ': 'Če ste Orange namestili s conda ali pip, poskusite '
+            'PyQt distribution. ': 'z drugo različico PyQt. '
+            'If you installed Orange with a standard installer, please ': 'Če ste Orange namestili z običajno namestitvijo, '
+            report this bug.: nas, prosimo, obvestite o tej napaki.
+        def `create_report_html`:
+            <section class="section">: false
+            <div class="content">\n: false
+            </div></section>\n\n: false
+        def `report_table`:
+            def `report_abstract_model`:
+                def `item_html`:
+                    def `data`:
+                        ' ': false
+                    displayText: false
+                    black: false
+                    '#ffffff': false
+                    transparent: false
+                    'font-weight: bold; ': false
+                    left: false
+                    right: false
+                    center: false
+                    top: false
+                    bottom: false
+                    middle: false
+                    style=": false
+                    color:{fgcolor}; background:{bgcolor}; {weight}: false
+                    text-align:{halign}; vertical-align:{valign};": false
+                    th: false
+                    td: false
+                    <{tag} {style}>{decoration}{value}</{tag}>\n: false
+                <tr>: false
+                <th></th>: false
+                </tr>: false
+            def `report_list`:
+                <td>{}</td>: false
+                <th>{}</th>: false
+                '  <tr>\n    {}</tr>\n': false
+            "<tr><th></th><td colspan='{}'><b>+ {} more</b></td></tr>
+            ": "<tr><th></th><td colspan='{}'><b>+ še {}</b></td></tr>
+"
+            <table>\n: false
+            </table>: false
+        def `report_paragraph`:
+            <p>{}</p>: false
+        def `report_caption`:
+            <p class='caption'>{}</p>: false
+    def `plural`:
+        s: false
+        'Plural formed by this function is difficult to translate. ': false
+        Use orangecanvas.utils.localization.pl instead.: false
+    def `plural_w`:
+        s: false
+        zero: false
+        one: false
+        two: false
+        three: false
+        four: false
+        five: false
+        six: false
+        seven: false
+        nine: false
+        ten: false
+    def `bool_str`:
+        Yes: Da
+        No: Ne
+    def `clip_string`:
+        ...: true
+    def `clipped_list`:
+        ', ': true
+        ' ': false
+    def `get_html_section`:
+        %a %b %d %y, %H:%M:%S: %d. %m. %y, %H:%M:%S
+        <h1>{} <span class='timestamp'>{}</h1>: false
+    def `get_html_subsection`:
+        <h2>{}</h2>: false
+    def `render_items`:
+        <ul>: false
+        <b>{}:</b> {}</br>: false
+        </ul>: false
+    def `render_items_vert`:
+        ', ': false
+        '<b>{}</b>: {}': false
+    def `get_html_img`:
+        utf-8: false
+        'max-height: {max_height}px': false
+        pixel_ratio: false
+        'zoom: {1 / ratio:.1f}': false
+        ' style="{"; ".join(style_opts)}"': false
+        <img{style} src="data:image/png;base64,{img_encoded}"/>: false
+    def `get_icon_html`:
+        PNG: false
+        ' width="{}" height="{}"': false
+        utf-8: false
+        '<img style="display: inline; vertical-align: middle" ': false
+        src="data:image/png;base64,{img_encoded}"{size_part}/>: false
+    def `colored_square`:
+        '<span class="legend-square" ': false
+        'style="background-color: rgb({}, {}, {})"></span>': false
+    def `list_legend`:
+        model: false
+        <span class="legend-item">{}</span>: false
+tests/base.py:
+    setdestroyonexit: false
+    T: false
+    def `named_file`:
+        wt: false
+    class `_FinishedMonitor`:
+        def `__init__`:
+            OWBaseWidget: false
+    class `DummySignalManager`:
+        def `get_output`:
+            Failed to get output in the specified timeout: false
+        def `wait_for_finished`:
+            OWBaseWidget: false
+    class `GuiTest`:
+        English: Slovenian
+        def `setUpClass`:
+            -: false
+            -widgetcount: false
+            darwin: false
+            pyqtgraph: false
+        def `tearDownClass`:
+            pyqtgraph: false
+            exitCleanup: false
+        def `skipNonEnglish`:
+            English: false
+        def `runOnLanguage`:
+            def `decorator`:
+                Test is valid only for {lang} release: false
+    class `WidgetTest`:
+        def `__init_subclass__`:
+            def `test_minimum_size`:
+                widget: false
+                minimum size not tested as .widget was not set: false
+            def `test_image_export`:
+                widget: false
+                image exporting not tested as .widget was not set: false
+            def `test_msg_base_class`:
+                widget: false
+                msg base class not tested as .widget was not set: false
+            test_minimum_size: false
+            test_msg_base_class: false
+            test_image_export: false
+        def `setUpClass`:
+            def `get_instance`:
+                TRAVIS: false
+                APPVEYOR: false
+            get_instance: false
+        def `tearDownClass`:
+            _Cls__didCallOnDeleteWidget: false
+        def `reset_default_settings`:
+            settingsHandler: false
+        def `send_signals`:
+            widget: false
+            Signals are bound to different widgets: false
+        def `_send_signal`:
+            "'{}' is not an input name for widget {}": false
+            "'send_signal' called but the widget is not ": false
+            in ready state and does not accept inputs.: false
+            {} should be {}: false
+        def `wait_until_finished`:
+            Did not finish in the specified {timeout}ms timeout: false
+        def `commit_and_wait`:
+            now: false
+        def `get_output`:
+            widget: false
+            widget {} has no output {}: false
+        def `check_msg_base_class`:
+            Error: false
+            Warning: false
+            Information: false
+    class `TestWidgetTest`:
+        def `test_get_single_output`:
+            class `A`:
+                A: false
+                class `Inputs`:
+                    Question: false
+                class `Outputs`:
+                    Answer: false
+            6 * 7: false
+        def `test_compute_lazy_signals`:
+            class `A`:
+                A: false
+                class `Outputs`:
+                    Answer: false
+    class `BaseParameterMapping`:
+        def `__init__`:
+            both: false
+        def `__str__`:
+            both: false
+            %s (%s): false
+    class `ParameterMapping`:
+        def `_default_values`:
+            {} is not supported: false
+        def `_default_get_value`:
+            {} is not supported: false
+        def `_default_set_value`:
+            {} is not supported: false
+    def `open_widget_classes`:
+        __init_subclass__: false
+    def `override_default_settings`:
+        wb: false
+    __main__: false
+tests/utils.py:
+    def `excepthook_catch`:
+        'The sys.excepthook that was installed by ': false
+        "'excepthook_catch' context at enter is not ": false
+        the one present at exit.: false
+    class `simulate`:
+        def `combobox_activate_item`:
+            {!r} not in {}: false
+utils/PDFExporter.py:
+    class `PDFExporter`:
+        def `export`:
+            antialias: false
+            background: false
+            painter: false
+utils/__init__.py:
+    def `to_html`:
+        <=: false
+        &#8804;: false
+        >=: false
+        &#8805;: false
+        <: false
+        &#60;: false
+        >: false
+        &#62;: false
+        =\\=: false
+        &#8800;: false
+    def `dumpObjectTree`:
+        {indent}{type} "{name}": false
+        ' ': false
+    class `DeprecatedSignal`:
+        def `__init__`:
+            Deprecated: false
+    def `dropdown_popup_geometry`:
+        down: false
+        up: false
+        Invalid 'preferred_direction' ({preferred_direction}): false
+    def `graphemes`:
+        utf-16-le: false
+    def `grapheme_slice`:
+        negative start or end: false
+utils/cache.py:
+    class `LRUCache`:
+        __dict: false
+        __maxlen: false
+        __miss: false
+        __hit: false
+utils/combobox.py:
+    class `ComboBox`:
+        def `_get_size_hint`:
+            X: true
+    class `_ComboBoxListDelegate`:
+        def `paint`:
+            separator: false
+    class `ComboBoxSearch`:
+        def `_get_size_hint`:
+            X: true
+        def `showPopup`:
+            Filter...: true
+            darwin: false
+utils/concurrent.py:
+    class `FutureRunnable`:
+        def `run`:
+            Exception in worker thread.: false
+    class `FutureWatcher`:
+        def `setFuture`:
+            Future already set: false
+        def `isCancelled`:
+            isCancelled is deprecated: false
+        def `isDone`:
+            isDone is deprecated: false
+        def `result`:
+            Future is not yet done: false
+        def `exception`:
+            Future is not yet done: false
+    class `FutureSetWatcher`:
+        def `__init__`:
+            Future: false
+        def `setFutures`:
+            already set: false
+            __emitpending: false
+            doneAll: false
+        def `flush`:
+            `flush()` called from a wrong thread.: false
+        def `wait`:
+            Futures were not set.: false
+utils/filedialogs.py:
+    def `fix_extension`:
+        Mismatching extension: Napačna končnica
+        Extension '{ext}' does not match the chosen file format, {format}.: Končnica '{ext}' se ne ujema z izbrano obliko datoteke, {format}.
+        \n\nWould you like to fix this?: \n\nPopravim?
+        Change extension to {suggested_ext}: Spremeni končnico v {suggested_ext}
+        'Save as ': 'Shrani kot '
+        Back: Nazaj
+    def `unambiguous_paths`:
+        {sep}|{re.escape(os.path.altsep)}: false
+    def `format_filter`:
+        {} (*{}): false
+        ' *': false
+    def `open_filename_dialog_save`:
+        Save as...: Shrani kot...
+    def `open_filename_dialog`:
+        Open...: Odpri...
+        All readable files (*{}): Vse znane datoteke (*{})
+        ' *': false
+        ;;: false
+    class `RecentPath`:
+        def `__init__`:
+            nt: false
+            /: false
+        def `resolve`:
+            basedir: false
+        def `__repr__`:
+            '{0.__class__.__name__}(abspath={0.abspath!r}, ': false
+            'prefix={0.prefix!r}, relpath={0.relpath!r}, ': false
+            title={0.title!r}): false
+    class `RecentPathsWidgetMixin`:
+        def `_check_init`:
+            RecentPathsWidgetMixin.__init__ was not called: false
+        def `_search_paths`:
+            basedir: false
+    class `RecentPathsWComboMixin`:
+        def `set_file_list`:
+            (none): (prazno)
+        def `update_file_list`:
+            basedir: false
+utils/itemdelegates.py:
+    A: false
+    class `ModelItemCache`:
+        __model: false
+        __cache_data: false
+        def `__init__`:
+            LRUCache[ModelItemCache.__KEY, Any]: false
+    class `CachedDataItemDelegate`:
+        roles: false
+        __cache: false
+    class `StyledItemDelegate`:
+        def `displayText`:
+            ' ': false
+    class `DataDelegate`:
+        __static_text_lru_cache: false
+        __pen_lru_cache: false
+        __style: false
+    class `BarItemDataDelegate`:
+        color: false
+        penWidth: false
+        barFillRatioRole: false
+        barColorRole: false
+        __line: false
+        __pen: false
+utils/itemmodels.py:
+    def `_as_contiguous_range`:
+        Non-contiguous range.: false
+    class `AbstractSortTableModel`:
+        def `_sortColumnData`:
+            Data should be 1- or 2-dimensional: false
+        def `_argsortData`:
+            mergesort: false
+    class `PyTableModel`:
+        def `data`:
+            {:.{}{}}: false
+            f: false
+            e: false
+        def `_check_sort_order`:
+            Can't modify PyTableModel when it's sorted: false
+    class `PyListModel`:
+        application/x-Orange-PyListModelData: false
+        def `_is_index_valid`:
+            Mismatched length of model and its _other_data: false
+        def `data`:
+            separator: false
+        def `flags`:
+            flags: false
+        def `__repr__`:
+            PyListModel(%s): false
+        def `mimeData`:
+            'see properties: _items, _itemdata': false
+            _items: false
+            _itemdata: false
+        def `dropMimeData`:
+            _items: false
+            _itemdata: false
+utils/listview.py:
+    class `ListViewFilter`:
+        def `__init__`:
+            Filter...: ture
+        def `setModel`:
+            'The model cannot be changed. ': false
+            Use set_source_model() instead.: false
+    class `ListViewSearch`:
+        def `__init__`:
+            'ListViewSearch is deprecated and will be removed ': false
+            in upcoming releases. Use ListViewFilter instead.: false
+            Filter...: true
+    def `main`:
+        A: false
+        Z: false
+        {next(c)}{next(c)}{next(c)}{next(c)}: false
+    __main__: false
+utils/matplotlib_export.py:
+    def `numpy_repr`:
+        array(: false
+        ): false
+    def `numpy_repr_int`:
+        array(: false
+        , dtype='int'): false
+    def `code_with_indices`:
+        [: false
+        ]: false
+    def `scatterplot_code`:
+        x: false
+        y: false
+        size: false
+        '# data': false
+        x = {}: false
+        y = {}: false
+        '# style': false
+        sizes = {}: false
+        pen: false
+        brush: false
+        def `do_colors`:
+            {} = {}: false
+            {}_index = {}: false
+            array({})[{}_index]: false
+        edgecolors: false
+        facecolors: false
+        linewidths = {}: false
+        def `matplotlib_marker`:
+            t: false
+            ^: false
+            t2: false
+            >: false
+            t3: false
+            <: false
+            star: false
+            *: false
+            +: false
+            P: false
+            x: false
+            X: false
+        symbol: false
+        indices = {}: false
+        def `indexed`:
+            indices: false
+        plt.scatter(x={}, y={}, s={}, marker={},\n: false
+        '            facecolors={}, edgecolors={},\n': false
+        '            linewidths={})': false
+        sizes: false
+        **2/4: false
+        linewidths: false
+        \n: false
+    def `scene_code`:
+        import matplotlib.pyplot as plt: false
+        from numpy import array: false
+        plt.clf(): false
+        bottom: false
+        plt.xticks: false
+        plt.xlabel: false
+        left: false
+        plt.yticks: false
+        plt.ylabel: false
+        {}({}): false
+        {}({}, {}): false
+        \n: false
+utils/messages.py:
+    class `UnboundMsg`:
+        def `__call__`:
+            Message is not bound: false
+        def `clear`:
+            Message is not bound: false
+        def `is_shown`:
+            Message is not bound: false
+    class `MessageGroup`:
+        def `__init__`:
+            {}: false
+        def `add_message`:
+            {}: false
+    class `MessagesMixin`:
+        def `__init__`:
+            severity: false
+    class `WidgetMessagesMixin`:
+        class `Error`:
+            '#ffc6c6': false
+        class `Warning`:
+            '#ffffc9': false
+        class `Information`:
+            '#ceceff': false
+        def `update_message_state`:
+            def `msg`:
+                \n: false
+        def `_warn_obsolete`:
+            "'{}' with id is deprecated; use {} class": false
+        def `information`:
+            information: false
+        def `warning`:
+            warning: false
+        def `error`:
+            error: false
+utils/messagewidget.py:
+    Message: false
+    MessagesWidget: false
+    def `image_data`:
+        png: false
+        ascii: false
+        data:image/png;base64,: false
+    class `Message`:
+        Message: false
+        severity: false
+        icon: false
+        text: false
+        informativeText: false
+        detailedText: false
+        textFormat: false
+        def `asHtml`:
+            '<span style="white-space: pre">{}</span>': false
+            <div class="message {}">: false
+            <div class="field-text">: false
+            <img src="{iconurl}" width="{imgsize}" height="{imgsize}" />: false
+            ' {text}': false
+            </div>: false
+            <div class="field-informative-text">{}</div>: false
+            <div class="field-detailed-text">{}</div>: false
+            \n: false
+    def `summarize`:
+        {nerrors} {pl(nerrors, 'error')}: {nerrors} {plsi(nerrors, 'napaka')}
+        {nwarnings} {pl(nwarnings, 'warning')}: {nwarnings} {plsi(nwarnings, 'opozorilo|opozorili|opozorila|opozoril')}
+        {ninfo} {pl(ninfo, 'message')}: {ninfo} {plsi(ninfo, 'sporočilo|sporočili|sporočila|sporočil')}
+        {ninfo} other {pl(ninfo, 'message')}: {ninfo} {plsi(ninfo, 'drugo sporočilo|drugi sporočili|druga sporočila|drugih sporočil')}
+        ' (': true
+        ', ': true
+        ): true
+        <hr/>: false
+    class `MessageWidget`:
+        def `__init__`:
+            sizePolicy: false
+            opacity: false
+        def `_styled`:
+            <style>{escape(self.__defaultStyleSheet)}</style>\n{html}: false
+    class `IconWidget`:
+        def `__init__`:
+            sizePolicy: false
+    def `main`:
+        Encountered a HCF: false
+        <em>AAA! It burns.</em>: false
+        ACHTUNG!: false
+        '<div style=\"color: red\">DAS KOMPUTERMASCHINE IST ': false
+        NICHT FÜR DER GEFINGERPOKEN</div>: false
+        The rain in spain falls mostly on the plain: false
+        <a href=\"https://www.google.si/search?q=: false
+        Average+Yearly+Precipitation+in+Spain\">Link</a>: false
+        I did not do this!: false
+        The computer made suggestions...: false
+        ... and the default options was yes.: false
+    __main__: false
+utils/overlay.py:
+    class `MessageWidget`:
+        _Button: false
+        button: false
+        role: false
+        stdbutton: false
+        def `__init__`:
+            icon-label: false
+            text-label: false
+            darwin: false
+        def `addButton`:
+            'Wrong number of arguments for ': false
+            addButton(QAbstractButton, role): false
+            addButton(StandardButton): false
+            Ok: true
+            Help: Pomoč
+            addButton(str, ButtonRole): false
+            darwin: false
+    def `proxydoc`:
+        __doc__: false
+utils/progressbar.py:
+    class `ProgressBarMixin`:
+        def `progressBarInit`:
+            ' (0% complete)': ' (0% opravljeno)'
+        def `progressBarSet`:
+            'progressBarSet() called without a ': false
+            preceding progressBarInit(): false
+            {}:{:02}:{:02}: true
+            {}:{}:{:02}: true
+            '{} ({:d}%, ETA: {})': {} ({:d}%, Še: {})
+            ' (0% complete)': ' (0% opravljeno)'
+utils/saveplot.py:
+    def `save_plot`:
+        directories/last_graph_directory: false
+        directories/last_graph_filter: false
+        ~: false
+        Error: Napaka
+        'Error occurred while saving file "{}": {}': Napaka pri shranjevanju datoteke "{}": {}
+    __main__: false
+utils/signals.py:
+    '
+Function for summarizing the input or output data.
+
+The function must be decorated with `@summarize.register`. It accepts an
+argument of arbitrary type and returns a `PartialSummary`, which is a tuple
+consisting of two strings: a short summary (usually a number) and details.
+': false
+    '
+<style>
+    ul {
+        margin-left: 4px;
+        margin-top: 2px;
+        -qt-list-indent:1
+    }
+
+    li {
+        margin-bottom: 3px;
+    }
+
+    th {
+        text-align: right;
+    }
+</style>
+': false
+    def `can_summarize`:
+        To silence this warning, set auto_summary of '{name}' to False.: false
+        'Output is specified with qualified name ({a_type}). ': false
+        'To enable auto summary, set auto_summary to True. ': false
+        "register 'summarize' function for type {a_type.__name__}. ": false
+    Closed: false
+    __doc__: false
+    Explicit connection closing sentinel.: false
+    __repr__: false
+    __str__: false
+    class `Input`:
+        def `__call__`:
+            Input {} is already bound to method {}: false
+    class `MultiInput`:
+        def `__init__`:
+            multiple: false
+            multiple cannot be set to False: false
+        def `__get_summary_ids`:
+            WidgetSignalsMixin: false
+        def `bound_signal`:
+            insert_handler is not set: false
+            remove_handler is not set: false
+    def `_parse_call_id_arg`:
+        '`id` parameter is deprecated and will be removed in the ': false
+        future: false
+    class `WidgetSignalsMixin`:
+        def `_bind_signals`:
+            Inputs: false
+            Outputs: false
+        def `send`:
+            {} is not a valid output signal for widget {}: false
+        def `convert_signals`:
+            inputs: false
+            outputs: false
+            Inputs: false
+            Outputs: false
+        def `_check_input_handlers`:
+            'unbound signal(s) in {}: {}': false
+            ', ': false
+            'missing handlers in {}: {}': false
+        def `_check_ids_unique`:
+            input: false
+            output: false
+            s: false
+            'Name {signal.name} refers to different {direction} ': false
+            signals of {cls.__name__}: false
+            'Id {signal.id} refers to different {direction} ': false
+            '{name} appears as a name and an id of two different ': false
+            {direction} signals in {cls.__name__}: false
+        def `_update_summary`:
+            def `format_short`:
+                -: true
+                'summary must be None, string or int; ': false
+                got {type(summary).__name__}: false
+            def `format_detail`:
+                -: true
+            def `join_multiples`:
+                -: true
+                ' ': false
+                <br/>: false
+            ' | ': true
+            <hr/><table>: false
+            '<tr><th><nobr>{name}</nobr>: ': false
+            </th><td>{detail}</td></tr>: false
+            </table>: false
+        def `show_preview`:
+            <hr/><table>: false
+            '<tr><th><nobr>{name}</nobr>: ': false
+            </th><td>-</td></tr>: false
+            </table>: false
+            ' ({i})': false
+            -: false
+            '<tr><th><nobr>{name}{part_no}</nobr>: ': false
+            </th><td>{detail}</td></tr>: false
+    def `get_input_meta`:
+        inputs: false
+    def `get_widget_inputs`:
+        _WidgetSignalsMixin__input_state: false
+utils/visual_settings_dlg.py:
+    class `SettingsDialog`:
+        def `__init__`:
+            Visual Settings: Vizualne nastavitve
+        def `__add_row`:
+            {label}:: false
+    class `VisualSettingsDialog`:
+        def `__init__`:
+            visual_settings: false
+    def `_`:
+        '{key[-1]} ': false
+    __main__: false
+    Foo: false
+    Bar: false
+    Baz: false
+    Foo Bar: false
+    Foo Baz: false
+    Bar Baz: false
+    Box 1: false
+    Item 1: false
+    Parameter 1: false
+    Parameter 2: false
+    Parameter 3: false
+    Item 2: false
+    Item 3: false
+    Box 2: false
+    Item 4: false
+    Item 5: false
+    Item 6: false
+    Open dialog: false
+utils/webview.py:
+    _webview: false
+    helpers.js: false
+    init-webengine-webchannel.js: false
+    ORANGE_DEBUG: false
+    class `WebEngineView`:
+        __ORANGE_: false
+        def `__init__`:
+            QTWEBENGINE_REMOTE_DEBUGGING: false
+            12088: false
+            'To debug QWebEngineView, set environment variable ': false
+            'QTWEBENGINE_REMOTE_DEBUGGING={port} and then visit ': false
+            'http://127.0.0.1:{port}/ in a Chromium-based browser. ': false
+            'See https://doc.qt.io/qt-5/qtwebengine-debugging.html ': false
+            This has also been done for you.: false
+            utf-8: false
+            webview_helpers: false
+            ://qtwebchannel/qwebchannel.js: false
+            webchannel_init: false
+            ://qtwebchannel/qwebchannel.js is not readable.: false
+            ;window.__load_finished = true;: false
+            load_finished: false
+            "Don't expose QWidgets in WebView. Construct minimal ": false
+            QObjects instead.: false
+            pybridge: false
+            __bridge: false
+        def `_onloadJS`:
+            script_: false
+    class `WebKitView`:
+        def `__init__`:
+            "Don't expose QWidgets in WebView. Construct minimal ": false
+            QObjects instead.: false
+            def `_onload`:
+                pybridge: false
+                utf-8: false
+    def `_to_primitive_types`:
+        "Don't expose QWidgets in WebView. Construct minimal ": false
+        QObjects instead.: false
+        'object must consist of primitive types ': false
+        '(allowed: int, float, str, bool, list, ': false
+        'dict, set, numpy.ndarray, ...). Type is: ': false
+    class `_WebViewBase`:
+        def `evalJS`:
+            def `_later`:
+                \n;: false
+            ;0;: false
+        def `svg`:
+            '<svg ': false
+            </svg>: false
+        def `toFileURL`:
+            file:: false
+    class `_JSObject`:
+        def `pop_object`:
+            QVariantMap: false
+    class `WebviewWidget`:
+        def `__init__`:
+            __js_object_channel: false
+        def `html`:
+            _html: false
+    class `_JSObjectChannel`:
+        QVariantMap: false
+        def `send_object`:
+            "QWebChannel doesn't transmit QObject instances. If you ": false
+            'need a QObject available in JavaScript, pass it as a ': false
+            bridge in WebviewWidget constructor.: false
+utils/widgetpreview.py:
+    class `WidgetPreview`:
+        def `_find_handler_name`:
+            inputs: false
+            no signal handlers for '{chunk_type}': false
+            multiple signal handlers for '{chunk_type}': false
+workflow/config.py:
+    https://orange.biolab.si/addons/list: false
+    orange.widgets: false
+    class `Config`:
+        biolab.si: false
+        Orange Canvas: false
+        0.0.0: false
+        def `core_packages`:
+            orange-widget-base: false
+        def `examples_entry_points`:
+            orange.widgets.tutorials: false
+    def `data_dir`:
+        Orange: false
+        0.0.0: false
+    def `cache_dir`:
+        "'{__name__}.cache_dir' is deprecated.": false
+        Orange: false
+        0.0.0: false
+    def `log_dir`:
+        "'{__name__}.log_dir' is deprecated.": false
+        darwin: false
+        Orange: false
+        ~/Library/Logs: false
+    def `widget_settings_dir`:
+        "'{__name__}.widget_settings_dir' is deprecated.": false
+workflow/discovery.py:
+    def `widget_desc_from_module`:
+        get_widget_description: false
+workflow/drophandler.py:
+    OWNodeFromMimeDataDropHandler: false
+    SingleUrlDropHandler: false
+    UrlsDropHandler: false
+    SingleFileDropHandler: false
+    FilesDropHandler: false
+    class `SingleUrlDropHandler`:
+        def `canDropMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+        def `parametersFromMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+            Dict[str, Any]: false
+        def `parametersFromUrl`:
+            Dict[str, Any]: false
+    class `UrlsDropHandler`:
+        def `canDropMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+        def `parametersFromMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+            Dict[str, Any]: false
+        def `parametersFromUrls`:
+            Dict[str, Any]: false
+    class `SingleFileDropHandler`:
+        def `canDropMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+        def `parametersFromMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+            Dict[str, Any]: false
+        def `parametersFromFile`:
+            Dict[str, Any]: false
+    class `FilesDropHandler`:
+        def `canDropMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+        def `parametersFromMimeData`:
+            SchemeEditWidget: false
+            QMimeData: false
+            Dict[str, Any]: false
+        def `parametersFromFiles`:
+            Dict[str, Any]: false
+workflow/errorreporting.py:
+    https://service.biolab.si/error_report/: false
+    def `get_installed_distributions`:
+        Unknown: false
+        {name}=={version}: false
+    class `ErrorReporting`:
+        class `DataField`:
+            Exception: false
+            Module: false
+            Widget Name: false
+            Widget Module: false
+            Version: false
+            Environment: false
+            Installed Packages: false
+            Machine ID: false
+            Widget Scheme: false
+            Stack Trace: false
+            Local Variables: false
+        def `__init__`:
+            Unexpected Error: Nepričakovana napaka
+            The program encountered an unexpected error. Please<br>: Program je naletel na nepričakovano napako. Prosimo<br/>
+            report it anonymously to the developers.<br><br>: za anonimno poročilo razvijalcem.<br/><br/>
+            The following data will be reported:: Poslani bodo naslednji podatki:
+            Monospace: false
+            def `_reload_text`:
+                error-reporting/add-scheme: false
+                <table>: false
+                _: false
+                <a href="{}">{}</a>: false
+                file:: false
+                \n: false
+                <br>: false
+                ' ': false
+                &nbsp;: false
+                <tr><th align="left">{}:</th><td>{}</td></tr>: false
+                </table>: false
+            Include workflow (data will NOT be transmitted): Pripni delotok (podatki NE BODO poslani)
+            error-reporting/add-scheme: false
+            Send Report (Thanks!): Pošlji poročilo (Hvala!)
+            Don't Send: Ne pošiljaj
+        def `accept`:
+            error-reporting/add-scheme: false
+            def `_post_report`:
+                utf8: false
+                Error reporting failed: false
+        def `handle_exception`:
+            sys.excepthook: false
+            {}:{}: false
+            __name__: false
+            def `_find_widget_frame`:
+                self: false
+            self: false
+            ', ': false
+            error-reporting/machine-id: false
+            Error Encountered: Napaka
+            Error encountered{}:<br><br><tt>{}</tt>: Napaka{}:<br><br><tt>{}</tt>
+            ' in widget <b>{}</b>': ' v gradniku <b>{}</b>'
+            \n: false
+            <br>: false
+            ' ': false
+            &nbsp;: false
+            ows-: false
+            .ows.xml: false
+            wb: false
+            utf-8: false
+            Python {} on {} {} {} {}: false
+workflow/mainwindow.py:
+    class `OWCanvasMainWindow`:
+        def `__init__`:
+            Show report: Pokaži poročilo
+            action-show-report: false
+            Show a report window: Pokaži okno s poročilom
+            Shift+R: false
+            Open Report...: Odpri poročilo...
+            action-open-report: false
+            Open a saved report: Odpri shranjeno poročilo...
+            Reset Widget Settings...: Pobriši nastavitve gradnikov...
+            file-menu: false
+            open-actions-separator: false
+            view-menu: false
+            view-visible-actions-separator: false
+            options-menu: false
+            canvas-addons-action: false
+        def `open_report`:
+            report/file-dialog-dir: false
+            Open Report: Odpri poročilo
+            Report (*.report): Poročilo (*.report)
+        def `reset_widget_settings`:
+            Orange: true
+            Clear settings: Pobriši shranjene nastavitve
+            {name} needs to be restarted for the changes to take effect.: Da se nastavitve pobrišejo, se mora {name} ponovno zagnati.
+            Press OK to restart {name} now.: Pritisnite OK za ponovni zagon.
+            DELETE_ON_START: false
+            a: false
+            def `restart`:
+                Restart Cancelled: Ponovni zagon preklican
+                Settings will be reset on {name}'s next restart: Nastavitve bodo ponastavljene ob naslednjem ponovnem zagonu
+        def `ask_save_report`:
+            Report window: Shranjevanje poročila
+            The report contains unsaved changes.: Poročilo vsebuje neshranjene spremembe.
+            Would you like to save the report?: Želite shraniti poročilo?
+workflow/utils.py:
+    T: false
+workflow/widgetsscheme.py:
+    class `WidgetsScheme`:
+        def `sync_node_properties`:
+            'Scheme node properties sync (changed: %s)': false
+    class `OWWidgetManager`:
+        def `delete_widget_for_node`:
+            'A widget/node {0} was removed while being initialized. ': false
+            'This is most likely a result of an explicit ': false
+            'QApplication.processEvents call from the ': false
+            "'{1.__module__}.{1.__qualname__}' ": false
+            widget's __init__.: false
+            'Destroyed namespace for: %s': false
+        def `__delete_item`:
+            'Widget %s removed but still in state :%s. ': false
+            Deferring deletion.: false
+        def `__try_delete`:
+            Delayed delete for widget %s: false
+        def `create_widget_instance`:
+            "WidgetManager: Creating '%s.%s' instance '%s'.": false
+            action-help: false
+        def `__on_help_request`:
+            help://search?: false
+            id: false
+        def `__on_processing_started`:
+            MUST NOT re-enter: false
+        def `__on_widget_state_changed`:
+            State change for a non-tracked widget {}: false
+        def `actions_for_context_menu`:
+            ext-workflow-node-menu-action: false
+            Show settings: false
+            show-settings: false
+            Show widget settings: false
+    def `user_message_from_state`:
+        {0.__name__}.{0.__qualname__}: false
+        <br/>: false
+        content-type: false
+        text/html: false
+    class `WidgetsSignalManager`:
+        def `send`:
+            Node for '%s' (%s.%s) is not in the scheme.: false
+            %r is not valid signal name for %r: false
+            def `_parse_call_signal_id`:
+                "'signal_id' parameter is deprecated": false
+    def `get_widget_input_signals`:
+        _OWBaseWidget__process_signal_input: false

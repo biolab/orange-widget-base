@@ -773,7 +773,7 @@ def spin(widget, master, value, minv, maxv, step=1, box=None, label=None,
     else:
         b = widget
         hasHBox = False
-    if not hasHBox and (checked or callback or posttext):
+    if not hasHBox and (checked or posttext):
         bi = hBox(b, addToLayout=False)
     else:
         bi = b

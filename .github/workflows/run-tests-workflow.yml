@@ -103,9 +103,9 @@ jobs:
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -119,7 +119,7 @@ jobs:
           sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libxcb-shape0 $PACKAGES
 
       - name: Setup Pip Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .pip-cache
           key: ${{ runner.os }}-py-${{ matrix.python-version }}-pip-${{ hashFiles('setup.*', '.github/workflows/run-tests-workflow.yml') }}
@@ -154,6 +154,6 @@ jobs:
           coverage xml
 
       - name: Upload Coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
-          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}

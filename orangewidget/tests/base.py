@@ -309,8 +309,8 @@ class WidgetTest(GuiTest):
         self.signal_manager.clear()
         super().tearDown()
 
-    def create_widget(self, cls, stored_settings=None, reset_default_settings=True):
-        # type: (Type[T], Optional[dict], bool) -> T
+    def create_widget(self, cls: Type[T], stored_settings: Optional[dict]=None,
+                      reset_default_settings=True, **kwargs) -> T:
         """Create a widget instance using mock signal_manager.
 
         When used with default parameters, it also overrides settings stored
@@ -350,7 +350,7 @@ class WidgetTest(GuiTest):
         if reset_default_settings:
             self.reset_default_settings(Cls)
         widget = Cls.__new__(Cls, signal_manager=self.signal_manager,
-                             stored_settings=stored_settings)
+                             stored_settings=stored_settings, **kwargs)
         widget.__init__()
         self.process_events()
         self.widgets.append(widget)

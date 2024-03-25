@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import Iterable, Optional
 import warnings
 
@@ -10,7 +11,17 @@ from AnyQt.QtCore import (
     QSortFilterProxyModel,
     QItemSelection,
     QSize,
+    QItemSelectionModel,
 )
+
+
+@contextmanager
+def disconnected(signal, slot, connection_type=Qt.AutoConnection):
+    signal.disconnect(slot)
+    try:
+        yield
+    finally:
+        signal.connect(slot, connection_type)
 
 
 class ListViewFilter(QListView):
@@ -27,6 +38,7 @@ class ListViewFilter(QListView):
             **kwargs
     ):
         super().__init__(*args, **kwargs)
+        self.__selection = QItemSelection()
         self.__search = QLineEdit(self, placeholderText="Filter...")
         self.__search.textEdited.connect(self.__on_text_edited)
         self.__preferred_size = preferred_size
@@ -40,9 +52,29 @@ class ListViewFilter(QListView):
         assert isinstance(proxy, QSortFilterProxyModel)
         super().setModel(proxy)
         self.set_source_model(model)
+        self.selectionModel().selectionChanged.connect(self.__on_sel_changed)
+
+    def __on_sel_changed(
+            self,
+            selected: QItemSelection,
+            deselected: QItemSelection
+    ):
+        selected = self.model().mapSelectionToSource(selected)
+        deselected = self.model().mapSelectionToSource(deselected)
+        self.__selection.merge(selected, QItemSelectionModel.Select)
+        self.__selection.merge(deselected, QItemSelectionModel.Deselect)
+        self.__select()
 
     def __on_text_edited(self, string: str):
-        self.model().setFilterFixedString(string)
+        with disconnected(self.selectionModel().selectionChanged,
+                          self.__on_sel_changed):
+            self.model().setFilterFixedString(string)
+            self.__select()
+
+    def __select(self):
+        selection = self.model().mapSelectionFromSource(self.__selection)
+        self.selectionModel().select(selection,
+                                     QItemSelectionModel.ClearAndSelect)
 
     def setModel(self, _):
         raise TypeError("The model cannot be changed. "

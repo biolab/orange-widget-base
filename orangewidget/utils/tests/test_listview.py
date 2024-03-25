@@ -134,6 +134,21 @@ class TestListViewFilter(GuiTest):
     def test_set_proxy_raises(self):
         self.assertRaises(Exception, ListViewFilter, proxy=PyListModel())
 
+    def test_selection(self):
+        view = ListViewFilter()
+        view.model().setSourceModel(PyListModel(["one", "two", "three"]))
+        sel_model = view.selectionModel()
+        selected_row = 0
+        index = view.model().index(selected_row, 0)
+        sel_model.select(index, sel_model.ClearAndSelect)
+        self.assertEqual(sel_model.selectedRows(0)[0].row(), selected_row)
+
+        view._ListViewFilter__search.textEdited.emit("two")
+        self.assertEqual(len(sel_model.selectedRows(0)), 0)
+
+        view._ListViewFilter__search.textEdited.emit("")
+        self.assertEqual(sel_model.selectedRows(0)[0].row(), selected_row)
+
 
 if __name__ == "__main__":
     unittest.main()

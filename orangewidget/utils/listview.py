@@ -10,7 +10,10 @@ from AnyQt.QtCore import (
     QSortFilterProxyModel,
     QItemSelection,
     QSize,
+    QItemSelectionModel,
 )
+
+from orangewidget.utils.itemmodels import signal_blocking
 
 
 class ListViewFilter(QListView):
@@ -27,6 +30,7 @@ class ListViewFilter(QListView):
             **kwargs
     ):
         super().__init__(*args, **kwargs)
+        self.__selection = QItemSelection()
         self.__search = QLineEdit(self, placeholderText="Filter...")
         self.__search.textEdited.connect(self.__on_text_edited)
         self.__preferred_size = preferred_size
@@ -40,9 +44,28 @@ class ListViewFilter(QListView):
         assert isinstance(proxy, QSortFilterProxyModel)
         super().setModel(proxy)
         self.set_source_model(model)
+        self.selectionModel().selectionChanged.connect(self.__on_sel_changed)
+
+    def __on_sel_changed(
+            self,
+            selected: QItemSelection,
+            deselected: QItemSelection
+    ):
+        selected = self.model().mapSelectionToSource(selected)
+        deselected = self.model().mapSelectionToSource(deselected)
+        self.__selection.merge(selected, QItemSelectionModel.Select)
+        self.__selection.merge(deselected, QItemSelectionModel.Deselect)
+        self.__select()
 
     def __on_text_edited(self, string: str):
-        self.model().setFilterFixedString(string)
+        with signal_blocking(self.selectionModel()):
+            self.model().setFilterFixedString(string)
+            self.__select()
+
+    def __select(self):
+        selection = self.model().mapSelectionFromSource(self.__selection)
+        self.selectionModel().select(selection,
+                                     QItemSelectionModel.ClearAndSelect)
 
     def setModel(self, _):
         raise TypeError("The model cannot be changed. "

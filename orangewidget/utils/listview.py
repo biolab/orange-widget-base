@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from typing import Iterable, Optional
 import warnings
 
@@ -14,14 +13,7 @@ from AnyQt.QtCore import (
     QItemSelectionModel,
 )
 
-
-@contextmanager
-def disconnected(signal, slot, connection_type=Qt.AutoConnection):
-    signal.disconnect(slot)
-    try:
-        yield
-    finally:
-        signal.connect(slot, connection_type)
+from orangewidget.utils.itemmodels import signal_blocking
 
 
 class ListViewFilter(QListView):
@@ -66,8 +58,7 @@ class ListViewFilter(QListView):
         self.__select()
 
     def __on_text_edited(self, string: str):
-        with disconnected(self.selectionModel().selectionChanged,
-                          self.__on_sel_changed):
+        with signal_blocking(self.selectionModel()):
             self.model().setFilterFixedString(string)
             self.__select()
 

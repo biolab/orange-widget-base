@@ -314,6 +314,9 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         WidgetMessagesMixin.__init__(self)
         WidgetSignalsMixin.__init__(self)
 
+        # disable window help button everywhere
+        self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
+
         # handle deprecated left_side_scrolling
         if hasattr(self, 'left_side_scrolling'):
             warnings.warn(

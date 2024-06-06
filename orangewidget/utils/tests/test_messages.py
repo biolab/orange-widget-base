@@ -35,6 +35,19 @@ class TestMessages(WidgetTest):
         self.assertFalse(w.Error.err_a.is_shown())
         self.assertTrue(w.Error.err_b.is_shown())
 
+    def test_numpy_class_attributes(self):
+        # There used to be a bug where numpy class attributes crash message
+        # binding it expected them to have __eq__ method (see other changes in
+        # this commit). This test is to make sure the problem doesn't resurface.
+        class Neq:
+            def __eq__(self, other):
+                raise NotImplementedError
+
+        class WidgetA(OWBaseWidget, openclass=True):
+            a = Neq()
+
+        self.create_widget(WidgetA)
+
 
 if __name__ == "__main__":
     unittest.main()

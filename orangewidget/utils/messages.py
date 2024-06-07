@@ -192,9 +192,14 @@ class MessageGroup:
                     msg = msg.bind(self, widget_class)
                     self.__dict__[name] = msg
 
+        # Iterate through all base classes of this message group.
+        # Among the widgets in mro, find the one that defined this class
+        # and bind all messages in the group to that class.
+        # This is needed so that each message has its "owner" and that `clear`
+        # method can clear only messages from the owner (see method `clear`)
         for group in type(self).mro():
             for widget_class in type(self.widget).mro():
-                if group in widget_class.__dict__.values():
+                if widget_class.__dict__.get(group.__name__) is group:
                     break
             else:
                 # MessageGroups outside widget classes (e.g. mixins)

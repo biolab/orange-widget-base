@@ -11,6 +11,7 @@ from AnyQt.QtCore import (
     QItemSelection,
     QSize,
     QItemSelectionModel,
+    Signal,
 )
 
 from orangewidget.utils.itemmodels import signal_blocking
@@ -20,6 +21,7 @@ class ListViewFilter(QListView):
     """
     A QListView with implicit and transparent row filtering.
     """
+    sigSelectionChanged = Signal(object)
 
     def __init__(
             self,
@@ -46,6 +48,10 @@ class ListViewFilter(QListView):
         self.set_source_model(model)
         self.selectionModel().selectionChanged.connect(self.__on_sel_changed)
 
+    @property
+    def selection(self) -> QItemSelection:
+        return self.__selection
+
     def __on_sel_changed(
             self,
             selected: QItemSelection,
@@ -53,9 +59,11 @@ class ListViewFilter(QListView):
     ):
         selected = self.model().mapSelectionToSource(selected)
         deselected = self.model().mapSelectionToSource(deselected)
+        if self.selectionMode() == QListView.SelectionMode.SingleSelection:
+            self.__selection.clear()
         self.__selection.merge(selected, QItemSelectionModel.Select)
         self.__selection.merge(deselected, QItemSelectionModel.Deselect)
-        self.__select()
+        self.sigSelectionChanged.emit(self.__selection)
 
     def __on_text_edited(self, string: str):
         with signal_blocking(self.selectionModel()):

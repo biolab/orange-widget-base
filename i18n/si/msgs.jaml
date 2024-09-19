@@ -930,6 +930,8 @@ utils/filedialogs.py:
         Save as...: Shrani kot...
     def `open_filename_dialog`:
         Open...: Odpri...
+        *: false
+        All files (*.*): Vse datoteke (*.*)
         All readable files (*{}): Vse znane datoteke (*{})
         ' *': false
         ;;: false
@@ -1080,6 +1082,7 @@ utils/matplotlib_export.py:
         \n: false
     def `scene_code`:
         import matplotlib.pyplot as plt: false
+        import numpy as np: false
         from numpy import array: false
         plt.clf(): false
         bottom: false

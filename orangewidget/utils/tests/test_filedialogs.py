@@ -132,6 +132,54 @@ class TestOpenFilenameDialog(unittest.TestCase):
         self.assertEqual(file_format, None)
         self.assertEqual(file_filter, None)
 
+    def test_add_all(self):
+        class ABCFormat:
+            EXTENSIONS = ('.abc', '.jkl')
+            DESCRIPTION = 'abc file'
+            PRIORITY = 30
+
+        class DEFFormat:
+            EXTENSIONS = ('.def', )
+            DESCRIPTION = 'def file'
+            PRIORITY = 40
+
+        # Add all known extensions
+        dialog = Mock(return_value=("foo.abc", ""))
+        open_filename_dialog(".", "", [ABCFormat, DEFFormat], dialog=dialog)
+        self.assertIn("(*.abc *.def *.jkl)", dialog.call_args[0][3])
+        self.assertIn("(*.abc *.jkl)", dialog.call_args[0][3])
+        self.assertIn("(*.def)", dialog.call_args[0][3])
+
+        # Add all extensions (*.*)
+        dialog = Mock(return_value=("foo.abc", ""))
+        open_filename_dialog(".", "", [ABCFormat, DEFFormat],
+                             add_all="*", dialog=dialog)
+        self.assertIn("(*.*)", dialog.call_args[0][3])
+        self.assertIn("(*.abc *.jkl)", dialog.call_args[0][3])
+        self.assertIn("(*.def)", dialog.call_args[0][3])
+
+        # Don't add any extensions
+        dialog = Mock(return_value=("foo.abc", ""))
+        open_filename_dialog(".", "", [ABCFormat, DEFFormat],
+                             add_all=False, dialog=dialog)
+        self.assertNotIn("(*.abc *.def *.jkl)", dialog.call_args[0][3])
+        self.assertIn("(*.abc *.jkl)", dialog.call_args[0][3])
+        self.assertIn("(*.def)", dialog.call_args[0][3])
+
+        # With a single format, add all known extensions is ignored
+        dialog = Mock(return_value=("foo.abc", ""))
+        open_filename_dialog(".", "", [ABCFormat],
+                             dialog=dialog)
+        self.assertNotIn("(*.*)", dialog.call_args[0][3])
+        self.assertEqual(dialog.call_args[0][3].count("(*.abc *.jkl)"), 1)
+
+        # With a single format, add all extensions (*.*) still applies
+        dialog = Mock(return_value=("foo.abc", ""))
+        open_filename_dialog(".", "", [ABCFormat],
+                             add_all="*", dialog=dialog)
+        self.assertIn("(*.*)", dialog.call_args[0][3])
+        self.assertIn("(*.abc *.jkl)", dialog.call_args[0][3])
+
 
 if __name__ == "__main__":
     unittest.main()

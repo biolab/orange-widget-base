@@ -162,7 +162,8 @@ def open_filename_dialog(start_dir: str, start_filter: str, file_formats,
         start_dir (str): initial directory, optionally including the filename
         start_filter (str): initial filter
         file_formats (a list of FileFormat): file formats
-        add_all (bool): add a filter for all supported extensions
+        add_all (bool, default True): add a filter for all supported extensions.
+           If set to `*`, show an option to read all files, *.*.
         title (str): title of the dialog
         dialog: a function that creates a QT dialog
     Returns:
@@ -172,7 +173,10 @@ def open_filename_dialog(start_dir: str, start_filter: str, file_formats,
     filters = [format_filter(f) for f in file_formats]
 
     # add all readable files option
-    if add_all:
+    if add_all == "*":
+        file_formats.insert(0, None)
+        filters.insert(0, "All files (*.*)")
+    elif add_all and len(file_formats) > 1:
         all_extensions = set()
         for f in file_formats:
             all_extensions.update(f.EXTENSIONS)

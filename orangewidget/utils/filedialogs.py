@@ -162,8 +162,8 @@ def open_filename_dialog(start_dir: str, start_filter: str, file_formats,
         start_dir (str): initial directory, optionally including the filename
         start_filter (str): initial filter
         file_formats (a list of FileFormat): file formats
-        add_all (bool, default True): add a filter for all supported extensions.
-           If set to `*`, show an option to read all files, *.*.
+        add_all (False, True, or `"*"`; default True): add a filter for all supported extensions.
+           If set to `"*"`, show an option to read all files, *.*.
         title (str): title of the dialog
         dialog: a function that creates a QT dialog
     Returns:

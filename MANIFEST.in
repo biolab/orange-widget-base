@@ -6,3 +6,5 @@ include README.md
 include CONTRIBUTING.md
 include LICENSE
 include setup.py
+
+recursive-include i18n *.jaml *.yaml

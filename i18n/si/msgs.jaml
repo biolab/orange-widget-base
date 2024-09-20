@@ -302,9 +302,9 @@ settings.py:
             values=: false
             ): false
 version.py:
-    4.24.0: false
-    4.24.0.dev0+31e1b65: false
-    31e1b655e24581af44ab5f14523ace5a364f57a8: false
+    4.25.0: false
+    4.25.0.dev0+8cea3f1: false
+    8cea3f1fed66a72e7fef95c836a81b33d3eb295e: false
     .dev: false
 widget.py:
     OWBaseWidget: false
@@ -624,7 +624,7 @@ report/report.py:
         def `show_report`:
             Missing Component: Manjkajoča komponenta
             'Orange can not display reports, because your installation ': 'Orange ne more pokazati poročila, ker ne najde '
-            contains neither WebEngine nor WebKit.\n\n: komponente WabEngine ali WebKit.\n\n
+            contains neither WebEngine nor WebKit.\n\n: komponente WebEngine ali WebKit.\n\n
             'If you installed Orange with conda or pip, try using another ': 'Če ste Orange namestili s conda ali pip, poskusite '
             'PyQt distribution. ': 'z drugo različico PyQt. '
             'If you installed Orange with a standard installer, please ': 'Če ste Orange namestili z običajno namestitvijo, '

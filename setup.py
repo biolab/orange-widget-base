@@ -3,6 +3,7 @@
 import os
 import subprocess
 from setuptools import setup, find_packages, Command
+from setuptools.command.install import install
 
 NAME = 'orange-widget-base'
 VERSION = '4.25.0'
@@ -69,6 +70,21 @@ ENTRY_POINTS = {
 }
 
 DATA_FILES = []
+
+
+class InstallMultilingualCommand(install):
+    def run(self):
+        super().run()
+        self.compile_to_multilingual()
+
+    def compile_to_multilingual(self):
+        from trubar import translate
+
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        translate(
+            "msgs.jaml",
+            source_dir=os.path.join(self.install_lib, "orangewidget"),
+            config_file=os.path.join(package_dir, "i18n", "trubar-config.yaml"))
 
 
 # Return the git revision as a string
@@ -172,9 +188,12 @@ def setup_package():
         package_data=PACKAGE_DATA,
         data_files=DATA_FILES,
         install_requires=INSTALL_REQUIRES,
+        cmdclass={
+            'install': InstallMultilingualCommand,
+        },
         extras_require=EXTRAS_REQUIRE,
         entry_points=ENTRY_POINTS,
-        python_requires=">=3.6",
+        python_requires=">=3.9",
         zip_safe=False,
     )
 

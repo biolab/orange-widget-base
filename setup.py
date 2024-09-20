@@ -174,7 +174,7 @@ def setup_package():
         install_requires=INSTALL_REQUIRES,
         extras_require=EXTRAS_REQUIRE,
         entry_points=ENTRY_POINTS,
-        python_requires=">=3.6",
+        python_requires=">=3.9",
         zip_safe=False,
     )
 

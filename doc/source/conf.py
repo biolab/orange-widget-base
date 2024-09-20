@@ -52,7 +52,7 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = {'.rst': 'restructuredtext'}
 
 # The encoding of source files.
 #source_encoding = 'utf-8-sig'
@@ -371,6 +371,6 @@ epub_exclude_files = ['search.html']
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    'https://docs.python.org/3/': None,
-    'https://orange-canvas-core.readthedocs.io/en/latest/': None,
+    'python': ('https://docs.python.org/3', None),
+    'orangecanvas': ('https://orange-canvas-core.readthedocs.io/en/latest/', None),
 }

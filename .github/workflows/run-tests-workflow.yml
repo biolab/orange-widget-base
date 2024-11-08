@@ -19,10 +19,6 @@ jobs:
           # Linux
           - os: ubuntu-20.04
             python-version: 3.9
-            test-env: "PyQt5~=5.12.1 PyQtWebEngine~=5.12.1"
-
-          - os: ubuntu-20.04
-            python-version: 3.9
             test-env: "PyQt5~=5.14.0 PyQtWebEngine~=5.14.0"
 
           - os: ubuntu-20.04
@@ -48,6 +44,11 @@ jobs:
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
             extra-system-packages: "libegl1-mesa libxcb-cursor0 glibc-tools"
 
+          - os: ubuntu-22.04
+            python-version: "3.13"
+            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0 PyQt6-WebEngine~=6.7.0 PyQt6-WebEngine-Qt6~=6.7.0"
+            extra-system-packages: "libegl1-mesa libxcb-cursor0 glibc-tools"
+
           # macOS
           - os: macos-12
             python-version: 3.9
@@ -68,6 +69,10 @@ jobs:
           - os: macos-latest
             python-version: "3.12"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
+
+          - os: macos-latest
+            python-version: "3.13"
+            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0 PyQt6-WebEngine~=6.7.0 PyQt6-WebEngine-Qt6~=6.7.0"
 
           # Windows
           - os: windows-2019
@@ -93,6 +98,10 @@ jobs:
           - os: windows-2019
             python-version: "3.12"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
+
+          - os: windows-2019
+            python-version: "3.13"
+            test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0 PyQt6-WebEngine~=6.7.0 PyQt6-WebEngine-Qt6~=6.7.0"
 
     steps:
       - uses: actions/checkout@v4

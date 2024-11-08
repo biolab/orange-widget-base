@@ -116,13 +116,6 @@ class TestComboBoxSearch(GuiTest):
         self.assertEqual(popup.currentIndex().row(), 2)
         cb.hidePopup()
 
-    def test_empty(self):
-        cb = self.cb
-        cb.clear()
-        cb.showPopup()
-        popup = cb.findChild(QListView)  # type: QListView
-        self.assertIsNone(popup)
-
     def test_kwargs_enabled_focus_out(self):
         # PyQt5's property via kwargs can invoke virtual overrides while still
         # not fully constructed

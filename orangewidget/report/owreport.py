@@ -355,7 +355,7 @@ class OWReport(OWBaseWidget):
         _, extension = os.path.splitext(filename)
         if extension == ".pdf":
             printer = QPrinter()
-            printer.setPageSize(QPageSize.A4)
+            printer.setPageSize(QPageSize(QPageSize.A4))
             printer.setOutputFormat(QPrinter.PdfFormat)
             printer.setOutputFileName(filename)
             self._print_to_printer(printer)

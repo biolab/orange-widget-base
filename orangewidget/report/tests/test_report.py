@@ -79,22 +79,32 @@ class TestReport(GuiTest):
                 rep.save_report()
                 log.assert_called()
 
-    def test_save_report(self):
+    def _test_save_report(self, filter):
+        ext = re.search(r"\.(?P<format>\w+)\)$", filter).group("format")
         rep = OWReport()
         widget = TstWidget()
         widget.create_report_html()
         rep.make_report(widget)
-        temp_dir = tempfile.mkdtemp()
-        temp_name = os.path.join(temp_dir, "f.report")
+        temp_f = tempfile.NamedTemporaryFile("w", suffix=f".{ext}", delete=False)
+        temp_name = temp_f.name
+        temp_f.close()
         try:
             with patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
-                       return_value=(temp_name, 'Report (*.report)')), \
+                       return_value=(temp_name, filter)), \
                     patch("AnyQt.QtWidgets.QMessageBox.exec",
                           return_value=True):
                 rep.save_report()
         finally:
             os.remove(temp_name)
-            os.rmdir(temp_dir)
+
+    def test_save_report_pdf(self):
+        self._test_save_report("PDF (*.pdf)")
+
+    def test_save_report_html(self):
+        self._test_save_report("HTML (*.html)")
+
+    def test_save_report_(self):
+        self._test_save_report("Report (*.report)")
 
     @patch("AnyQt.QtWidgets.QFileDialog.getSaveFileName",
            return_value=(False, 'HTML (*.html)'))

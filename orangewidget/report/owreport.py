@@ -11,7 +11,8 @@ from enum import IntEnum
 from typing import Optional
 
 from AnyQt.QtCore import Qt, QObject, pyqtSlot, QSize
-from AnyQt.QtGui import QIcon, QCursor, QStandardItemModel, QStandardItem
+from AnyQt.QtGui import (
+    QIcon, QCursor, QStandardItemModel, QStandardItem, QPageSize)
 from AnyQt.QtWidgets import (
     QApplication, QDialog, QFileDialog, QTableView, QHeaderView,
     QMessageBox)
@@ -354,7 +355,7 @@ class OWReport(OWBaseWidget):
         _, extension = os.path.splitext(filename)
         if extension == ".pdf":
             printer = QPrinter()
-            printer.setPageSize(QPrinter.A4)
+            printer.setPageSize(QPageSize(QPageSize.A4))
             printer.setOutputFormat(QPrinter.PdfFormat)
             printer.setOutputFileName(filename)
             self._print_to_printer(printer)

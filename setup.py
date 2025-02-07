@@ -60,7 +60,6 @@ INSTALL_REQUIRES = [
     "typing_extensions>=3.7.4.3",
     "orange-canvas-core>=0.2a.dev0,<0.3a",
     'appnope; sys_platform=="darwin"',
-    "importlib_resources; python_version<'3.10'"
 ]
 
 EXTRAS_REQUIRE = {
@@ -193,7 +192,7 @@ def setup_package():
         },
         extras_require=EXTRAS_REQUIRE,
         entry_points=ENTRY_POINTS,
-        python_requires=">=3.9",
+        python_requires=">=3.10",
         zip_safe=False,
     )
 

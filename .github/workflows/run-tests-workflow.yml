@@ -18,10 +18,6 @@ jobs:
         include:
           # Linux
           - os: ubuntu-20.04
-            python-version: 3.9
-            test-env: "PyQt5~=5.14.0 PyQtWebEngine~=5.14.0"
-
-          - os: ubuntu-20.04
             python-version: "3.10"
             test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
 
@@ -50,10 +46,6 @@ jobs:
             extra-system-packages: "libegl1-mesa libxcb-cursor0 glibc-tools"
 
           # macOS
-          - os: macos-13
-            python-version: 3.9
-            test-env: "PyQt5~=5.14.0 PyQtWebEngine~=5.14.0"
-
           - os: macos-14
             python-version: "3.10"
             test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
@@ -75,10 +67,6 @@ jobs:
             test-env: "PyQt6~=6.7.0 PyQt6-Qt6~=6.7.0 PyQt6-WebEngine~=6.7.0 PyQt6-WebEngine-Qt6~=6.7.0"
 
           # Windows
-          - os: windows-2019
-            python-version: 3.9
-            test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"
-
           - os: windows-2019
             python-version: "3.10"
             test-env: "PyQt5~=5.15.0 PyQtWebEngine~=5.15.0"

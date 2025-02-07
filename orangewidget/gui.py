@@ -29,10 +29,7 @@ from orangewidget.utils.itemdelegates import text_color_for_state
 from orangewidget.utils.itemmodels import PyListModel, signal_blocking
 
 
-try:
-    from importlib.resources import files as _resources_files
-except ImportError:
-    from importlib_resources import files as _resources_files
+from importlib.resources import files as _resources_files
 
 __re_label = re.compile(r"(^|[^%])%\((?P<value>[a-zA-Z]\w*)\)")
 

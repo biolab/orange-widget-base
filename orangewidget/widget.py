@@ -355,6 +355,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         self.__statusbar_action = None  # type: Optional[QAction]
         self.__menubar_action = None
         self.__menubar_visible_timer = None
+        self.__toggle_control_area_action = None
 
         # this action is enabled by the canvas framework
         self.__help_action = QAction(
@@ -401,8 +402,6 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         if hasattr(self, "set_visual_settings"):
             self.__visual_settings_action.setEnabled(True)
             self.__visual_settings_action.setVisible(True)
-
-        self.addAction(self.__help_action)
 
         self.__copy_action = QAction(
             "Copy to Clipboard", self, objectName="action-copy-to-clipboard",
@@ -530,7 +529,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
         helpaction.menu().addAction(self.__quick_help_action)
 
         if self.__splitter is not None and self.__splitter.count() > 1:
-            action = QAction(
+            self.__toggle_control_area_action = action = QAction(
                 "Show Control Area", self,
                 objectName="action-show-control-area",
                 shortcut=QKeySequence("Ctrl+Shift+D"),
@@ -544,6 +543,21 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
 
         if self.__menubar_action is not None:
             viewaction.menu().addAction(self.__menubar_action)
+
+        actions = (
+            self.__help_action,
+            self.__report_action,
+            self.__save_image_action,
+            self.__reset_action,
+            self.__visual_settings_action,
+            self.__copy_action,
+            self.__minimize_action,
+            self.__close_action,
+            self.__menubar_action,
+            self.__quick_help_action,
+            self.__toggle_control_area_action,
+        )
+        self.addActions(list(filter(None, actions)))
 
         if self.controlArea is not None:
             # Otherwise, the first control has focus

@@ -11,6 +11,19 @@ jobs:
       PIP_NO_PIP_VERSION_CHECK: 1
       PIP_CACHE_DIR: .pip-cache
       PIP_PREFER_BINARY: 1
+      UBUNTU_SYSTEM_PACKAGES: |
+        libxkbcommon-x11-0
+        libxcb-icccm4
+        libxcb-image0
+        libxcb-keysyms1
+        libxcb-randr0
+        libxcb-render-util0
+        libxcb-xinerama0
+        libxcb-xfixes0
+        libegl1-mesa
+        libxcb-shape0
+        libxcb-cursor0
+        glibc-tools
 
     strategy:
       fail-fast: False
@@ -28,22 +41,18 @@ jobs:
           - os: ubuntu-22.04
             python-version: "3.11"
             test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
-            extra-system-packages: "libegl1-mesa"
 
           - os: ubuntu-latest
             python-version: "3.11"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
-            extra-system-packages: "libegl1-mesa libxcb-cursor0 glibc-tools"
 
           - os: ubuntu-latest
             python-version: "3.12"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
-            extra-system-packages: "libegl1-mesa libxcb-cursor0 glibc-tools"
 
           - os: ubuntu-latest
             python-version: "3.13"
             test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0 PyQt6-WebEngine~=6.8.0 PyQt6-WebEngine-Qt6~=6.8.0"
-            extra-system-packages: "libegl1-mesa libxcb-cursor0 glibc-tools"
 
           # macOS
           - os: macos-14
@@ -105,7 +114,7 @@ jobs:
         # https://www.riverbankcomputing.com/pipermail/pyqt/2020-June/042949.html
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libxcb-shape0 $PACKAGES
+          sudo apt-get install -y $UBUNTU_SYSTEM_PACKAGES $PACKAGES
 
       - name: Setup Pip Cache
         uses: actions/cache@v4

@@ -40,10 +40,6 @@ jobs:
 
           - os: ubuntu-22.04
             python-version: "3.11"
-            test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
-
-          - os: ubuntu-latest
-            python-version: "3.11"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
 
           - os: ubuntu-latest
@@ -53,6 +49,10 @@ jobs:
           - os: ubuntu-latest
             python-version: "3.13"
             test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0 PyQt6-WebEngine~=6.8.0 PyQt6-WebEngine-Qt6~=6.8.0"
+
+          - os: ubuntu-latest
+            python-version: "3.14"
+            test-env: "PyQt6~=6.9.0 PyQt6-Qt6~=6.9.0 PyQt6-WebEngine~=6.9.0 PyQt6-WebEngine-Qt6~=6.9.0"
 
           # macOS
           - os: macos-14
@@ -61,10 +61,6 @@ jobs:
 
           - os: macos-14
             python-version: "3.11"
-            test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
-
-          - os: macos-latest
-            python-version: "3.11"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
 
           - os: macos-latest
@@ -74,6 +70,10 @@ jobs:
           - os: macos-latest
             python-version: "3.13"
             test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0 PyQt6-WebEngine~=6.8.0 PyQt6-WebEngine-Qt6~=6.8.0"
+
+          - os: macos-latest
+            python-version: "3.14"
+            test-env: "PyQt6~=6.9.0 PyQt6-Qt6~=6.9.0 PyQt6-WebEngine~=6.9.0 PyQt6-WebEngine-Qt6~=6.9.0"
 
           # Windows
           - os: windows-2022
@@ -86,10 +86,6 @@ jobs:
 
           - os: windows-2022
             python-version: "3.11"
-            test-env: "PyQt6~=6.2.3 PyQt6-Qt6~=6.2.3 PyQt6-WebEngine~=6.2.1 PyQt6-WebEngine-Qt6~=6.2.1"
-
-          - os: windows-latest
-            python-version: "3.11"
             test-env: "PyQt6~=6.5.0 PyQt6-Qt6~=6.5.0 PyQt6-WebEngine~=6.5.0 PyQt6-WebEngine-Qt6~=6.5.0"
 
           - os: windows-latest
@@ -99,6 +95,10 @@ jobs:
           - os: windows-latest
             python-version: "3.13"
             test-env: "PyQt6~=6.8.0 PyQt6-Qt6~=6.8.0 PyQt6-WebEngine~=6.8.0 PyQt6-WebEngine-Qt6~=6.8.0"
+
+          - os: windows-latest
+            python-version: "3.14"
+            test-env: "PyQt6~=6.9.0 PyQt6-Qt6~=6.9.0 PyQt6-WebEngine~=6.9.0 PyQt6-WebEngine-Qt6~=6.9.0"
 
     steps:
       - uses: actions/checkout@v4
@@ -142,6 +142,7 @@ jobs:
         run: |
           coverage run -m unittest -v
           coverage xml
+        shell: bash
 
       - name: Run Tests with Xvfb
         if: ${{ startsWith(runner.os, 'Linux') }}

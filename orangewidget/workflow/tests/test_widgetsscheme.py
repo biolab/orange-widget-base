@@ -1,6 +1,7 @@
 import unittest
 import unittest.mock
 import logging
+import weakref
 
 from types import SimpleNamespace
 from typing import Type
@@ -331,6 +332,19 @@ class TestWidgetManager(GuiTest):
         widgets.w1.addAction(a)
         actions = wm.actions_for_context_menu(widgets.w1_node)
         self.assertIn(a, actions)
+
+    def test_widget_gc_on_delete(self):
+        model = WidgetsScheme()
+        node = model.new_node(widget_description(Number))
+        wm = model.widget_manager
+        t: QTimer = wm.findChild(QTimer, "gc-timer")
+        widget = model.widget_for_node(node)
+        widget._self_ref = widget  # ensure cycle
+        wref = weakref.ref(widget)
+        del widget
+        model.remove_node(node)
+        assert QSignalSpy(t.timeout).wait()
+        self.assertIsNone(wref())
 
 
 class TestSignalManager(GuiTest):

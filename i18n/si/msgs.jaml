@@ -1609,6 +1609,8 @@ workflow/widgetsscheme.py:
         def `sync_node_properties`:
             'Scheme node properties sync (changed: %s)': false
     class `OWWidgetManager`:
+        def `__init__`:
+            gc-timer: false
         def `delete_widget_for_node`:
             'A widget/node {0} was removed while being initialized. ': false
             'This is most likely a result of an explicit ': false
@@ -1621,6 +1623,11 @@ workflow/widgetsscheme.py:
             Deferring deletion.: false
         def `__try_delete`:
             Delayed delete for widget %s: false
+        def `__delete_widget`:
+            Disposing of widget '%s': false
+        def `__run_gc`:
+            Running gc.collect(): false
+            gc.collect() collected {n} objects: false
         def `create_widget_instance`:
             "WidgetManager: Creating '%s.%s' instance '%s'.": false
             action-help: false

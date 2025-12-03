@@ -351,8 +351,9 @@ class WidgetTest(GuiTest):
         with open_widget_classes():
             class Cls(cls):
                 def onDeleteWidget(self):
-                    self.__didCallOnDeleteWidget = True
-                    super(Cls, self).onDeleteWidget()
+                    if not self.__didCallOnDeleteWidget:
+                        self.__didCallOnDeleteWidget = True
+                        super(Cls, self).onDeleteWidget()
                 __didCallOnDeleteWidget = False
 
             Cls.__name__ = cls.__name__

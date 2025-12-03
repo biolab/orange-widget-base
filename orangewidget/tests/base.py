@@ -290,9 +290,8 @@ class WidgetTest(GuiTest):
         )
 
     @classmethod
-    def tearDownClass(cls) -> None:
-        cls.signal_manager.clear()
-        del cls.signal_manager
+    def _clear_widgets(cls):
+        """Clear and dispose of the widgets created via create_widget"""
         widgets = cls.widgets[:]
         cls.widgets.clear()
         while widgets:
@@ -302,11 +301,20 @@ class WidgetTest(GuiTest):
             if not sip.isdeleted(w):
                 w.deleteLater()
             w.signalManager = None
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.signal_manager.clear()
+        del cls.signal_manager
+        cls._clear_widgets()
         super().tearDownClass()
 
+    def setUp(self):
+        super().setUp()
+
     def tearDown(self):
-        """Process any pending events before the next test is executed."""
         self.signal_manager.clear()
+        self._clear_widgets()
         super().tearDown()
 
     def create_widget(self, cls: Type[T], stored_settings: Optional[dict]=None,

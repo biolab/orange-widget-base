@@ -270,9 +270,8 @@ class WidgetTest(GuiTest):
         super().setUpClass()
 
         cls.widgets = []
-
         cls.signal_manager = DummySignalManager()
-
+        cls.__report = None
         report = None
 
         def get_instance():
@@ -282,7 +281,7 @@ class WidgetTest(GuiTest):
                 report.have_report_warning_shown = True  # if missing QtWebView/QtWebKit
                 if not (os.environ.get("TRAVIS") or os.environ.get("APPVEYOR")):
                     report.show = Mock()
-                cls.widgets.append(report)
+                cls.__report = report
             return report
 
         cls.tear_down_stack.enter_context(
@@ -307,6 +306,11 @@ class WidgetTest(GuiTest):
         cls.signal_manager.clear()
         del cls.signal_manager
         cls._clear_widgets()
+
+        if cls.__report is not None:
+            cls.__report.deleteLater()
+            cls.__report = None
+
         super().tearDownClass()
 
     def setUp(self):

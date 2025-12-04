@@ -71,7 +71,7 @@ class TestWidgetPreviewBase(WidgetTest):
         super().tearDown()
 
     def widget_constructor(self):
-        return self.create_widget(self.widgetClass)
+        return self.widgetClass()
 
 
 class TestWidgetPreview(TestWidgetPreviewBase):

@@ -19,6 +19,7 @@ companion :class:`WidgetsSignalManager` class.
    :bases:
 """
 import copy
+import gc
 import logging
 import enum
 import types
@@ -34,7 +35,7 @@ from typing import Optional, Dict, Any, List, Mapping, overload
 from AnyQt.QtWidgets import QWidget, QAction
 from AnyQt.QtGui import QWhatsThisClickedEvent
 
-from AnyQt.QtCore import Qt, QCoreApplication, QEvent, QByteArray
+from AnyQt.QtCore import Qt, QCoreApplication, QEvent, QByteArray, QTimer
 from AnyQt.QtCore import pyqtSlot as Slot
 
 from orangecanvas.registry import WidgetDescription, OutputSignal
@@ -213,6 +214,10 @@ class OWWidgetManager(_WidgetManager):
 
         # Tracks the widget in the update loop by the SignalManager
         self.__updating_widget = None  # type: Optional[OWBaseWidget]
+        self.__gc_timer = QTimer(
+            self, singleShot=True, interval=100, objectName="gc-timer"
+        )
+        self.__gc_timer.timeout.connect(self.__run_gc)
 
     def set_scheme(self, scheme):
         """
@@ -364,24 +369,30 @@ class OWWidgetManager(_WidgetManager):
                       "Deferring deletion.", widget, item.state)
             self.__delay_delete[widget] = item
         else:
-            widget.processingStateChanged.disconnect(
-                self.__on_widget_state_changed)
-            widget.widgetStateChanged.disconnect(
-                self.__on_widget_state_changed)
-            widget.deleteLater()
-            item.widget = None
+            self.__delete_widget(item)
 
     def __try_delete(self, item):
         if not item.state & WidgetManager.DelayDeleteMask:
-            widget = item.widget
-            log.debug("Delayed delete for widget %s", widget)
-            widget.widgetStateChanged.disconnect(
-                self.__on_widget_state_changed)
-            widget.processingStateChanged.disconnect(
-                self.__on_widget_state_changed)
-            item.widget = None
-            widget.deleteLater()
-            del self.__delay_delete[widget]
+            log.debug("Delayed delete for widget %s", item.widget)
+            self.__delete_widget(item)
+
+    def __delete_widget(self, item: Item):
+        widget = item.widget
+        log.info("Disposing of widget '%s'", widget.captionTitle)
+        widget.widgetStateChanged.disconnect(
+            self.__on_widget_state_changed)
+        widget.processingStateChanged.disconnect(
+            self.__on_widget_state_changed)
+        item.widget = None
+        widget.deleteLater()
+        self.__delay_delete.pop(widget, None)
+        self.__gc_timer.start()
+
+    @Slot()
+    def __run_gc(self):
+        log.debug("Running gc.collect()")
+        n = gc.collect()
+        log.debug(f"gc.collect() collected {n} objects")
 
     def create_widget_instance(self, node):
         # type: (SchemeNode) -> OWBaseWidget

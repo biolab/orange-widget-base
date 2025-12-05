@@ -773,7 +773,7 @@ tests/base.py:
                 TRAVIS: false
                 APPVEYOR: false
             get_instance: false
-        def `tearDownClass`:
+        def `_clear_widgets`:
             _Cls__didCallOnDeleteWidget: false
         def `reset_default_settings`:
             settingsHandler: false

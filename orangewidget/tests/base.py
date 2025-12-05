@@ -270,9 +270,8 @@ class WidgetTest(GuiTest):
         super().setUpClass()
 
         cls.widgets = []
-
         cls.signal_manager = DummySignalManager()
-
+        cls.__report = None
         report = None
 
         def get_instance():
@@ -282,7 +281,7 @@ class WidgetTest(GuiTest):
                 report.have_report_warning_shown = True  # if missing QtWebView/QtWebKit
                 if not (os.environ.get("TRAVIS") or os.environ.get("APPVEYOR")):
                     report.show = Mock()
-                cls.widgets.append(report)
+                cls.__report = report
             return report
 
         cls.tear_down_stack.enter_context(
@@ -290,9 +289,8 @@ class WidgetTest(GuiTest):
         )
 
     @classmethod
-    def tearDownClass(cls) -> None:
-        cls.signal_manager.clear()
-        del cls.signal_manager
+    def _clear_widgets(cls):
+        """Clear and dispose of the widgets created via create_widget"""
         widgets = cls.widgets[:]
         cls.widgets.clear()
         while widgets:
@@ -302,11 +300,25 @@ class WidgetTest(GuiTest):
             if not sip.isdeleted(w):
                 w.deleteLater()
             w.signalManager = None
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.signal_manager.clear()
+        del cls.signal_manager
+        cls._clear_widgets()
+
+        if cls.__report is not None:
+            cls.__report.deleteLater()
+            cls.__report = None
+
         super().tearDownClass()
 
+    def setUp(self):
+        super().setUp()
+
     def tearDown(self):
-        """Process any pending events before the next test is executed."""
         self.signal_manager.clear()
+        self._clear_widgets()
         super().tearDown()
 
     def create_widget(self, cls: Type[T], stored_settings: Optional[dict]=None,
@@ -339,8 +351,9 @@ class WidgetTest(GuiTest):
         with open_widget_classes():
             class Cls(cls):
                 def onDeleteWidget(self):
-                    self.__didCallOnDeleteWidget = True
-                    super(Cls, self).onDeleteWidget()
+                    if not self.__didCallOnDeleteWidget:
+                        self.__didCallOnDeleteWidget = True
+                        super(Cls, self).onDeleteWidget()
                 __didCallOnDeleteWidget = False
 
             Cls.__name__ = cls.__name__

@@ -302,9 +302,9 @@ settings.py:
             values=: false
             ): false
 version.py:
-    4.25.0: false
-    4.25.0.dev0+8cea3f1: false
-    8cea3f1fed66a72e7fef95c836a81b33d3eb295e: false
+    4.28.0: false
+    4.28.0.dev0+0a27ec5: false
+    0a27ec5c8efe4e6fdc3f3e057b60df46491cad29: false
     .dev: false
 widget.py:
     OWBaseWidget: false
@@ -921,8 +921,6 @@ utils/filedialogs.py:
         Change extension to {suggested_ext}: Spremeni končnico v {suggested_ext}
         'Save as ': 'Shrani kot '
         Back: Nazaj
-    def `unambiguous_paths`:
-        {sep}|{re.escape(os.path.altsep)}: false
     def `format_filter`:
         {} (*{}): false
         ' *': false
@@ -945,14 +943,37 @@ utils/filedialogs.py:
             '{0.__class__.__name__}(abspath={0.abspath!r}, ': false
             'prefix={0.prefix!r}, relpath={0.relpath!r}, ': false
             title={0.title!r}): false
-    class `RecentPathsWidgetMixin`:
-        def `_check_init`:
-            RecentPathsWidgetMixin.__init__ was not called: false
+    def `_check_init`:
+        def `wrapper`:
+            {type(self).__name__}.__init__ was not called: false
+    class `_RecentPathsWidgetMixinBase`:
         def `_search_paths`:
             basedir: false
-    class `RecentPathsWComboMixin`:
-        def `set_file_list`:
-            (none): (prazno)
+    class `RecentPathsWidgetMixin`:
+        def `__init__`:
+            "RecentPathsWidgetMixin is deprecated because it exposes user's ": false
+            paths; use LocalRecentPathsWidgetMixin instead.: false
+    class `LocalRecentPathsWidgetMixin`:
+        def `__init__`:
+            active_path: false
+            'LocalRecentPathsWidgetMixin must be mixed into a widget that defines ': false
+            'active_path setting; use LocalRecentPathsWComboMixin if you want a ': false
+            combo box with active path handling: false
+        def `__setting_name`:
+            ^OW: false
+            [^A-Za-z_.]: false
+            ([a-z])([A-Z]): false
+            {m.group(1)}-{m.group(2)}: false
+            recent-paths/{name}: false
+        def `_ensure_recent_paths`:
+            recent_paths: false
+        def `store_recent_paths`:
+            recent_paths: false
+        def `_relocate_recent_files`:
+            recent_paths: false
+    class `_RecentPathsWComboMixinBase`:
+        def `_set_file_list`:
+            (none): false
         def `update_file_list`:
             basedir: false
 utils/itemdelegates.py:

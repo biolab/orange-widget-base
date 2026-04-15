@@ -1,13 +1,16 @@
+import functools
 import pathlib
+import re
 from collections import Counter
 from itertools import count
+import warnings
 
 import os
 import sys
 import typing
 from typing import Tuple
 
-from AnyQt.QtCore import QFileInfo, Qt
+from AnyQt.QtCore import QFileInfo, Qt, QSettings
 from AnyQt.QtGui import QBrush
 from AnyQt.QtWidgets import \
     QMessageBox, QFileDialog, QFileIconProvider, QComboBox
@@ -230,6 +233,14 @@ class RecentPath:
                  self.prefix == other.prefix and
                  self.relpath == other.relpath))
 
+    def to_list(self):
+        return [self.abspath, self.prefix, self.relpath,
+                self.title, self.sheet, self.file_format]
+
+    @classmethod
+    def from_list(cls, lst):
+        return cls(*lst)
+
     @staticmethod
     def create(path, searchpaths, **kwargs):
         """
@@ -330,7 +341,16 @@ class RecentPath:
     __str__ = __repr__
 
 
-class RecentPathsWidgetMixin:
+def _check_init(f):
+    @functools.wraps(f)
+    def wrapper(self, *args, **kwargs):
+        if not self._init_called:
+            raise RuntimeError(f"{type(self).__name__}.__init__ was not called")
+        return f(self, *args, **kwargs)
+    return wrapper
+
+
+class _RecentPathsWidgetMixinBase:
     """
     Provide a setting with recent paths and relocation capabilities
 
@@ -345,8 +365,8 @@ class RecentPathsWidgetMixin:
     and overload the method `select_file`, for instance like this
 
         def select_file(self, n):
-            super().select_file(n)
-            self.open_file()
+            recent = super().select_file(n)
+            self.open_file(recent)
 
     The mixin works by adding a `recent_path` setting storing a list of
     instances of :obj:`RecentPath` (not pure strings). The widget can also
@@ -362,20 +382,15 @@ class RecentPathsWidgetMixin:
 
     #: list with search paths; overload to add, say, documentation datasets dir
     SEARCH_PATHS = []
+    MAX_RECENT_PATHS = 15
 
-    #: List[RecentPath]
-    recent_paths = Setting([])
-
+    # This is just a declaration. The definition is provided by subclasses.
+    recent_paths: list[RecentPath]
     _init_called = False
 
     def __init__(self):
-        super().__init__()
         self._init_called = True
-        self._relocate_recent_files()
-
-    def _check_init(self):
-        if not self._init_called:
-            raise RuntimeError("RecentPathsWidgetMixin.__init__ was not called")
+        super().__init__()
 
     def _search_paths(self):
         basedir = self.workflowEnv().get("basedir", None)
@@ -383,46 +398,128 @@ class RecentPathsWidgetMixin:
             return self.SEARCH_PATHS
         return self.SEARCH_PATHS + [("basedir", basedir)]
 
-    def _relocate_recent_files(self):
-        self._check_init()
+    @_check_init
+    def _relocated_recent_files(self, paths):
         search_paths = self._search_paths()
         rec = []
-        for recent in self.recent_paths:
+        for recent in paths:
             kwargs = dict(title=recent.title, sheet=recent.sheet, file_format=recent.file_format)
             resolved = recent.resolve(search_paths)
             if resolved is not None:
                 rec.append(
                     RecentPath.create(resolved.abspath, search_paths, **kwargs))
-            elif recent.search(search_paths) is not None:
-                rec.append(
-                    RecentPath.create(recent.search(search_paths), search_paths, **kwargs)
+            elif (path := recent.search(search_paths)) is not None:
+                rec.append(RecentPath.create(path, search_paths, **kwargs)
                 )
             else:
                 rec.append(recent)
-        # change the list in-place for the case the widgets wraps this list
-        # in some model (untested!)
-        self.recent_paths[:] = rec
+        return rec
 
+    @_check_init
     def add_path(self, filename):
         """Add (or move) a file name to the top of recent paths"""
-        self._check_init()
         recent = RecentPath.create(filename, self._search_paths())
         if recent in self.recent_paths:
             self.recent_paths.remove(recent)
         self.recent_paths.insert(0, recent)
+        del self.recent_paths[self.MAX_RECENT_PATHS:]
+        return recent
 
+    @_check_init
     def select_file(self, n):
         """Move the n-th file to the top of the list"""
         recent = self.recent_paths[n]
         del self.recent_paths[n]
         self.recent_paths.insert(0, recent)
+        return recent
+
+
+class RecentPathsWidgetMixin(_RecentPathsWidgetMixinBase):
+    recent_paths: list[RecentPath] = Setting([])
+
+    def __init__(self):
+        super().__init__()
+        warnings.warn(
+            "RecentPathsWidgetMixin is deprecated because it exposes user's "
+            "paths; use LocalRecentPathsWidgetMixin instead.",
+            DeprecationWarning, stacklevel=2)
+        self._relocate_recent_files()
+
+    def _relocate_recent_files(self):
+        # change the list in-place for the case the widgets wraps this list
+        # in some model (untested!)
+        self.recent_paths[:] = self._relocated_recent_files(self.recent_paths)
 
     def last_path(self):
-        """Return the most recent absolute path or `None` if there is none"""
         return self.recent_paths[0].abspath if self.recent_paths else None
 
 
-class RecentPathsWComboMixin(RecentPathsWidgetMixin):
+class LocalRecentPathsWidgetMixin(_RecentPathsWidgetMixinBase):
+    active_path: typing.Optional[RecentPath]
+    DefaultRecentPaths: list[RecentPath] = []
+
+    def __init__(self):
+        super().__init__()
+        assert hasattr(self, "active_path"), (
+          "LocalRecentPathsWidgetMixin must be mixed into a widget that defines "
+          "active_path setting; use LocalRecentPathsWComboMixin if you want a "
+          "combo box with active path handling")
+        self._ensure_recent_paths()
+        self._relocate_recent_files()
+        self.update_active_path()
+
+    @classmethod
+    def __setting_name(cls):
+        name = cls.__qualname__
+        name = re.sub("^OW", "", name)
+        name = re.sub("[^A-Za-z_.]", "", name)
+        name = re.sub("([a-z])([A-Z])", lambda m: f"{m.group(1)}-{m.group(2)}", name)
+        name = name.lower()
+        name = f"recent-paths/{name}"
+        return name
+
+    @classmethod
+    def _ensure_recent_paths(cls):
+        if "recent_paths" in cls.__dict__:
+            return
+
+        paths = QSettings().value(cls.__setting_name(), [], type=list)
+        paths = [RecentPath.from_list(setting) for setting in paths]
+        if not paths:
+            # Use a copy to avoid sharing the mutable DefaultRecentPaths list
+            paths = cls.DefaultRecentPaths[:]
+        setattr(cls, "recent_paths", paths)
+
+    @classmethod
+    def store_recent_paths(cls):
+        QSettings().setValue(
+            cls.__setting_name(),
+            [path.to_list() for path in getattr(cls, "recent_paths")]
+        )
+
+    def _relocate_recent_files(self):
+        cls = type(self)
+        paths = getattr(cls, "recent_paths", [])
+        paths = self._relocated_recent_files(paths)
+        setattr(cls, "recent_paths", paths)
+        cls.store_recent_paths()
+
+    def add_path(self, filename):
+        recent = super().add_path(filename)
+        self.store_recent_paths()
+        return recent
+
+    def select_file(self, n):
+        recent = super().select_file(n)
+        self.store_recent_paths()
+        return recent
+
+    def update_active_path(self):
+        if self.active_path:
+            self.active_path = self._relocated_recent_files([self.active_path])[0]
+
+
+class _RecentPathsWComboMixinBase:
     """
     Adds file combo handling to :obj:`RecentPathsWidgetMixin`.
 
@@ -438,26 +535,28 @@ class RecentPathsWComboMixin(RecentPathsWidgetMixin):
 
     def add_path(self, filename):
         """Add (or move) a file name to the top of recent paths"""
-        super().add_path(filename)
+        recent = super().add_path(filename)
         self.set_file_list()
+        return recent
 
     def select_file(self, n):
         """Move the n-th file to the top of the list"""
-        super().select_file(n)
+        recent = super().select_file(n)
         self.set_file_list()
+        return recent
 
-    def set_file_list(self):
+    @_check_init
+    def _set_file_list(self, n):
         """
         Sets the items in the file list combo
         """
-        self._check_init()
         self.file_combo.clear()
         if not self.recent_paths:
             self.file_combo.addItem("(none)")
             self.file_combo.model().item(0).setEnabled(False)
             self.file_combo.setToolTip("")
         else:
-            self.file_combo.setToolTip(self.recent_paths[0].abspath)
+            assert 0 <= n < len(self.recent_paths)
             paths = unambiguous_paths(
                 [recent.abspath for recent in self.recent_paths], minlevel=2)
             for i, recent, path in zip(count(), self.recent_paths, paths):
@@ -466,8 +565,62 @@ class RecentPathsWComboMixin(RecentPathsWidgetMixin):
                 if not os.path.exists(recent.abspath):
                     self.file_combo.setItemData(i, QBrush(Qt.red),
                                                 Qt.ForegroundRole)
+            self.file_combo.setToolTip(self.recent_paths[n].abspath)
+            self.file_combo.setCurrentIndex(n)
 
     def update_file_list(self, key, value, oldvalue):
         if key == "basedir":
             self._relocate_recent_files()
             self.set_file_list()
+
+
+class RecentPathsWComboMixin(RecentPathsWidgetMixin,
+                             _RecentPathsWComboMixinBase):
+    def set_file_list(self):
+        self._set_file_list(0)
+
+
+class LocalRecentPathsWComboMixin(LocalRecentPathsWidgetMixin,
+                                  _RecentPathsWComboMixinBase):
+    active_path: typing.Optional[RecentPath] = Setting(None)
+
+    def __init__(self):
+        super().__init__()
+        if self.active_path is None:
+            if self.recent_paths:
+                self.active_path = self.recent_paths[0]
+        else:
+            if self.active_path not in self.recent_paths:
+                self.recent_paths.insert(0, self.active_path)
+                self.store_recent_paths()
+
+    @_check_init
+    def set_file_list(self):
+        if self.active_path in self.recent_paths:
+            n = self.recent_paths.index(self.active_path)
+        else:
+            n = 0
+        self._set_file_list(n)
+
+    def add_path(self, filename):
+        recent = super().add_path(filename)
+        self.active_path = recent
+        return recent
+
+    def select_file(self, n):
+        recent = super().select_file(n)
+        self.active_path = recent
+        return recent
+
+    @classmethod
+    def merge_paths(cls, old_paths: list[RecentPath]):
+        cls._ensure_recent_paths()
+        for old_path in old_paths:
+            if old_path in cls.recent_paths:
+                cls.recent_paths.remove(old_path)
+        cls.recent_paths[:0] = old_paths
+        del cls.recent_paths[cls.MAX_RECENT_PATHS:]
+        cls.store_recent_paths()
+
+    def last_path(self):
+        return self.active_path and self.active_path.abspath

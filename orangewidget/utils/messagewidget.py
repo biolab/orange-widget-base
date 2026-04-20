@@ -18,7 +18,7 @@ from AnyQt.QtWidgets import (
 )
 from AnyQt.QtCore import pyqtSignal as Signal
 
-from orangecanvas.utils.localization import pl
+from orangecanvas.localization import pl
 
 from orangewidget.utils.buttons import flat_button_hover_background
 

@@ -84,7 +84,7 @@ def scatterplot_code(scatterplot_item):
 
     code.append("# style")
     sizes = compress_if_all_same(sizes)
-    if sizes == -1:
+    if np.all(sizes == -1):
         sizes = None
     code.append("sizes = {}".format(numpy_repr(sizes)))
 
@@ -167,8 +167,8 @@ def scatterplot_code(scatterplot_item):
     # each marker requires one call to matplotlib's scatter!
     markers = np.array([matplotlib_marker(m) for m in scatterplot_item.data["symbol"]])
     for m in set(markers):
-        indices = np.where(markers == m)[0]
-        if np.all(indices == np.arange(x.shape[0])):
+        indices = np.nonzero(markers == m)[0]
+        if len(indices) == x.shape[0]:
             indices = None
         if indices is not None:
             code.append("indices = {}".format(numpy_repr_int(indices)))

@@ -659,8 +659,11 @@ class TestPyListModel(unittest.TestCase):
         model += [1, model.Separator]
         model.extend([1, model.Separator])
         for i in range(len(model)):
-            self.assertIs(model.flags(model.index(i)) == Qt.NoItemFlags,
-                          i % 2 != 0, f"in row {i}")
+            if i % 2:
+                midx = model.index(i)
+                self.assertIs(midx.data(Qt.DisplayRole), None)
+                self.assertEqual(midx.data(Qt.AccessibleDescriptionRole), "separator")
+                self.assertEqual(midx.flags(), Qt.NoItemFlags)
 
 
 class TestSeparatedListDelegate(unittest.TestCase):

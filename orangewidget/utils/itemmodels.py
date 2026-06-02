@@ -503,7 +503,8 @@ class PyTableModel(AbstractSortTableModel):
 
 
 class SeparatorItem:
-    pass
+    def __str__(self):
+        return ""
 
 
 class LabelledSeparator(SeparatorItem):

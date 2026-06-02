@@ -6,9 +6,10 @@ from unittest.mock import patch, Mock
 
 import numpy as np
 
-from AnyQt.QtCore import Qt, QModelIndex, QRect
+from AnyQt.QtCore import Qt, QModelIndex, QRect, QLocale
 from AnyQt.QtTest import QSignalSpy
 from AnyQt.QtGui import QPalette, QFont
+from AnyQt.QtWidgets import QStyledItemDelegate
 
 from orangewidget.utils.itemmodels import \
     AbstractSortTableModel, PyTableModel, PyListModel, \
@@ -661,9 +662,14 @@ class TestPyListModel(unittest.TestCase):
         for i in range(len(model)):
             if i % 2:
                 midx = model.index(i)
-                self.assertIs(midx.data(Qt.DisplayRole), None)
-                self.assertEqual(midx.data(Qt.AccessibleDescriptionRole), "separator")
+                self.assertIs(midx.data(Qt.DisplayRole), model.Separator)
+                self.assertEqual(midx.data(Qt.AccessibleDescriptionRole),
+                                 "separator")
                 self.assertEqual(midx.flags(), Qt.NoItemFlags)
+
+    def test_separator_display_text(self):
+        delegate = QStyledItemDelegate()
+        self.assertEqual(delegate.displayText(PyListModel.Separator, QLocale()), "")
 
 
 class TestSeparatedListDelegate(unittest.TestCase):

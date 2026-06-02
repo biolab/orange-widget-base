@@ -503,7 +503,8 @@ class PyTableModel(AbstractSortTableModel):
 
 
 class SeparatorItem:
-    pass
+    def __str__(self):
+        return ""
 
 
 class LabelledSeparator(SeparatorItem):
@@ -596,18 +597,14 @@ class PyListModel(QAbstractListModel):
         return 0 if parent.isValid() else 1
 
     def data(self, index, role=Qt.DisplayRole):
-        if not self._is_index_valid(index):
-            return None
         row = index.row()
-        if role in [self.list_item_role, Qt.EditRole]:
-            item = self[row]
-            if isinstance(item, SeparatorItem):
-                return None
-            return item
-        elif (role == Qt.AccessibleDescriptionRole and
-              isinstance(self[row], SeparatorItem)):
-            return 'separator'
-        else:
+        if role in [self.list_item_role, Qt.EditRole] \
+                and self._is_index_valid(index):
+            return self[row]
+        elif self._is_index_valid(row):
+            if isinstance(self[row], SeparatorItem) \
+                    and role == Qt.AccessibleDescriptionRole:
+                return 'separator'
             return self._other_data[row].get(role, None)
 
     def itemData(self, index):

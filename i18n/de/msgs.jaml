@@ -1,0 +1,232 @@
+gui.py:
+    def `auto_commit`:
+        {label.title()} Automatically: {label.title()} automatisch
+    def `auto_send`:
+        Send Selection: Auswahl senden
+        Send Automatically: Automatisch senden
+    def `auto_apply`:
+        Apply: Anwenden
+        Apply Automatically: Automatisch anwenden
+    class `ColoredBarItemDelegate`:
+        def `displayText`:
+            NA: k.A.
+    class `CalendarWidgetWithTime`:
+        def `__init__`:
+            hh:mm:ss: hh:mm:ss
+            'Time: ': Zeit:
+    class `DateTimeEditWCalendarTime`:
+        def `__init__`:
+            yyyy-MM-dd hh:mm:ss: yyyy-MM-dd hh:mm:ss
+io.py:
+    class `ClipboardFormat`:
+        System Clipboard: Systemzwischenablage
+widget.py:
+    class `OWBaseWidget`:
+        def `__new__`:
+            Help: Hilfe
+            Show help: Hilfe anzeigen
+            Report: Bericht
+            Create and display a report: Bericht erstellen und anzeigen
+            Save Image: Bild speichern
+            Save image: Bild speichern
+            Reset: Zurücksetzen
+            Reset settings to default state: Einstellungen auf Standard zurücksetzen
+            Show View Options: Ansichtoptionen anzeigen
+            Copy to Clipboard: In Zwischenablage kopieren
+            Copy Image to Clipboard: Bild in Zwischenablage kopieren
+            Minimize: Minimieren
+            Close: Schließen
+            Show Menu Bar: Menüleiste anzeigen
+            &File: &Datei
+            &Edit: &Bearbeiten
+            Cut: Ausschneiden
+            Copy: Kopieren
+            Paste: Einfügen
+            Select All: Alles auswählen
+            &View: &Ansicht
+            &Window: &Fenster
+            &Help: &Hilfe
+            Quick Help Tip: Kurzer Hilfetipp
+            Show Control Area: Steuerungsbereich anzeigen
+            Ctrl+Shift+D: Strg+Shift+D
+        def `_create_default_buttons`:
+            &Save Image: &Bild speichern
+            &Report: &Bericht
+        def `statusBar`:
+            Show Status Bar: Statusleiste anzeigen
+            Show status bar: Statusleiste anzeigen
+            Menu: Menü
+        def `__showMessage`:
+            Ok, got it: OK, verstanden
+            Learn more\N{HORIZONTAL ELLIPSIS}: Mehr erfahren…
+    class `StateInfo`:
+        def `set_input_summary`:
+            No data on input: Keine Eingabedaten
+            -: -
+        def `set_output_summary`:
+            No data on output: Keine Ausgabedaten
+            -: -
+report/owreport.py:
+    class `ReportItemModel`:
+        def `add_item`:
+            Remove: Entfernen
+            Open Scheme: Schema öffnen
+    class `OWReport`:
+        Report: Bericht
+        def `__init__`:
+            utf-8: utf-8
+        def `_setup_ui_`:
+            Back to Last Scheme: Zurück zum letzten Schema
+            Save: Speichern
+            Print: Drucken
+        def `_add_item`:
+            {} - {}: {} - {}
+        def `_build_html`:
+            placeholder='Write a comment...': placeholder='Kommentar schreiben...'
+        def `save_report`:
+            Save Report: Bericht speichern
+        def `_print_report`:
+            Print report: Bericht drucken
+        def `permission_error`:
+            PermissionError when trying to write report.: Berechtigungsfehler beim Schreiben des Berichts.
+            Error: Fehler
+            Permission error when trying to write report.: Berechtigungsfehler beim Schreiben des Berichts.
+            'Permission error occurred ': 'Berechtigungsfehler aufgetreten '
+            while saving '{}'.: beim Speichern von '{}'.
+report/report.py:
+    class `Report`:
+        def `show_report`:
+            Missing Component: Fehlende Komponente
+            'Orange can not display reports, because your installation ': 'Orange kann Berichte nicht anzeigen, da Ihre Installation '
+            contains neither WebEngine nor WebKit.\n\n: weder WebEngine noch WebKit enthält.\n\n'
+            'If you installed Orange with conda or pip, try using another ': 'Wenn Sie Orange mit conda oder pip installiert haben, versuchen Sie eine andere '
+            'PyQt distribution. ': 'PyQt-Distribution. '
+            'If you installed Orange with a standard installer, please ': 'Wenn Sie Orange mit dem Standard-Installer installiert haben, melden Sie bitte '
+            report this bug.: diesen Fehler.'
+        def `report_table`:
+            "<tr><th></th><td colspan='{}'><b>+ {} more</b></td></tr>
+            ": "<tr><th></th><td colspan='{}'><b>+ {} weitere</b></td></tr>
+            "
+    def `bool_str`:
+        Yes: Ja
+        No: Nein
+    def `clip_string`:
+        ...: ...
+    def `clipped_list`:
+        ', ': ', '
+    def `get_html_section`:
+        %a %b %d %y, %H:%M:%S: %a %b %d %y, %H:%M:%S
+tests/base.py:
+    class `GuiTest`:
+        English: Englisch
+utils/combobox.py:
+    class `ComboBox`:
+        def `_get_size_hint`:
+            X: X
+    class `ComboBoxSearch`:
+        def `_get_size_hint`:
+            X: X
+        def `showPopup`:
+            Filter...: Filter...
+utils/filedialogs.py:
+    def `fix_extension`:
+        Mismatching extension: Falsche Dateiendung
+        Extension '{ext}' does not match the chosen file format, {format}.: Die Dateiendung '{ext}' stimmt nicht mit dem gewählten Dateiformat {format} überein.
+        \n\nWould you like to fix this?: \n\nMöchten Sie dies korrigieren?
+        Change extension to {suggested_ext}: Dateiendung auf {suggested_ext} ändern
+        'Save as ': Speichern unter
+        Back: Zurück
+    def `open_filename_dialog_save`:
+        Save as...: Speichern unter...
+    def `open_filename_dialog`:
+        Open...: Öffnen...
+        All files (*.*): Alle Dateien (*.*)
+        All readable files (*{}): Alle lesbaren Dateien (*{})
+    class `RecentPathsWComboMixin`:
+        def `set_file_list`:
+            (none): (keine)
+utils/listview.py:
+    class `ListViewFilter`:
+        def `__init__`:
+            Filter...: Filter...
+    class `ListViewSearch`:
+        def `__init__`:
+            Filter...: Filter...
+utils/messagewidget.py:
+    def `summarize`:
+        {nerrors} {pl(nerrors, 'error')}: {nerrors} {pl(nerrors, 'Fehler')}
+        {nwarnings} {pl(nwarnings, 'warning')}: {nwarnings} {pl(nwarnings, 'Warnung')}
+        {ninfo} {pl(ninfo, 'message')}: {ninfo} {pl(ninfo, 'Nachricht')}
+        {ninfo} other {pl(ninfo, 'message')}: {ninfo} andere {pl(ninfo, 'Nachricht')}
+        ' (': ' ('
+        ', ': ', '
+        ): ')'
+utils/overlay.py:
+    class `MessageWidget`:
+        def `addButton`:
+            Ok: OK
+            Help: Hilfe
+utils/progressbar.py:
+    class `ProgressBarMixin`:
+        def `progressBarInit`:
+            ' (0% complete)': ' (0% abgeschlossen)'
+        def `progressBarSet`:
+            {}:{:02}:{:02}: {}:{:02}:{:02}
+            {}:{}:{:02}: {}:{}:{:02}
+            '{} ({:d}%, ETA: {})': '{} ({:d}%, geschätzte Zeit: {})'
+            ' (0% complete)': ' (0% abgeschlossen)'
+utils/saveplot.py:
+    def `save_plot`:
+        Error: Fehler
+        'Error occurred while saving file "{}": {}': 'Fehler beim Speichern der Datei "{}": {}'
+utils/signals.py:
+    class `WidgetSignalsMixin`:
+        def `_update_summary`:
+            def `format_short`:
+                -: -
+            def `format_detail`:
+                -: -
+            def `join_multiples`:
+                -: -
+            ' | ': ' | '
+utils/visual_settings_dlg.py:
+    class `SettingsDialog`:
+        def `__init__`:
+            Visual Settings: Ansichtseinstellungen
+workflow/errorreporting.py:
+    class `ErrorReporting`:
+        def `__init__`:
+            Unexpected Error: Unerwarteter Fehler
+            The program encountered an unexpected error. Please<br>: Das Programm ist auf einen unerwarteten Fehler gestoßen. Bitte<br>
+            report it anonymously to the developers.<br><br>: melden Sie ihn anonym an die Entwickler.<br><br>
+            The following data will be reported:: Die folgenden Daten werden gemeldet:
+            Include workflow (data will NOT be transmitted): Workflow einbeziehen (Daten werden NICHT übertragen)
+            Send Report (Thanks!): Bericht senden (Danke!)
+            Don't Send: Nicht senden
+        def `handle_exception`:
+            Error Encountered: Fehler aufgetreten
+            Error encountered{}:<br><br><tt>{}</tt>: Fehler aufgetreten{}:<br><br><tt>{}</tt>
+            ' in widget <b>{}</b>': ' im Widget <b>{}</b>'
+workflow/mainwindow.py:
+    class `OWCanvasMainWindow`:
+        def `__init__`:
+            Show report: Bericht anzeigen
+            Show a report window: Ein Berichtsfenster anzeigen
+            Open Report...: Bericht öffnen...
+            Open a saved report: Einen gespeicherten Bericht öffnen
+            Reset Widget Settings...: Widget-Einstellungen zurücksetzen...
+        def `open_report`:
+            Open Report: Bericht öffnen
+            Report (*.report): Bericht (*.report)
+        def `reset_widget_settings`:
+            Orange: Orange
+            Clear settings: Einstellungen löschen
+            {name} needs to be restarted for the changes to take effect.: {name} muss neu gestartet werden, damit die Änderungen wirksam werden.
+            Press OK to restart {name} now.: Drücken Sie OK, um {name} jetzt neu zu starten.
+            def `restart`:
+                Restart Cancelled: Neustart abgebrochen
+                Settings will be reset on {name}'s next restart: Die Einstellungen werden beim nächsten Neustart von {name} zurückgesetzt.
+        def `ask_save_report`:
+            Report window: Berichtsfenster
+            The report contains unsaved changes.: Der Bericht enthält ungespeicherte Änderungen.
+            Would you like to save the report?: Möchten Sie den Bericht speichern?

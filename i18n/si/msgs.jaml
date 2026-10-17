@@ -976,6 +976,10 @@ utils/filedialogs.py:
             (none): false
         def `update_file_list`:
             basedir: false
+    class `LocalRecentPathsWComboMixin`:
+        def `migrate_to_local_recent_paths`:
+            recent_paths: false
+            active_path: false
 utils/itemdelegates.py:
     A: false
     class `ModelItemCache`:

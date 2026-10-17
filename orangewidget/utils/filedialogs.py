@@ -624,3 +624,10 @@ class LocalRecentPathsWComboMixin(LocalRecentPathsWidgetMixin,
 
     def last_path(self):
         return self.active_path and self.active_path.abspath
+
+    @classmethod
+    def migrate_to_local_recent_paths(cls, settings):
+        paths = settings.pop("recent_paths", [])
+        if paths:
+            cls.merge_paths(paths)
+            settings["active_path"] = paths[0]

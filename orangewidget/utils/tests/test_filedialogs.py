@@ -6,6 +6,7 @@ import os
 import unittest
 from unittest.mock import Mock, patch
 from tempfile import NamedTemporaryFile
+import time
 
 from AnyQt.QtCore import QSettings, QCoreApplication
 
@@ -335,6 +336,13 @@ class TestLocalRecentPathsWidgetMixin(GuiTest):
         self.assertTrue(sel.abspath.endswith("temp/datasets/baz.txt"))
         self.assertEqual(["baz.txt", "foo.txt", "bar.txt"],
                          [path.basename for path in a.recent_paths])
+
+    def test_use_migrate_settings_from_mixin(self):
+        # Fail after jan 1, 2028
+        if time.gmtime().tm_year >= 2028:
+            self.fail(
+                "The mixin provides migrate_to_local_recent_paths, but widgets duplicate its code instead.\n"
+                "Call the provided method instead, and remove this test.")
 
 
 class TestLocalRecentPathsWComboMixin(WidgetTest):

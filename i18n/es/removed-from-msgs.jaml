@@ -1,0 +1,6 @@
+utils/filedialogs.py:
+    class `RecentPathsWComboMixin`:
+        def `set_file_list`:
+            (none): (ninguno)
+        def `update_file_list`:
+            basedir: false

@@ -298,7 +298,7 @@ class OWBaseWidget(QDialog, OWComponent, Report, ProgressBarMixin,
     messageDeactivated = Signal(Msg)
 
     savedWidgetGeometry = settings.Setting(None)
-    controlAreaVisible = settings.Setting(True, schema_only=True)
+    controlAreaVisible = settings.Setting(True)
 
     __report_action = None  # type: Optional[QAction]
     __save_image_action = None  # type: Optional[QAction]
